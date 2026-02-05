@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import EmailValidation from "./pages/EmailValidation";
+import PrincingSection from "./pages/PrincingSection";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/validate-email" element={<EmailValidation />} />
+              <Route path="/plans" element={<PrincingSection />} />
             </Routes>
           </main>
         </div>
