@@ -9,7 +9,7 @@ import {
   Music2
 } from 'lucide-react';
 import GridBackground from './GridBackground';
-import NeonButton from '../NeoButton';
+import NeonButton from '../homecomponents/NeoButton';
 
 const HeroSection: React.FC = () => {
   // Avatares para Social Proof
@@ -191,7 +191,7 @@ const HeroSection: React.FC = () => {
               ))}
             </div>
             <span className="text-gray-400 text-sm">
-              Junte-se a <span className="text-white font-semibold">+5.000</span> usuários
+              Junte-se a <span className="text-[var(--color-primary)] font-semibold">+5.000</span> usuários
             </span>
           </div>
         </div>

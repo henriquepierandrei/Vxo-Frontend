@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../../hooks/ThemeProvider";
+import { NeoLogo } from "../LogoProps";
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -34,7 +35,7 @@ const Navbar = () => {
   }, [isDark]);
 
   const navItems = [
-    { label: "Início", href: "#" },
+    { label: "Início", href: "/" },
     { label: "Ranking", href: "#ranking" },
     { label: "Premium", href: "#premium" },
     { label: "Comunidade", href: "#comunidade" },
@@ -112,9 +113,7 @@ const Navbar = () => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 shadow-lg">
-                    <span className="text-white font-bold text-sm sm:text-base">N</span>
-                  </div>
+                 
                   
                   <span 
                     className={`text-lg sm:text-xl font-semibold tracking-tight transition-colors duration-300 ${
@@ -122,7 +121,7 @@ const Navbar = () => {
                     }`}
                     style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif' }}
                   >
-                    neo.se
+                    <NeoLogo />
                   </span>
                 </motion.a>
 
@@ -215,6 +214,7 @@ const Navbar = () => {
 
                   {/* Login Button - Desktop */}
                   <motion.button
+                    onClick={() => window.location.href = "/login"}
                     className={`
                       hidden sm:flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 
                       rounded-full text-sm font-medium
