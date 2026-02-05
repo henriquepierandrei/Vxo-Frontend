@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import EmailValidation from "./pages/EmailValidation";
 import PrincingSection from "./pages/PrincingSection";
+import RankingPage from "./pages/RankingPage";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/validate-email" element={<EmailValidation />} />
               <Route path="/plans" element={<PrincingSection />} />
+              <Route path="/ranking" element={<RankingPage />} />
             </Routes>
           </main>
         </div>

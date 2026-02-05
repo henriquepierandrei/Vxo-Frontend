@@ -36,9 +36,9 @@ const Navbar = () => {
 
   const navItems = [
     { label: "Início", href: "/" },
-    { label: "Ranking", href: "#ranking" },
-    { label: "Premium", href: "#premium" },
-    { label: "Comunidade", href: "#comunidade" },
+    { label: "Ranking", href: "/ranking" },
+    { label: "Premium", href: "/plans" },
+    { label: "Dashboard", href: "/dashboard" },
   ];
 
   return (

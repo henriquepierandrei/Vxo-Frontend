@@ -33,6 +33,7 @@ const NeonButton = () => {
       `}</style>
 
       <button
+        onClick={() => window.location.href = '/plans'}
         className="inline-flex transition overflow-hidden group text-sm font-medium rounded-full relative items-center justify-center"
         style={{
           background: 'linear-gradient(135deg, var(--color-background) 0%, var(--card-background-glass) 100%)',
