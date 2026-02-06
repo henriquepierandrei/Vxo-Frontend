@@ -50,12 +50,12 @@ const Sidebar = () => {
     {
       title: "Painel",
       items: [
-        { icon: <Home size={20} />, label: "Início", href: "/dashboard" },
-        { 
-          icon: <ShoppingBag size={20} />, 
-          label: "Loja", 
-          href: "/loja", 
-          badge: "Novo", 
+        { icon: <Home size={20} />, label: "Início", href: "/dashboard/start" },
+        {
+          icon: <ShoppingBag size={20} />,
+          label: "Loja",
+          href: "/loja",
+          badge: "Novo",
           isBlock: true,
           blockReason: "Em breve" // ✅ Motivo do bloqueio
         },
@@ -64,26 +64,25 @@ const Sidebar = () => {
     {
       title: "Perfil",
       items: [
-        { icon: <Layout size={20} />, label: "Layout", href: "/layout" },
-        { icon: <Image size={20} />, label: "Ativos", href: "/ativos" },
-        { icon: <Palette size={20} />, label: "Customização", href: "/customizacao" },
-        { icon: <Tags size={20} />, label: "Cores e Tags", href: "/cores-tags" },
+        { icon: <Image size={20} />, label: "Ativos", href: "/dashboard/assets" },
+        { icon: <Palette size={20} />, label: "Customização", href: "/dashboard/customization" },
+        { icon: <Tags size={20} />, label: "Tags", href: "/dashboard/tags" },
       ],
     },
     {
       title: "Widgets",
       items: [
-        { icon: <Link2 size={20} />, label: "Links", href: "/links" },
-        { icon: <Share2 size={20} />, label: "Redes Sociais", href: "/redes-sociais" },
+        { icon: <Link2 size={20} />, label: "Links", href: "/dashboard/links" },
+        { icon: <Share2 size={20} />, label: "Redes Sociais", href: "/dashboard/socialmedia" },
         { icon: <Code size={20} />, label: "Embeds", href: "/embeds", isBlock: true, blockReason: "Premium" },
       ],
     },
     {
       title: "Conta",
       items: [
-        { icon: <Settings size={20} />, label: "Configurações", href: "/configuracoes" },
-        { icon: <Package size={20} />, label: "Inventário", href: "/inventario" },
-        { icon: <History size={20} />, label: "Histórico", href: "/historico" },
+        { icon: <Settings size={20} />, label: "Configurações", href: "/dashboard/settings" },
+        { icon: <Package size={20} />, label: "Inventário", href: "/dashboard/inventory" },
+        { icon: <History size={20} />, label: "Histórico", href: "/dashboard/logs" },
       ],
     },
   ];
@@ -105,13 +104,14 @@ const Sidebar = () => {
 
     const handleClick = (e: React.MouseEvent) => {
       e.preventDefault();
-      
+
       // ✅ Se estiver bloqueado, não faz nada
       if (isBlocked) {
         return;
       }
-      
+
       setActiveItem(item.label);
+      window.location.href = item.href;
     };
 
     return (
@@ -128,7 +128,7 @@ const Sidebar = () => {
             relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
             transition-all duration-300 group
             
-            ${isBlocked 
+            ${isBlocked
               ? "cursor-not-allowed opacity-50" // ✅ Estilo bloqueado
               : "cursor-pointer"
             }
@@ -184,7 +184,7 @@ const Sidebar = () => {
                   {item.badge}
                 </motion.span>
               )}
-              
+
               {/* ✅ Lock indicator quando bloqueado */}
               {isBlocked && (
                 <motion.div
@@ -216,14 +216,14 @@ const Sidebar = () => {
               <span className={isBlocked ? "line-through opacity-60" : ""}>
                 {item.label}
               </span>
-              
+
               {/* Badge no tooltip */}
               {item.badge && !isBlocked && (
                 <span className="px-1.5 py-0.5 text-xs rounded-full bg-[var(--color-primary)] text-white">
                   {item.badge}
                 </span>
               )}
-              
+
               {/* ✅ Lock no tooltip */}
               {isBlocked && (
                 <div className="flex items-center gap-1 text-[var(--color-text-muted)]">
@@ -242,8 +242,8 @@ const Sidebar = () => {
           <div className="absolute inset-0 rounded-[var(--border-radius-sm)] pointer-events-none">
             {/* Linha diagonal sutil */}
             <div className="absolute inset-0 overflow-hidden rounded-[var(--border-radius-sm)] opacity-10">
-              <div 
-                className="absolute inset-0" 
+              <div
+                className="absolute inset-0"
                 style={{
                   background: `repeating-linear-gradient(
                     45deg,
@@ -262,19 +262,23 @@ const Sidebar = () => {
   };
 
   // ✅ Componente para Mobile NavItem com lógica de block
+  // ✅ Componente para Mobile NavItem CORRIGIDO
   const MobileNavItemComponent = ({ item }: { item: NavItem }) => {
     const isActive = activeItem === item.label;
     const isBlocked = item.isBlock === true;
 
     const handleClick = (e: React.MouseEvent) => {
       e.preventDefault();
-      
+
       if (isBlocked) {
         return;
       }
-      
+
       setActiveItem(item.label);
       setIsMobileOpen(false);
+
+      // ✅ ADICIONADO: Navegação para o link
+      window.location.href = item.href;
     };
 
     return (
@@ -282,21 +286,21 @@ const Sidebar = () => {
         href={isBlocked ? undefined : item.href}
         onClick={handleClick}
         className={`
-          relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
-          transition-all duration-300
-          
-          ${isBlocked 
-            ? "cursor-not-allowed opacity-50" 
+        relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
+        transition-all duration-300
+        
+        ${isBlocked
+            ? "cursor-not-allowed opacity-50"
             : "cursor-pointer"
           }
-          
-          ${isActive && !isBlocked
+        
+        ${isActive && !isBlocked
             ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
             : isBlocked
               ? "text-[var(--color-text-muted)]"
               : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
           }
-        `}
+      `}
         whileHover={isBlocked ? {} : { x: 4 }}
         whileTap={isBlocked ? {} : { scale: 0.98 }}
       >
@@ -306,22 +310,22 @@ const Sidebar = () => {
             className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--color-primary)] rounded-r-full"
           />
         )}
-        
+
         <span className={isActive && !isBlocked ? "text-[var(--color-primary)]" : ""}>
           {item.icon}
         </span>
-        
+
         <span className={`text-sm font-medium ${isBlocked ? "line-through" : ""}`}>
           {item.label}
         </span>
-        
+
         <div className="ml-auto flex items-center gap-2">
           {item.badge && !isBlocked && (
             <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-[var(--color-primary)] text-white">
               {item.badge}
             </span>
           )}
-          
+
           {isBlocked && (
             <div className="flex items-center gap-1">
               <Lock size={14} className="text-[var(--color-text-muted)]" />
@@ -414,12 +418,12 @@ const Sidebar = () => {
                   {section.title}
                 </motion.h3>
               ) : (
-                <motion.div 
+                <motion.div
                   key="divider"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="h-px bg-[var(--color-border)] my-3 mx-3" 
+                  className="h-px bg-[var(--color-border)] my-3 mx-3"
                 />
               )}
             </AnimatePresence>

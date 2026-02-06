@@ -1,7 +1,7 @@
-import React from 'react'
-import Navbar from '../components/homecomponents/Navbar'
-import FormValidation from '../components/authcomponents/FormValidation'
-import Footer from '../components/homecomponents/Footer'
+import FormValidation from "../../components/authcomponents/FormValidation"
+import Footer from "../../components/homecomponents/Footer"
+import Navbar from "../../components/homecomponents/Navbar"
+
 
 function EmailValidation() {
   return (

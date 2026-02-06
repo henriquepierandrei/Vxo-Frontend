@@ -1,7 +1,7 @@
-import React from 'react'
-import Navbar from '../components/homecomponents/Navbar'
-import PricingPage from '../components/PricingPlans'
-import Footer from '../components/homecomponents/Footer'
+import Footer from "../../components/homecomponents/Footer"
+import Navbar from "../../components/homecomponents/Navbar"
+import PricingPage from "../../components/PricingPlans"
+
 
 function PrincingSection() {
   return (

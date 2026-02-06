@@ -1,6 +1,7 @@
-import Footer from '../components/homecomponents/Footer'
-import Navbar from '../components/homecomponents/Navbar'
-import Ranking from '../components/rankingcomponents/Ranking'
+import Footer from "../../components/homecomponents/Footer"
+import Navbar from "../../components/homecomponents/Navbar"
+import Ranking from "../../components/rankingcomponents/Ranking"
+
 
 function RankingPage() {
   return (

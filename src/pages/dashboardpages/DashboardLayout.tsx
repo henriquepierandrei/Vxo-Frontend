@@ -1,5 +1,5 @@
 // layouts/DashboardLayout.tsx
-import Sidebar from "../components/dashboardcomponents/Sidebar";
+import Sidebar from "../../components/dashboardcomponents/Sidebar";
 
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   return (
