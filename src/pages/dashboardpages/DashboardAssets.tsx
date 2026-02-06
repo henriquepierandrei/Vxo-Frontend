@@ -14,16 +14,13 @@ import {
   VolumeX,
   Trash2,
   ExternalLink,
-  Download,
   Eye,
   X,
   AlertCircle,
   CheckCircle,
   FileVideo,
-  Clock,
   HardDrive,
   Calendar,
-  RefreshCw,
   Maximize2,
   Copy,
   Check,
@@ -385,7 +382,6 @@ const AudioPlayer = ({
 // Asset Preview Card Component
 const AssetPreviewCard = ({
   asset,
-  type,
   icon: Icon,
   title,
   onRemove,
@@ -685,7 +681,7 @@ const DashboardAssets = () => {
               p-4 rounded-[var(--border-radius-md)]
               border transition-all duration-300
               ${item.active 
-                ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]/30' 
+                ? 'bg-[var(--color-primary)]/10 border-[var(--color-primary)]' 
                 : 'bg-[var(--color-surface)] border-[var(--color-border)]'
               }
             `}

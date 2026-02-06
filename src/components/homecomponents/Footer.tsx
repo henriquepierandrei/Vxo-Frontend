@@ -24,7 +24,7 @@ const Footer = () => {
             transition={{ type: "spring", stiffness: 400 }}
           >
             <span className="text-3xl font-bold text-[var(--color-text)]">
-              Neo
+              Vxo
               <span className="text-[var(--color-primary)]">.</span>
               <span className="text-[var(--color-text-muted)]">se</span>
             </span>
@@ -111,7 +111,7 @@ const Footer = () => {
             transition={{ delay: 0.4 }}
           >
             © 2023 — 2025{" "}
-            <span className="text-[var(--color-primary)]">Neo</span>
+            <span className="text-[var(--color-primary)]">Vxo</span>
             . Todos os direitos reservados
           </motion.p>
         </div>

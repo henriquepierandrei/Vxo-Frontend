@@ -21,7 +21,7 @@ const pricingPlans: PricingPlan[] = [
   {
     name: 'Grátis',
     tagline: 'Sem benefícios extras',
-    description: 'Use recursos padrões da Neo.',
+    description: 'Use recursos padrões da Vxo.',
     price: 0,
     priceLabel: '',
     features: [

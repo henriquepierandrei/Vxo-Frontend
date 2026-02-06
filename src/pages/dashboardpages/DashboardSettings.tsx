@@ -685,7 +685,7 @@ const DashboardSettings = () => {
             <SectionHeader
               icon={Shield}
               title="Conexões e Segurança"
-              description="Vincule sua conta Zyo as redes disponíveis abaixo."
+              description="Vincule sua conta Vxo as redes disponíveis abaixo."
             />
 
             <div className="space-y-3">

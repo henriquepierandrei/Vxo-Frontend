@@ -121,7 +121,7 @@ type Transaction = PremiumTransaction | GiftTransaction | RechargeTransaction | 
 const sampleTransactions: Transaction[] = [
   // Premium
   {
-    id: "ZYO-2025-001234",
+    id: "VXO-2025-001234",
     category: "premium",
     method: "PIX",
     methodIcon: "pix",
@@ -132,7 +132,7 @@ const sampleTransactions: Transaction[] = [
     expiresAt: "2025-02-15",
   },
   {
-    id: "ZYO-2025-001198",
+    id: "VXO-2025-001198",
     category: "premium",
     method: "Cartão de Crédito",
     methodIcon: "card",
@@ -143,7 +143,7 @@ const sampleTransactions: Transaction[] = [
   },
   // Gifts
   {
-    id: "ZYO-GFT-001456",
+    id: "VXO-GFT-001456",
     category: "gifts",
     giftType: "received",
     itemName: "Moldura Neon",
@@ -154,7 +154,7 @@ const sampleTransactions: Transaction[] = [
     date: "2025-01-10T18:45:00",
   },
   {
-    id: "ZYO-GFT-001389",
+    id: "VXO-GFT-001389",
     category: "gifts",
     giftType: "sent",
     itemName: "Background Galaxy",
@@ -165,7 +165,7 @@ const sampleTransactions: Transaction[] = [
     date: "2025-01-05T12:30:00",
   },
   {
-    id: "ZYO-GFT-001290",
+    id: "VXO-GFT-001290",
     category: "gifts",
     giftType: "received",
     itemName: "Cursor Fire",
@@ -177,7 +177,7 @@ const sampleTransactions: Transaction[] = [
   },
   // Recharges
   {
-    id: "ZYO-RCH-002345",
+    id: "VXO-RCH-002345",
     category: "recharges",
     method: "PIX",
     methodIcon: "pix",
@@ -188,7 +188,7 @@ const sampleTransactions: Transaction[] = [
     date: "2025-01-12T16:20:00",
   },
   {
-    id: "ZYO-RCH-002298",
+    id: "VXO-RCH-002298",
     category: "recharges",
     method: "Cartão de Crédito",
     methodIcon: "card",
@@ -199,7 +199,7 @@ const sampleTransactions: Transaction[] = [
     date: "2024-12-28T11:00:00",
   },
   {
-    id: "ZYO-RCH-002156",
+    id: "VXO-RCH-002156",
     category: "recharges",
     method: "PIX",
     methodIcon: "pix",
@@ -211,7 +211,7 @@ const sampleTransactions: Transaction[] = [
   },
   // Items
   {
-    id: "ZYO-ITM-003567",
+    id: "VXO-ITM-003567",
     category: "items",
     itemName: "Aurora Background",
     itemType: "background",
@@ -222,7 +222,7 @@ const sampleTransactions: Transaction[] = [
     date: "2025-01-14T20:30:00",
   },
   {
-    id: "ZYO-ITM-003489",
+    id: "VXO-ITM-003489",
     category: "items",
     itemName: "Golden Frame",
     itemType: "frame",
@@ -233,7 +233,7 @@ const sampleTransactions: Transaction[] = [
     date: "2025-01-08T15:10:00",
   },
   {
-    id: "ZYO-ITM-003345",
+    id: "VXO-ITM-003345",
     category: "items",
     itemName: "Sparkle Effect",
     itemType: "effect",
@@ -244,7 +244,7 @@ const sampleTransactions: Transaction[] = [
     date: "2025-01-03T08:55:00",
   },
   {
-    id: "ZYO-ITM-003234",
+    id: "VXO-ITM-003234",
     category: "items",
     itemName: "Verified Badge",
     itemType: "badge",
@@ -256,18 +256,18 @@ const sampleTransactions: Transaction[] = [
   },
   // URL Changes
   {
-    id: "ZYO-URL-004123",
+    id: "VXO-URL-004123",
     category: "url",
-    oldUrl: "zyo.se/user123",
-    newUrl: "zyo.se/henrique",
+    oldUrl: "vxo.lat/user123",
+    newUrl: "vxo.lat/henrique",
     status: "approved",
     date: "2025-01-11T13:25:00",
   },
   {
-    id: "ZYO-URL-004089",
+    id: "VXO-URL-004089",
     category: "url",
-    oldUrl: "zyo.se/oldname",
-    newUrl: "zyo.se/newname",
+    oldUrl: "vxo.lat/oldname",
+    newUrl: "vxo.lat/newname",
     reason: "Mudança de marca pessoal",
     status: "approved",
     date: "2024-11-22T10:15:00",
@@ -1231,7 +1231,7 @@ const LogsPremium = () => {
             <StatCard icon={Link2} label="Total de Trocas" value={stats.total.toString()} />
             <StatCard icon={CheckCircle} label="Aprovadas" value={stats.approved?.toString() || "0"} iconColor="text-green-400" iconBg="bg-green-500/10" />
             <StatCard icon={Clock} label="Última Troca" value={stats.total > 0 ? "Recente" : "—"} iconColor="text-blue-400" iconBg="bg-blue-500/10" />
-            <StatCard icon={Tag} label="URL Atual" value="zyo.se/henrique" iconColor="text-[var(--color-primary)]" />
+            <StatCard icon={Tag} label="URL Atual" value="vxo.lat/henrique" iconColor="text-[var(--color-primary)]" />
           </>
         );
     }
@@ -1263,7 +1263,7 @@ const LogsPremium = () => {
             Histórico
           </h1>
           <p className="text-[10px] sm:text-sm lg:text-base text-[var(--color-text-muted)] mt-1 sm:mt-2">
-            Acompanhe todo o seu histórico de transações dentro da Zyo.
+            Acompanhe todo o seu histórico de transações dentro da Vxo.
           </p>
         </motion.div>
       </div>

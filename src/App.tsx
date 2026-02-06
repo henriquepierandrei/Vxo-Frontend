@@ -38,11 +38,11 @@ function App() {
               <Route path="/dashboard/settings" element={<DashboardLayout><DashboardSettings /></DashboardLayout>} />
               <Route path="/dashboard/tags" element={<DashboardLayout><DashboardTags /></DashboardLayout>} />
               <Route path="/dashboard/logs" element={<DashboardLayout><LogsPremium /></DashboardLayout>} />
-              <Route path="/dashboard/inventory" element={<DashboardLayout><DashboardInventory /></DashboardLayout>} />
               <Route path="/dashboard/links" element={<DashboardLayout><DashboardLinks /></DashboardLayout>} />
               <Route path="/dashboard/socialmedia" element={<DashboardLayout><DashboardSocial /></DashboardLayout>} />
               <Route path="/dashboard/assets" element={<DashboardLayout><DashboardAssets /></DashboardLayout>} />
 
+              <Route path="/dashboard/inventory" element={<DashboardLayout><DashboardInventory /></DashboardLayout>} />
 
               <Route path="/dashboard/customization" element={<DashboardLayout><DashboardCustomization /></DashboardLayout>} />
             </Routes>

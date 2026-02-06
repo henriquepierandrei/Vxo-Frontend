@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../../hooks/ThemeProvider";
-import { NeoLogo } from "../LogoProps";
+import { VxoLogo } from "../LogoProps";
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -121,7 +121,7 @@ const Navbar = () => {
                     }`}
                     style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif' }}
                   >
-                    <NeoLogo />
+                    <VxoLogo />
                   </span>
                 </motion.a>
 

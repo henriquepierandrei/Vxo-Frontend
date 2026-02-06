@@ -6,7 +6,7 @@ interface LogoProps {
     variant?: "full" | "icon" | "minimal" | "stacked";
 }
 
-export const NeoLogoSmall: React.FC<LogoProps> = ({
+export const VxoLogoSmall: React.FC<LogoProps> = ({
     className = "",
     size = 40,
     variant = "full"

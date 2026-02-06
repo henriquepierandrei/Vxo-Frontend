@@ -637,7 +637,7 @@ const DashboardSocial = () => {
             <SectionHeader
               icon={Share2}
               title="Redes Sociais"
-              description="Divulgue todas as suas redes sociais diretamente em seu perfil da Zyo."
+              description="Divulgue todas as suas redes sociais diretamente em seu perfil da Vxo."
             />
 
             <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-5 xl:grid-cols-4 gap-2 sm:gap-3">

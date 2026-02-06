@@ -9,12 +9,12 @@ interface LogoProps {
 // ============================================
 // VARIANTE 1: Logo Completo (Ícone + Wordmark)
 // ============================================
-export const NeoLogo: React.FC<LogoProps> = ({ 
-  className = "", 
+export const VxoLogo: React.FC<LogoProps> = ({
+  className = "",
   size = 120,
-  variant = "full" 
+  variant = "full"
 }) => {
- 
+
 
   return (
     <svg
@@ -39,7 +39,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           fill="none"
           opacity="0.3"
         />
-        
+
         {/* Tronco central */}
         <line
           x1="16"
@@ -50,7 +50,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           strokeWidth="2.5"
           strokeLinecap="round"
         />
-        
+
         {/* Galho esquerdo */}
         <line
           x1="16"
@@ -61,7 +61,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           strokeWidth="2"
           strokeLinecap="round"
         />
-        
+
         {/* Galho direito */}
         <line
           x1="16"
@@ -72,7 +72,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           strokeWidth="2"
           strokeLinecap="round"
         />
-        
+
         {/* Nó central (ponto de conexão) */}
         <circle
           cx="16"
@@ -80,7 +80,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           r="2"
           fill="currentColor"
         />
-        
+
         {/* Folha/Link esquerdo */}
         <circle
           cx="10"
@@ -89,7 +89,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           fill="currentColor"
           opacity="0.7"
         />
-        
+
         {/* Folha/Link direito */}
         <circle
           cx="22"
@@ -98,7 +98,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           fill="currentColor"
           opacity="0.7"
         />
-        
+
         {/* Folha/Link topo */}
         <circle
           cx="16"
@@ -106,7 +106,7 @@ export const NeoLogo: React.FC<LogoProps> = ({
           r="2"
           fill="currentColor"
         />
-        
+
         {/* Linha para folha topo */}
         <line
           x1="16"
@@ -121,12 +121,12 @@ export const NeoLogo: React.FC<LogoProps> = ({
 
       {/* Wordmark */}
       <g fill="currentColor">
-        {/* N */}
-        <path d="M42 8h3.5v16h-3.2L36 13.5V24h-3.5V8h3.2l6.3 10.5V8Z" />
-        {/* E */}
-        <path d="M48 8h10v3h-6.5v3.5H57v3h-5.5V21H58v3H48V8Z" />
+        {/* V */}
+        <path d="M34 8h3.5l4 12 4-12h3.5l-5.5 16h-4L34 8Z" />
+        {/* X */}
+        <path d="M51 8h4l4 6 4-6h4l-6 8 6 8h-4l-4-6-4 6h-4l6-8-6-8Z" />
         {/* O */}
-        <path d="M68 7.5c4.7 0 8 3.5 8 8.5s-3.3 8.5-8 8.5-8-3.5-8-8.5 3.3-8.5 8-8.5Zm0 13.5c2.5 0 4.3-2 4.3-5s-1.8-5-4.3-5-4.3 2-4.3 5 1.8 5 4.3 5Z" />
+        <path d="M77 7.5c4.7 0 8 3.5 8 8.5s-3.3 8.5-8 8.5-8-3.5-8-8.5 3.3-8.5 8-8.5Zm0 13.5c2.5 0 4.3-2 4.3-5s-1.8-5-4.3-5-4.3 2-4.3 5 1.8 5 4.3 5Z" />
       </g>
     </svg>
   );

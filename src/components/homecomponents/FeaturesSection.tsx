@@ -45,7 +45,7 @@ const FeaturesSection = () => {
     },
     {
       number: "04",
-      title: "Neo Premium",
+      title: "Vxo Premium",
       description: "Recursos exclusivos como álbuns de fotos e insígnias especiais.",
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

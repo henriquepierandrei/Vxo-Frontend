@@ -2,13 +2,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../../hooks/ThemeProvider";
-import { NeoLogo } from "../LogoProps";
-import { NeoLogoSmall } from "../LogoPropsSmall";
+import { VxoLogo } from "../LogoProps";
+import { VxoLogoSmall } from "../LogoPropsSmall";
 
 import {
   Home,
   ShoppingBag,
-  Layout,
   Image,
   Palette,
   Tags,
@@ -359,7 +358,7 @@ const Sidebar = () => {
                 transition={{ duration: 0.2 }}
                 className="flex items-center justify-center mr-2"
               >
-                <NeoLogoSmall />
+                <VxoLogoSmall />
               </motion.div>
             ) : (
               <motion.div
@@ -370,7 +369,7 @@ const Sidebar = () => {
                 transition={{ duration: 0.2 }}
                 className="flex items-center gap-3"
               >
-                <NeoLogo />
+                <VxoLogo />
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -519,7 +518,7 @@ const Sidebar = () => {
                   Usuário
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)] truncate">
-                  usuario@zyo.se
+                  vxo.lat/usuario
                 </p>
               </motion.div>
             )}
@@ -534,7 +533,7 @@ const Sidebar = () => {
     <>
       <div className="flex items-center justify-center p-4 border-b border-[var(--color-border)]">
         <motion.div className="flex items-center gap-3">
-          <NeoLogo />
+          <VxoLogo />
           <div className="flex flex-col">
             <span className="text-[var(--color-text-muted)] text-xs">Dashboard</span>
           </div>
@@ -581,7 +580,7 @@ const Sidebar = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[var(--color-text)] truncate">Usuário</p>
-            <p className="text-xs text-[var(--color-text-muted)] truncate">usuario@zyo.se</p>
+            <p className="text-xs text-[var(--color-text-muted)] truncate">vxo.lat/usuario</p>
           </div>
         </motion.div>
       </div>

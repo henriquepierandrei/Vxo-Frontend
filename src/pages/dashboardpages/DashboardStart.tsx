@@ -87,7 +87,7 @@ const STATS: StatCard[] = [
     trend: { value: 12, isPositive: true },
   },
   {
-    id: "zyons",
+    id: "vcoins",
     label: "Zyons",
     value: 0,
     icon: Zap,
