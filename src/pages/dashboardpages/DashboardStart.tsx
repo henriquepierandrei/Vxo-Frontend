@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   ChevronRight,
   LayoutDashboard,
@@ -8,7 +7,6 @@ import {
   Award,
   CreditCard,
   User,
-  Settings,
   Image,
   Link,
   LogOut,
@@ -27,7 +25,6 @@ import {
   Star,
   ExternalLink,
   Construction,
-  ChevronDown,
   TrendingUp,
   Calendar,
   Activity,
@@ -246,8 +243,6 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
 
 // Profile Card Component
 const ProfileCard = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
   const menuItems = [
     { icon: User, label: "Ver Perfil", href: "/profile" },
     { icon: Image, label: "Editar Imagens", href: "/dashboard/images" },

@@ -1,7 +1,7 @@
-// pages/Links/Links.tsx
-
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { detectSocialNetwork, getSocialNetworkName } from "../../utils/socialUtils";
+
 import {
   Link as LinkIcon,
   Plus,
@@ -18,13 +18,15 @@ import {
   Check,
   Loader2,
   RefreshCw,
+  Share2,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { linkService } from "../../services/linkService";
-import { 
-  extractDomainInfo, 
-  isValidUrl, 
-  normalizeUrl, 
-  getKnownDomainInfo
+import {
+  extractDomainInfo,
+  isValidUrl,
+  normalizeUrl,
+  getKnownDomainInfo,
 } from "../../utils/linkUtils";
 import type { UserLinkResponse } from "../../types/links.types";
 
@@ -43,10 +45,142 @@ interface UserLink {
 }
 
 // ═══════════════════════════════════════════════════════════
+// DOMÍNIOS DE REDES SOCIAIS BLOQUEADOS
+// (Se o usuário tentar adicionar, é redirecionado para Redes Sociais)
+// ═══════════════════════════════════════════════════════════
+
+const SOCIAL_NETWORK_DOMAINS: Record<string, string> = {
+  // Instagram
+  "instagram.com": "Instagram",
+  "www.instagram.com": "Instagram",
+  // Snapchat
+  "snapchat.com": "Snapchat",
+  "www.snapchat.com": "Snapchat",
+  // YouTube
+  "youtube.com": "YouTube",
+  "www.youtube.com": "YouTube",
+  "youtu.be": "YouTube",
+  "m.youtube.com": "YouTube",
+  // Discord
+  "discord.com": "Discord",
+  "discord.gg": "Discord",
+  "discordapp.com": "Discord",
+  // Facebook
+  "facebook.com": "Facebook",
+  "www.facebook.com": "Facebook",
+  "fb.com": "Facebook",
+  "m.facebook.com": "Facebook",
+  // Twitter / X
+  "twitter.com": "Twitter",
+  "www.twitter.com": "Twitter",
+  "x.com": "Twitter",
+  "www.x.com": "Twitter",
+  // TikTok
+  "tiktok.com": "TikTok",
+  "www.tiktok.com": "TikTok",
+  "vm.tiktok.com": "TikTok",
+  // Last.fm
+  "last.fm": "Last.fm",
+  "www.last.fm": "Last.fm",
+  "lastfm.com": "Last.fm",
+  // Steam
+  "steamcommunity.com": "Steam",
+  "store.steampowered.com": "Steam",
+  "steampowered.com": "Steam",
+  // GitHub
+  "github.com": "GitHub",
+  "www.github.com": "GitHub",
+  // Spotify
+  "spotify.com": "Spotify",
+  "open.spotify.com": "Spotify",
+  // Twitch
+  "twitch.tv": "Twitch",
+  "www.twitch.tv": "Twitch",
+  // Soundcloud
+  "soundcloud.com": "Soundcloud",
+  "www.soundcloud.com": "Soundcloud",
+  // WhatsApp
+  "whatsapp.com": "WhatsApp",
+  "wa.me": "WhatsApp",
+  "api.whatsapp.com": "WhatsApp",
+  // Telegram
+  "telegram.org": "Telegram",
+  "t.me": "Telegram",
+  "telegram.me": "Telegram",
+  // Battle.net
+  "battle.net": "BattleNet",
+  "blizzard.com": "BattleNet",
+  // LinkedIn
+  "linkedin.com": "LinkedIn",
+  "www.linkedin.com": "LinkedIn",
+  // PayPal
+  "paypal.com": "PayPal",
+  "paypal.me": "PayPal",
+  "www.paypal.com": "PayPal",
+  // Xbox
+  "xbox.com": "Xbox",
+  "www.xbox.com": "Xbox",
+  // Pinterest
+  "pinterest.com": "Pinterest",
+  "www.pinterest.com": "Pinterest",
+  "br.pinterest.com": "Pinterest",
+  // Letterboxd
+  "letterboxd.com": "Letterboxd",
+  "www.letterboxd.com": "Letterboxd",
+  // Tumblr
+  "tumblr.com": "Tumblr",
+  "www.tumblr.com": "Tumblr",
+  // VSCO
+  "vsco.co": "VSCO",
+  "www.vsco.co": "VSCO",
+  // OnlyFans
+  "onlyfans.com": "OnlyFans",
+  "www.onlyfans.com": "OnlyFans",
+  // Bluesky
+  "bsky.app": "Bluesky",
+  "bsky.social": "Bluesky",
+  // Threads
+  "threads.net": "Threads",
+  "www.threads.net": "Threads",
+  // Roblox
+  "roblox.com": "Roblox",
+  "www.roblox.com": "Roblox",
+  "web.roblox.com": "Roblox",
+  // Patreon
+  "patreon.com": "Patreon",
+  "www.patreon.com": "Patreon",
+  // Privacy
+  "privacy.com.br": "Privacy",
+  "www.privacy.com.br": "Privacy",
+  // FiveM
+  "cfx.re": "FiveM",
+  "fivem.net": "FiveM",
+  // iFood
+  "ifood.com.br": "iFood",
+  "www.ifood.com.br": "iFood",
+  // Gmail
+  "gmail.com": "Gmail",
+  "mail.google.com": "Gmail",
+  // NameMC
+  "namemc.com": "NameMC",
+  "www.namemc.com": "NameMC",
+};
+
+/**
+ * Verifica se a URL pertence a uma rede social predefinida.
+ * Retorna o nome da rede social ou null.
+ */
+const getSocialNetworkFromUrl = (url: string): string | null => {
+  const networkId = detectSocialNetwork(url);
+  if (!networkId) return null;
+  
+  return getSocialNetworkName(url);
+};
+
+// ═══════════════════════════════════════════════════════════
 // COMPONENTES BASE
 // ═══════════════════════════════════════════════════════════
 
-// Input Component
 const Input = ({
   label,
   type = "text",
@@ -74,7 +208,11 @@ const Input = ({
     <div className="flex items-center justify-between">
       <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
       {maxLength && (
-        <span className={`text-xs ${value.length >= maxLength ? 'text-red-400' : 'text-[var(--color-text-muted)]'}`}>
+        <span
+          className={`text-xs ${
+            value.length >= maxLength ? "text-red-400" : "text-[var(--color-text-muted)]"
+          }`}
+        >
           {value.length}/{maxLength}
         </span>
       )}
@@ -89,7 +227,9 @@ const Input = ({
         type={type}
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
+        onChange={(e) =>
+          onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)
+        }
         maxLength={maxLength}
         disabled={disabled}
         className={`
@@ -99,9 +239,10 @@ const Input = ({
           focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
           disabled:opacity-50 disabled:cursor-not-allowed
           ${Icon ? "pl-10" : ""}
-          ${error 
-            ? "border-red-500/50 focus:border-red-500" 
-            : "border-[var(--color-border)] focus:border-[var(--color-primary)]"
+          ${
+            error
+              ? "border-red-500/50 focus:border-red-500"
+              : "border-[var(--color-border)] focus:border-[var(--color-primary)]"
           }
         `}
       />
@@ -118,7 +259,6 @@ const Input = ({
   </div>
 );
 
-// Card Component
 const LinksCard = ({
   children,
   className = "",
@@ -129,17 +269,12 @@ const LinksCard = ({
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className={`
-      bg-[var(--card-background-glass)] backdrop-blur-[var(--blur-amount)]
-      border border-[var(--color-border)] rounded-[var(--border-radius-lg)]
-      p-4 sm:p-6 ${className}
-    `}
+    className={`bg-[var(--card-background-glass)] backdrop-blur-[var(--blur-amount)] border border-[var(--color-border)] rounded-[var(--border-radius-lg)] p-4 sm:p-6 ${className}`}
   >
     {children}
   </motion.div>
 );
 
-// Section Header
 const SectionHeader = ({
   icon: Icon,
   title,
@@ -158,14 +293,15 @@ const SectionHeader = ({
       </div>
       <div className="min-w-0">
         <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">{title}</h2>
-        <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">{description}</p>
+        <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">
+          {description}
+        </p>
       </div>
     </div>
     {action}
   </div>
 );
 
-// Modal Component
 const Modal = ({
   isOpen,
   onClose,
@@ -180,7 +316,6 @@ const Modal = ({
   <AnimatePresence>
     {isOpen && (
       <>
-        {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -188,8 +323,6 @@ const Modal = ({
           onClick={onClose}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
         />
-        
-        {/* Modal */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -197,15 +330,18 @@ const Modal = ({
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
         >
-          <div className="
-            w-full max-w-md
-            bg-[var(--color-background)] backdrop-blur-[var(--blur-amount)]
-            border border-[var(--color-border)] rounded-[var(--border-radius-xl)]
-            shadow-2xl overflow-hidden
-          ">
-            {/* Header */}
+          <div
+            className="
+              w-full max-w-md
+              bg-[var(--color-background)] backdrop-blur-[var(--blur-amount)]
+              border border-[var(--color-border)] rounded-[var(--border-radius-xl)]
+              shadow-2xl overflow-hidden
+            "
+          >
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--color-border)]">
-              <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-text)]">{title}</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-text)]">
+                {title}
+              </h2>
               <motion.button
                 onClick={onClose}
                 className="p-2 rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all"
@@ -215,11 +351,7 @@ const Modal = ({
                 <X size={18} />
               </motion.button>
             </div>
-            
-            {/* Content */}
-            <div className="p-4 sm:p-6">
-              {children}
-            </div>
+            <div className="p-4 sm:p-6">{children}</div>
           </div>
         </motion.div>
       </>
@@ -227,14 +359,13 @@ const Modal = ({
   </AnimatePresence>
 );
 
-// ✅ Favicon Component com fallback
-const FaviconImage = ({ 
-  url, 
-  domain, 
-  size = 32 
-}: { 
-  url: string; 
-  domain: string; 
+const FaviconImage = ({
+  url,
+  domain,
+  size = 32,
+}: {
+  url: string;
+  domain: string;
   size?: number;
 }) => {
   const [hasError, setHasError] = useState(false);
@@ -243,27 +374,32 @@ const FaviconImage = ({
   const knownInfo = getKnownDomainInfo(domain);
 
   return (
-    <div 
+    <div
       className="relative flex items-center justify-center rounded-[var(--border-radius-sm)] overflow-hidden flex-shrink-0"
-      style={{ 
-        width: size + 8, 
+      style={{
+        width: size + 8,
         height: size + 8,
-        backgroundColor: knownInfo?.color ? `${knownInfo.color}20` : 'var(--color-primary-10)',
+        backgroundColor: knownInfo?.color ? `${knownInfo.color}20` : "var(--color-primary-10)",
       }}
     >
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)]">
-          <Globe size={size * 0.6} className="text-[var(--color-text-muted)] animate-pulse" />
+          <Globe
+            size={size * 0.6}
+            className="text-[var(--color-text-muted)] animate-pulse"
+          />
         </div>
       )}
-      
+
       {!hasError ? (
         <img
           src={url}
           alt={`${domain} favicon`}
           width={size}
           height={size}
-          className={`object-contain transition-opacity duration-300 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+          className={`object-contain transition-opacity duration-300 ${
+            isLoading ? "opacity-0" : "opacity-100"
+          }`}
           onLoad={() => setIsLoading(false)}
           onError={() => {
             setHasError(true);
@@ -271,17 +407,16 @@ const FaviconImage = ({
           }}
         />
       ) : (
-        <Globe 
-          size={size * 0.6} 
-          className="text-[var(--color-text-muted)]" 
-          style={{ color: knownInfo?.color || 'var(--color-primary)' }}
+        <Globe
+          size={size * 0.6}
+          className="text-[var(--color-text-muted)]"
+          style={{ color: knownInfo?.color || "var(--color-primary)" }}
         />
       )}
     </div>
   );
 };
 
-// ✅ Link Item Component com Favicon
 const LinkItem = ({
   link,
   onEdit,
@@ -312,29 +447,23 @@ const LinkItem = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: -100 }}
       className={`
-        group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 
-        p-3 sm:p-4 rounded-[var(--border-radius-md)]
+        group flex flex-col sm:flex-row sm:items-center justify-between
+        gap-3 sm:gap-4 p-3 sm:p-4 rounded-[var(--border-radius-md)]
         bg-[var(--color-surface)] border border-[var(--color-border)]
         hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/30
         transition-all duration-300
-        ${disabled ? 'opacity-50 pointer-events-none' : ''}
+        ${disabled ? "opacity-50 pointer-events-none" : ""}
       `}
     >
-      {/* Drag Handle & Info */}
       <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-        <motion.div 
+        <motion.div
           className="hidden sm:flex p-1.5 rounded cursor-grab text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-background)] transition-colors"
           whileHover={{ scale: 1.1 }}
         >
           <GripVertical size={18} />
         </motion.div>
 
-        {/* ✅ Favicon */}
-        <FaviconImage 
-          url={link.favicon} 
-          domain={link.domain} 
-          size={24}
-        />
+        <FaviconImage url={link.favicon} domain={link.domain} size={24} />
 
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-[var(--color-text)] truncate">
@@ -346,9 +475,7 @@ const LinkItem = ({
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0 justify-end">
-        {/* Copy Button */}
         <motion.button
           onClick={handleCopy}
           disabled={disabled}
@@ -360,7 +487,6 @@ const LinkItem = ({
           {copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
         </motion.button>
 
-        {/* Visit Link */}
         <motion.a
           href={link.url}
           target="_blank"
@@ -373,7 +499,6 @@ const LinkItem = ({
           <ExternalLink size={16} />
         </motion.a>
 
-        {/* Edit Button */}
         <motion.button
           onClick={onEdit}
           disabled={disabled}
@@ -385,7 +510,6 @@ const LinkItem = ({
           <Edit3 size={16} />
         </motion.button>
 
-        {/* Delete Button */}
         <motion.button
           onClick={onDelete}
           disabled={disabled}
@@ -401,7 +525,6 @@ const LinkItem = ({
   );
 };
 
-// Empty State Component
 const EmptyState = () => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -420,19 +543,17 @@ const EmptyState = () => (
   </motion.div>
 );
 
-// Loading Skeleton
 const LoadingSkeleton = () => (
   <div className="space-y-3 animate-pulse">
     {[1, 2, 3].map((i) => (
-      <div 
-        key={i} 
-        className="h-16 bg-[var(--color-surface)] rounded-[var(--border-radius-md)] border border-[var(--color-border)]" 
+      <div
+        key={i}
+        className="h-16 bg-[var(--color-surface)] rounded-[var(--border-radius-md)] border border-[var(--color-border)]"
       />
     ))}
   </div>
 );
 
-// ✅ Preview do Link enquanto digita
 const LinkPreview = ({ url }: { url: string }) => {
   if (!url || !isValidUrl(url)) return null;
 
@@ -442,7 +563,7 @@ const LinkPreview = ({ url }: { url: string }) => {
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
+      animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
       className="flex items-center gap-3 p-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)]"
     >
@@ -451,9 +572,7 @@ const LinkPreview = ({ url }: { url: string }) => {
         <p className="text-sm font-medium text-[var(--color-text)] truncate">
           {knownInfo?.name || info.displayName}
         </p>
-        <p className="text-xs text-[var(--color-text-muted)] truncate">
-          {info.domain}
-        </p>
+        <p className="text-xs text-[var(--color-text-muted)] truncate">{info.domain}</p>
       </div>
       <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
     </motion.div>
@@ -461,10 +580,61 @@ const LinkPreview = ({ url }: { url: string }) => {
 };
 
 // ═══════════════════════════════════════════════════════════
+// COMPONENTE: Alerta de Rede Social Detectada
+// ═══════════════════════════════════════════════════════════
+
+const SocialNetworkAlert = ({
+  networkName
+}: {
+  networkName: string;
+  onGoToSocials: () => void;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="flex flex-col gap-3 p-4 rounded-[var(--border-radius-md)] bg-amber-500/10 border border-amber-500/30"
+  >
+    <div className="flex items-start gap-3">
+      <AlertCircle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-[var(--color-text)]">
+          Link de rede social detectado
+        </p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          O link que você está tentando adicionar pertence ao{" "}
+          <span className="font-semibold text-amber-400">{networkName}</span>. Links de redes
+          sociais predefinidas devem ser adicionados na seção de{" "}
+          <span className="font-semibold text-amber-400">Redes Sociais</span>.
+        </p>
+      </div>
+    </div>
+    <motion.button
+      onClick={() => window.location.href = "/dashboard/socialmedia"}
+      className="
+        w-full px-4 py-2.5 rounded-[var(--border-radius-md)]
+        bg-amber-500/20 hover:bg-amber-500/30
+        text-amber-400 font-medium text-sm
+        transition-all duration-300
+        flex items-center justify-center gap-2
+        border border-amber-500/30
+      "
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <Share2 size={16} />
+      Ir para Redes Sociais
+    </motion.button>
+  </motion.div>
+);
+
+// ═══════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 
 const DashboardLinks = () => {
+  const navigate = useNavigate();
+
   // Estados
   const [links, setLinks] = useState<UserLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -472,23 +642,23 @@ const DashboardLinks = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
 
-  const [linkForm, setLinkForm] = useState({
-    url: "",
-  });
+  const [linkForm, setLinkForm] = useState({ url: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Estado para rede social detectada
+  const [detectedSocialNetwork, setDetectedSocialNetwork] = useState<string | null>(null);
 
   // Estados do Modal de Edição
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<UserLink | null>(null);
-  const [editForm, setEditForm] = useState({
-    url: "",
-  });
+  const [editForm, setEditForm] = useState({ url: "" });
+  const [editDetectedSocial, setEditDetectedSocial] = useState<string | null>(null);
 
   // Estados do Modal de Exclusão
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingLink, setDeletingLink] = useState<UserLink | null>(null);
 
-  // ✅ Função para transformar response do backend em UserLink local
+  // Transformar response do backend em UserLink
   const transformLink = (linkResponse: UserLinkResponse): UserLink => {
     const info = extractDomainInfo(linkResponse.url);
     return {
@@ -502,7 +672,7 @@ const DashboardLinks = () => {
     };
   };
 
-  // ✅ Carregar links do usuário
+  // Carregar links do usuário
   const loadLinks = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -512,11 +682,11 @@ const DashboardLinks = () => {
       const transformedLinks = response.links.map(transformLink);
       setLinks(transformedLinks);
     } catch (err: any) {
-      console.error('Erro ao carregar links:', err);
+      console.error("Erro ao carregar links:", err);
       if (err.response?.status === 401) {
-        setError('Sessão expirada. Faça login novamente.');
+        setError("Sessão expirada. Faça login novamente.");
       } else {
-        setError('Erro ao carregar seus links. Tente novamente.');
+        setError("Erro ao carregar seus links. Tente novamente.");
       }
     } finally {
       setIsLoading(false);
@@ -527,7 +697,38 @@ const DashboardLinks = () => {
     loadLinks();
   }, [loadLinks]);
 
-  // ✅ Handler para adicionar link
+  // ✅ Detectar rede social enquanto o usuário digita no formulário principal
+  const handleUrlChange = (value: string) => {
+    setLinkForm({ url: value });
+    setFormErrors({});
+
+    if (value.trim() && isValidUrl(value)) {
+      const socialName = getSocialNetworkFromUrl(value);
+      setDetectedSocialNetwork(socialName);
+    } else {
+      setDetectedSocialNetwork(null);
+    }
+  };
+
+  // ✅ Detectar rede social enquanto edita
+  const handleEditUrlChange = (value: string) => {
+    setEditForm({ url: value });
+    setFormErrors({});
+
+    if (value.trim() && isValidUrl(value)) {
+      const socialName = getSocialNetworkFromUrl(value);
+      setEditDetectedSocial(socialName);
+    } else {
+      setEditDetectedSocial(null);
+    }
+  };
+
+  // Navegar para seção de redes sociais
+  const goToSocialNetworks = () => {
+    navigate("/dashboard/social"); // Ajuste a rota conforme seu projeto
+  };
+
+  // Handler para adicionar link
   const handleSubmit = async () => {
     setFormErrors({});
     setError(null);
@@ -545,30 +746,40 @@ const DashboardLinks = () => {
       return;
     }
 
+    // ✅ Verificar se é uma rede social predefinida
+    const socialNetwork = getSocialNetworkFromUrl(linkForm.url);
+    if (socialNetwork) {
+      setDetectedSocialNetwork(socialNetwork);
+      setFormErrors({
+        url: `Este link pertence ao "${socialNetwork}". Use a seção de Redes Sociais.`,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const normalizedUrl = normalizeUrl(linkForm.url.trim());
       await linkService.addLink(normalizedUrl);
-      
+
       setLinkForm({ url: "" });
+      setDetectedSocialNetwork(null);
       setSuccessMessage("Link adicionado com sucesso!");
-      
-      // Recarrega a lista
+
       await loadLinks();
 
       setTimeout(() => {
         setSuccessMessage("");
       }, 3000);
     } catch (err: any) {
-      console.error('Erro ao adicionar link:', err);
-      
+      console.error("Erro ao adicionar link:", err);
+
       if (err.response?.status === 400) {
-        setFormErrors({ url: err.response.data?.message || 'URL inválida' });
+        setFormErrors({ url: err.response.data?.message || "URL inválida" });
       } else if (err.response?.status === 409) {
-        setFormErrors({ url: 'Este link já foi adicionado' });
+        setFormErrors({ url: "Este link já foi adicionado" });
       } else {
-        setError(err.response?.data?.message || 'Erro ao adicionar link. Tente novamente.');
+        setError(err.response?.data?.message || "Erro ao adicionar link. Tente novamente.");
       }
     } finally {
       setIsSubmitting(false);
@@ -580,6 +791,7 @@ const DashboardLinks = () => {
     setEditingLink(link);
     setEditForm({ url: link.url });
     setFormErrors({});
+    setEditDetectedSocial(null);
     setIsEditModalOpen(true);
   };
 
@@ -601,13 +813,22 @@ const DashboardLinks = () => {
       return;
     }
 
+    // ✅ Verificar se é uma rede social predefinida
+    const socialNetwork = getSocialNetworkFromUrl(editForm.url);
+    if (socialNetwork) {
+      setEditDetectedSocial(socialNetwork);
+      setFormErrors({
+        editUrl: `Este link pertence ao "${socialNetwork}". Use a seção de Redes Sociais.`,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const normalizedUrl = normalizeUrl(editForm.url.trim());
       await linkService.updateLink(editingLink.id, normalizedUrl);
-      
-      // Atualiza localmente
+
       setLinks((prev) =>
         prev.map((link) => {
           if (link.id === editingLink.id) {
@@ -627,9 +848,10 @@ const DashboardLinks = () => {
       setIsEditModalOpen(false);
       setEditingLink(null);
       setEditForm({ url: "" });
+      setEditDetectedSocial(null);
     } catch (err: any) {
-      console.error('Erro ao atualizar link:', err);
-      setFormErrors({ editUrl: err.response?.data?.message || 'Erro ao atualizar link' });
+      console.error("Erro ao atualizar link:", err);
+      setFormErrors({ editUrl: err.response?.data?.message || "Erro ao atualizar link" });
     } finally {
       setIsSubmitting(false);
     }
@@ -648,13 +870,13 @@ const DashboardLinks = () => {
 
     try {
       await linkService.deleteLink(deletingLink.id);
-      
+
       setLinks((prev) => prev.filter((link) => link.id !== deletingLink.id));
       setIsDeleteModalOpen(false);
       setDeletingLink(null);
     } catch (err: any) {
-      console.error('Erro ao deletar link:', err);
-      setError(err.response?.data?.message || 'Erro ao excluir link. Tente novamente.');
+      console.error("Erro ao deletar link:", err);
+      setError(err.response?.data?.message || "Erro ao excluir link. Tente novamente.");
       setIsDeleteModalOpen(false);
       setDeletingLink(null);
     } finally {
@@ -662,19 +884,15 @@ const DashboardLinks = () => {
     }
   };
 
-  // Handler para copiar link
   const handleCopy = (url: string) => {
     navigator.clipboard.writeText(url);
   };
 
-  // Animações
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+      transition: { staggerChildren: 0.1 },
     },
   };
 
@@ -711,7 +929,7 @@ const DashboardLinks = () => {
         </motion.div>
       </div>
 
-      {/* ✅ Error Message Global */}
+      {/* Error Message Global */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -754,18 +972,30 @@ const DashboardLinks = () => {
                 type="url"
                 placeholder="Ex: youtube.com/seu-canal ou https://exemplo.com"
                 value={linkForm.url}
-                onChange={(value) => setLinkForm({ ...linkForm, url: value })}
+                onChange={handleUrlChange}
                 icon={Globe}
                 error={formErrors.url}
                 helperText="Cole a URL completa ou apenas o domínio"
                 disabled={isSubmitting}
               />
 
-              {/* ✅ Preview do Link */}
+              {/* ✅ Alerta de Rede Social Detectada */}
               <AnimatePresence>
-                {linkForm.url && isValidUrl(linkForm.url) && (
-                  <LinkPreview url={linkForm.url} />
+                {detectedSocialNetwork && (
+                  <SocialNetworkAlert
+                    networkName={detectedSocialNetwork}
+                    onGoToSocials={goToSocialNetworks}
+                  />
                 )}
+              </AnimatePresence>
+
+              {/* Preview do Link (só mostra se NÃO for rede social) */}
+              <AnimatePresence>
+                {linkForm.url &&
+                  isValidUrl(linkForm.url) &&
+                  !detectedSocialNetwork && (
+                    <LinkPreview url={linkForm.url} />
+                  )}
               </AnimatePresence>
 
               {/* Success Message */}
@@ -785,7 +1015,7 @@ const DashboardLinks = () => {
 
               <motion.button
                 onClick={handleSubmit}
-                disabled={isSubmitting || !linkForm.url.trim()}
+                disabled={isSubmitting || !linkForm.url.trim() || !!detectedSocialNetwork}
                 className="
                   w-full px-4 py-3 rounded-[var(--border-radius-md)]
                   bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]
@@ -794,8 +1024,8 @@ const DashboardLinks = () => {
                   disabled:opacity-50 disabled:cursor-not-allowed
                   flex items-center justify-center gap-2
                 "
-                whileHover={isSubmitting ? {} : { scale: 1.02 }}
-                whileTap={isSubmitting ? {} : { scale: 0.98 }}
+                whileHover={isSubmitting || !!detectedSocialNetwork ? {} : { scale: 1.02 }}
+                whileTap={isSubmitting || !!detectedSocialNetwork ? {} : { scale: 0.98 }}
               >
                 {isSubmitting ? (
                   <>
@@ -855,7 +1085,6 @@ const DashboardLinks = () => {
               </div>
             )}
 
-            {/* Links Count */}
             {!isLoading && links.length > 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -863,7 +1092,8 @@ const DashboardLinks = () => {
                 className="mt-4 pt-4 border-t border-[var(--color-border)] flex items-center justify-between"
               >
                 <span className="text-xs text-[var(--color-text-muted)]">
-                  {links.length} {links.length === 1 ? "link" : "links"} adicionado{links.length !== 1 && "s"}
+                  {links.length} {links.length === 1 ? "link" : "links"} adicionado
+                  {links.length !== 1 && "s"}
                 </span>
               </motion.div>
             )}
@@ -872,7 +1102,7 @@ const DashboardLinks = () => {
       </motion.div>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* MODAL: Editar Link */}
+      {/* MODAL: Editar Link                                        */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={isEditModalOpen}
@@ -881,6 +1111,7 @@ const DashboardLinks = () => {
           setEditingLink(null);
           setEditForm({ url: "" });
           setFormErrors({});
+          setEditDetectedSocial(null);
         }}
         title="Editar Link"
       >
@@ -901,17 +1132,33 @@ const DashboardLinks = () => {
             type="url"
             placeholder="https://exemplo.com"
             value={editForm.url}
-            onChange={(value) => setEditForm({ ...editForm, url: value })}
+            onChange={handleEditUrlChange}
             icon={Globe}
             error={formErrors.editUrl}
             disabled={isSubmitting}
           />
 
-          {/* Preview do novo link */}
+          {/* ✅ Alerta de Rede Social no modal de edição */}
           <AnimatePresence>
-            {editForm.url && isValidUrl(editForm.url) && editForm.url !== editingLink?.url && (
-              <LinkPreview url={editForm.url} />
+            {editDetectedSocial && (
+              <SocialNetworkAlert
+                networkName={editDetectedSocial}
+                onGoToSocials={() => {
+                  setIsEditModalOpen(false);
+                  setEditingLink(null);
+                  setEditDetectedSocial(null);
+                  goToSocialNetworks();
+                }}
+              />
             )}
+          </AnimatePresence>
+
+          {/* Preview do novo link (só se NÃO for rede social) */}
+          <AnimatePresence>
+            {editForm.url &&
+              isValidUrl(editForm.url) &&
+              editForm.url !== editingLink?.url &&
+              !editDetectedSocial && <LinkPreview url={editForm.url} />}
           </AnimatePresence>
 
           <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
@@ -921,6 +1168,7 @@ const DashboardLinks = () => {
                 setEditingLink(null);
                 setEditForm({ url: "" });
                 setFormErrors({});
+                setEditDetectedSocial(null);
               }}
               disabled={isSubmitting}
               className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] font-medium transition-all disabled:opacity-50"
@@ -931,10 +1179,10 @@ const DashboardLinks = () => {
             </motion.button>
             <motion.button
               onClick={handleEditSubmit}
-              disabled={isSubmitting || !editForm.url.trim()}
+              disabled={isSubmitting || !editForm.url.trim() || !!editDetectedSocial}
               className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              whileHover={isSubmitting ? {} : { scale: 1.02 }}
-              whileTap={isSubmitting ? {} : { scale: 0.98 }}
+              whileHover={isSubmitting || !!editDetectedSocial ? {} : { scale: 1.02 }}
+              whileTap={isSubmitting || !!editDetectedSocial ? {} : { scale: 0.98 }}
             >
               {isSubmitting ? (
                 <>
@@ -950,7 +1198,7 @@ const DashboardLinks = () => {
       </Modal>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* MODAL: Confirmar Exclusão */}
+      {/* MODAL: Confirmar Exclusão                                 */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <Modal
         isOpen={isDeleteModalOpen}
@@ -975,12 +1223,18 @@ const DashboardLinks = () => {
 
           {deletingLink && (
             <div className="flex items-center gap-3 p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)] border border-[var(--color-border)]">
-              <FaviconImage url={deletingLink.favicon} domain={deletingLink.domain} size={20} />
+              <FaviconImage
+                url={deletingLink.favicon}
+                domain={deletingLink.domain}
+                size={20}
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[var(--color-text)]">
                   {getKnownDomainInfo(deletingLink.domain)?.name || deletingLink.displayName}
                 </p>
-                <p className="text-xs text-[var(--color-text-muted)] truncate">{deletingLink.url}</p>
+                <p className="text-xs text-[var(--color-text-muted)] truncate">
+                  {deletingLink.url}
+                </p>
               </div>
             </div>
           )}

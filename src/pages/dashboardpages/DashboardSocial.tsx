@@ -1,9 +1,10 @@
-import { useState } from "react";
+// src/pages/DashboardSocial.tsx
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   Share2,
-  Link,
+  Link as LinkIcon,
   X,
   AlertCircle,
   CheckCircle,
@@ -12,7 +13,28 @@ import {
   Plus,
   GripVertical,
   ExternalLink,
+  RefreshCw,
+  Loader2,
+  Copy,
+  Check,
 } from "lucide-react";
+import { linkService } from "../../services/linkService";
+import { 
+  detectSocialNetwork, 
+  isSocialNetworkUrl,
+  getSocialNetworkName 
+} from "../../utils/socialUtils";
+import { 
+  isValidUrl, 
+  normalizeUrl, 
+  extractDomainInfo 
+} from "../../utils/linkUtils";
+import type { UserLinkResponse } from "../../types/links.types";
+
+// ═══════════════════════════════════════════════════════════
+// IMPORTAR TODOS OS ÍCONES QUE VOCÊ JÁ TEM
+// ═══════════════════════════════════════════════════════════
+
 
 // ═══════════════════════════════════════════════════════════
 // TIPOS
@@ -33,8 +55,9 @@ interface UserSocialNetwork {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ÍCONES DAS REDES SOCIAIS
+// DEFINIÇÃO DAS REDES SOCIAIS (seu array existente)
 // ═══════════════════════════════════════════════════════════
+
 
 const InstagramIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5">
@@ -247,10 +270,6 @@ const NameMCIcon = () => (
   </svg>
 );
 
-// ═══════════════════════════════════════════════════════════
-// DEFINIÇÃO DAS REDES SOCIAIS
-// ═══════════════════════════════════════════════════════════
-
 const SOCIAL_NETWORKS: SocialNetwork[] = [
   { id: "instagram", name: "Instagram", icon: <InstagramIcon />, color: "#E4405F", placeholder: "https://instagram.com/seuusuario" },
   { id: "snapchat", name: "Snapchat", icon: <SnapchatIcon />, color: "#FFFC00", placeholder: "https://snapchat.com/add/seuusuario" },
@@ -288,16 +307,10 @@ const SOCIAL_NETWORKS: SocialNetwork[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE
+// COMPONENTES BASE (seus componentes existentes)
 // ═══════════════════════════════════════════════════════════
 
-// Modal Component
-const Modal = ({
-  isOpen,
-  onClose,
-  title,
-  children,
-}: {
+const Modal = ({ isOpen, onClose, title, children }: {
   isOpen: boolean;
   onClose: () => void;
   title: string;
@@ -313,7 +326,6 @@ const Modal = ({
           onClick={onClose}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
         />
-
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -341,11 +353,7 @@ const Modal = ({
   </AnimatePresence>
 );
 
-// Card Component
-const SettingsCard = ({
-  children,
-  className = "",
-}: {
+const SettingsCard = ({ children, className = "" }: {
   children: React.ReactNode;
   className?: string;
 }) => (
@@ -358,47 +366,38 @@ const SettingsCard = ({
   </motion.div>
 );
 
-// Section Header
-const SectionHeader = ({
-  icon: Icon,
-  title,
-  description,
-}: {
+const SectionHeader = ({ icon: Icon, title, description, action }: {
   icon: React.ElementType;
   title: string;
   description: string;
+  action?: React.ReactNode;
 }) => (
-  <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
-    <div className="p-2 sm:p-3 rounded-[var(--border-radius-md)] bg-[var(--color-primary)]/10 flex-shrink-0">
-      <Icon size={20} className="sm:w-6 sm:h-6 text-[var(--color-primary)]" />
+  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4 sm:mb-6">
+    <div className="flex items-start gap-3 sm:gap-4">
+      <div className="p-2 sm:p-3 rounded-[var(--border-radius-md)] bg-[var(--color-primary)]/10 flex-shrink-0">
+        <Icon size={20} className="sm:w-6 sm:h-6 text-[var(--color-primary)]" />
+      </div>
+      <div className="min-w-0">
+        <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">{title}</h2>
+        <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">{description}</p>
+      </div>
     </div>
-    <div className="min-w-0">
-      <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">{title}</h2>
-      <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">{description}</p>
-    </div>
+    {action}
   </div>
 );
 
-// Social Network Button (Grid item)
-const SocialNetworkButton = ({
-  network,
-  onClick,
-  isAdded,
-}: {
+const SocialNetworkButton = ({ network, onClick, isAdded }: {
   network: SocialNetwork;
   onClick: () => void;
   isAdded: boolean;
 }) => (
   <motion.button
     onClick={onClick}
-    className={`
-      relative flex flex-col items-center justify-center gap-2 p-3 sm:p-4
-      rounded-[var(--border-radius-md)] border transition-all duration-300
-      ${isAdded 
-        ? "border-green-500/50 bg-green-500/10" 
+    className={`relative flex flex-col items-center justify-center gap-2 p-3 sm:p-4 rounded-[var(--border-radius-md)] border transition-all duration-300 ${
+      isAdded
+        ? "border-green-500/50 bg-green-500/10"
         : "border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] hover:border-[var(--color-primary)]/50"
-      }
-    `}
+    }`}
     whileHover={{ scale: 1.05, y: -2 }}
     whileTap={{ scale: 0.95 }}
   >
@@ -416,148 +415,368 @@ const SocialNetworkButton = ({
   </motion.button>
 );
 
-// User Social Network Card
-const UserSocialCard = ({
-  userNetwork,
-  network,
-  onEdit,
-  onDelete,
-}: {
+const UserSocialCard = ({ userNetwork, network, onEdit, onDelete, disabled }: {
   userNetwork: UserSocialNetwork;
   network: SocialNetwork;
   onEdit: () => void;
   onDelete: () => void;
-}) => (
+  disabled: boolean;
+}) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(userNetwork.url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-[var(--border-radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] transition-all duration-300 group ${
+        disabled ? "opacity-50 pointer-events-none" : ""
+      }`}
+    >
+      <div className="cursor-grab text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
+        <GripVertical size={16} />
+      </div>
+
+      <div className="w-10 h-10 flex items-center justify-center rounded-[var(--border-radius-sm)] bg-[var(--color-background)] flex-shrink-0">
+        {network.icon}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <h3 className="text-sm font-medium text-[var(--color-text)]">{network.name}</h3>
+        <p className="text-xs text-[var(--color-text-muted)] truncate">{userNetwork.url}</p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <motion.button
+          onClick={handleCopy}
+          disabled={disabled}
+          className="p-2 rounded-full bg-[var(--color-background)] hover:bg-[var(--color-primary)]/20 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-all"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          title="Copiar link"
+        >
+          {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+        </motion.button>
+
+        <motion.button
+          onClick={() => window.open(userNetwork.url, "_blank")}
+          className="p-2 rounded-full bg-[var(--color-background)] hover:bg-[var(--color-primary)]/20 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-all"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <ExternalLink size={14} />
+        </motion.button>
+
+        <motion.button
+          onClick={onEdit}
+          disabled={disabled}
+          className="p-2 rounded-full bg-[var(--color-background)] hover:bg-[var(--color-primary)]/20 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-all"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <Edit3 size={14} />
+        </motion.button>
+
+        <motion.button
+          onClick={onDelete}
+          disabled={disabled}
+          className="p-2 rounded-full bg-[var(--color-background)] hover:bg-red-500/20 text-[var(--color-text-muted)] hover:text-red-400 transition-all"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <Trash2 size={14} />
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+};
+
+const EmptyState = () => (
   <motion.div
-    layout
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    exit={{ opacity: 0, scale: 0.9 }}
-    className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-[var(--border-radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] transition-all duration-300 group"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="flex flex-col items-center justify-center py-12 sm:py-16"
   >
-    <div className="cursor-grab text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">
-      <GripVertical size={16} />
+    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[var(--color-surface)] flex items-center justify-center mb-4">
+      <Share2 size={28} className="sm:w-8 sm:h-8 text-[var(--color-text-muted)]" />
     </div>
-    
-    <div className="w-10 h-10 flex items-center justify-center rounded-[var(--border-radius-sm)] bg-[var(--color-background)] flex-shrink-0">
-      {network.icon}
+    <h3 className="text-base sm:text-lg font-semibold text-[var(--color-text)] mb-2">
+      Nenhuma rede social adicionada
+    </h3>
+    <p className="text-xs sm:text-sm text-[var(--color-text-muted)] text-center max-w-xs">
+      Você não possui redes sociais atualmente, adicione sua primeira!
+    </p>
+  </motion.div>
+);
+
+const LoadingSkeleton = () => (
+  <div className="space-y-3 animate-pulse">
+    {[1, 2, 3].map((i) => (
+      <div
+        key={i}
+        className="h-16 bg-[var(--color-surface)] rounded-[var(--border-radius-md)] border border-[var(--color-border)]"
+      />
+    ))}
+  </div>
+);
+
+// ═══════════════════════════════════════════════════════════
+// ALERTA: Link Genérico Detectado
+// ═══════════════════════════════════════════════════════════
+
+const NonSocialAlert = () => (
+  <motion.div
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="flex flex-col gap-3 p-4 rounded-[var(--border-radius-md)] bg-amber-500/10 border border-amber-500/30"
+  >
+    <div className="flex items-start gap-3">
+      <AlertCircle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-[var(--color-text)]">
+          Link genérico detectado
+        </p>
+        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+          Este link não pertence a uma rede social predefinida. Para adicionar links genéricos,
+          use a seção de <span className="font-semibold text-amber-400">Links</span>.
+        </p>
+      </div>
     </div>
-    
-    <div className="flex-1 min-w-0">
-      <h3 className="text-sm font-medium text-[var(--color-text)]">{network.name}</h3>
-      <p className="text-xs text-[var(--color-text-muted)] truncate">{userNetwork.url}</p>
-    </div>
-    
-    <div className="flex items-center gap-2">
-      <motion.button
-        onClick={() => window.open(userNetwork.url, '_blank')}
-        className="p-2 rounded-full bg-[var(--color-background)] hover:bg-[var(--color-primary)]/20 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-all"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <ExternalLink size={14} />
-      </motion.button>
-      <motion.button
-        onClick={onEdit}
-        className="p-2 rounded-full bg-[var(--color-background)] hover:bg-[var(--color-primary)]/20 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-all"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <Edit3 size={14} />
-      </motion.button>
-      <motion.button
-        onClick={onDelete}
-        className="p-2 rounded-full bg-[var(--color-background)] hover:bg-red-500/20 text-[var(--color-text-muted)] hover:text-red-400 transition-all"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <Trash2 size={14} />
-      </motion.button>
-    </div>
+    <motion.button
+      onClick={() => (window.location.href = "/dashboard/links")}
+      className="w-full px-4 py-2.5 rounded-[var(--border-radius-md)] bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 font-medium text-sm transition-all duration-300 flex items-center justify-center gap-2 border border-amber-500/30"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <LinkIcon size={16} />
+      Ir para Links
+    </motion.button>
   </motion.div>
 );
 
 // ═══════════════════════════════════════════════════════════
-// PÁGINA PRINCIPAL
+// COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 
 const DashboardSocial = () => {
   // Estados
-  const [userNetworks, setUserNetworks] = useState<UserSocialNetwork[]>([]);
+  const [socialNetworks, setSocialNetworks] = useState<UserSocialNetwork[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<SocialNetwork | null>(null);
   const [networkUrl, setNetworkUrl] = useState("");
   const [editingNetwork, setEditingNetwork] = useState<UserSocialNetwork | null>(null);
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [detectedNonSocial, setDetectedNonSocial] = useState(false);
 
-  // Handlers
+  // Modal Delete
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingNetwork, setDeletingNetwork] = useState<UserSocialNetwork | null>(null);
+
+  // ═══════════════════════════════════════════════════════════
+  // TRANSFORMAÇÃO DE DADOS
+  // ═══════════════════════════════════════════════════════════
+
+  const transformToUserSocial = (linkResponse: UserLinkResponse): UserSocialNetwork | null => {
+    const socialConfig = detectSocialNetwork(linkResponse.url);
+    if (!socialConfig) return null;
+
+    return {
+      id: linkResponse.linkId,
+      networkId: socialConfig.id,
+      url: linkResponse.url,
+    };
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // CARREGAR REDES SOCIAIS
+  // ═══════════════════════════════════════════════════════════
+
+  const loadSocialNetworks = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await linkService.getUserLinks();
+
+      // Filtrar apenas redes sociais
+      const socials = response.links
+        .map(transformToUserSocial)
+        .filter((item): item is UserSocialNetwork => item !== null);
+
+      setSocialNetworks(socials);
+    } catch (err: any) {
+      console.error("Erro ao carregar redes sociais:", err);
+      if (err.response?.status === 401) {
+        setError("Sessão expirada. Faça login novamente.");
+      } else {
+        setError("Erro ao carregar suas redes sociais. Tente novamente.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSocialNetworks();
+  }, [loadSocialNetworks]);
+
+  // ═══════════════════════════════════════════════════════════
+  // HANDLERS
+  // ═══════════════════════════════════════════════════════════
+
   const handleNetworkClick = (network: SocialNetwork) => {
-    const existing = userNetworks.find(un => un.networkId === network.id);
+    const existing = socialNetworks.find((sn) => sn.networkId === network.id);
+
     if (existing) {
-      // Editar existente
       setEditingNetwork(existing);
       setNetworkUrl(existing.url);
     } else {
-      // Adicionar novo
       setEditingNetwork(null);
       setNetworkUrl("");
     }
+
     setSelectedNetwork(network);
-    setError("");
+    setFormErrors({});
+    setDetectedNonSocial(false);
     setIsModalOpen(true);
+  };
+
+  const handleUrlChange = (value: string) => {
+    setNetworkUrl(value);
+    setFormErrors({});
+
+    if (value.trim() && isValidUrl(value)) {
+      // Verificar se é uma rede social predefinida
+      if (!isSocialNetworkUrl(value)) {
+        setDetectedNonSocial(true);
+      } else {
+        setDetectedNonSocial(false);
+      }
+    } else {
+      setDetectedNonSocial(false);
+    }
   };
 
   const handleSubmit = async () => {
     if (!selectedNetwork) return;
-    
-    setError("");
-    
+
+    setFormErrors({});
+    setError(null);
+
+    const errors: Record<string, string> = {};
+
     if (!networkUrl.trim()) {
-      setError("Digite o link ou usuário da rede social");
+      errors.url = "Digite o link ou usuário da rede social";
+      setFormErrors(errors);
+      return;
+    }
+
+    if (!isValidUrl(networkUrl)) {
+      errors.url = "URL inválida";
+      setFormErrors(errors);
+      return;
+    }
+
+    // Verificar se é realmente uma rede social
+    const detectedConfig = detectSocialNetwork(networkUrl);
+    if (!detectedConfig) {
+      errors.url = "Este link não pertence a uma rede social predefinida. Use a seção de Links.";
+      setFormErrors(errors);
+      setDetectedNonSocial(true);
+      return;
+    }
+
+    // Verificar se a URL corresponde à rede social selecionada
+    if (detectedConfig.id !== selectedNetwork.id) {
+      errors.url = `Este link pertence ao ${detectedConfig.name}, não ao ${selectedNetwork.name}`;
+      setFormErrors(errors);
       return;
     }
 
     setIsSubmitting(true);
 
-    // Simular API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const normalized = normalizeUrl(networkUrl.trim());
+      const typeId = detectedConfig.typeId; // ✅ Pega o typeId específico da rede
 
-    if (editingNetwork) {
-      // Atualizar existente
-      setUserNetworks(prev => 
-        prev.map(un => 
-          un.id === editingNetwork.id 
-            ? { ...un, url: networkUrl.trim() }
-            : un
-        )
-      );
-      setSuccessMessage("Rede social atualizada!");
-    } else {
-      // Adicionar novo
-      const newNetwork: UserSocialNetwork = {
-        id: Date.now().toString(),
-        networkId: selectedNetwork.id,
-        url: networkUrl.trim(),
-      };
-      setUserNetworks(prev => [...prev, newNetwork]);
-      setSuccessMessage("Rede social adicionada!");
+      if (editingNetwork) {
+        // Atualizar - passa o typeId correto
+        await linkService.updateLink(editingNetwork.id, normalized, typeId);
+
+        setSocialNetworks((prev) =>
+          prev.map((sn) => (sn.id === editingNetwork.id ? { ...sn, url: normalized } : sn))
+        );
+
+        setSuccessMessage("Rede social atualizada!");
+      } else {
+        // Adicionar - passa o typeId correto
+        await linkService.addLink(normalized, typeId);
+        await loadSocialNetworks();
+        setSuccessMessage("Rede social adicionada!");
+      }
+
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setSelectedNetwork(null);
+        setNetworkUrl("");
+        setEditingNetwork(null);
+        setSuccessMessage("");
+        setDetectedNonSocial(false);
+      }, 1500);
+    } catch (err: any) {
+      console.error("Erro ao salvar rede social:", err);
+
+      if (err.response?.status === 400) {
+        setFormErrors({ url: err.response.data?.message || "URL inválida" });
+      } else if (err.response?.status === 409) {
+        setFormErrors({ url: "Esta rede social já foi adicionada" });
+      } else {
+        setError(err.response?.data?.message || "Erro ao salvar. Tente novamente.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
-
-    setTimeout(() => {
-      setIsModalOpen(false);
-      setSelectedNetwork(null);
-      setNetworkUrl("");
-      setEditingNetwork(null);
-      setSuccessMessage("");
-    }, 1500);
   };
 
-  const handleDelete = (id: string) => {
-    setUserNetworks(prev => prev.filter(un => un.id !== id));
+  const handleDelete = (network: UserSocialNetwork) => {
+    setDeletingNetwork(network);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingNetwork) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await linkService.deleteLink(deletingNetwork.id);
+
+      setSocialNetworks((prev) => prev.filter((sn) => sn.id !== deletingNetwork.id));
+
+      setIsDeleteModalOpen(false);
+      setDeletingNetwork(null);
+    } catch (err: any) {
+      console.error("Erro ao deletar rede social:", err);
+      setError(err.response?.data?.message || "Erro ao excluir. Tente novamente.");
+      setIsDeleteModalOpen(false);
+      setDeletingNetwork(null);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -565,26 +784,28 @@ const DashboardSocial = () => {
     setSelectedNetwork(null);
     setNetworkUrl("");
     setEditingNetwork(null);
-    setError("");
+    setFormErrors({});
     setSuccessMessage("");
+    setDetectedNonSocial(false);
   };
 
   const isNetworkAdded = (networkId: string) => {
-    return userNetworks.some(un => un.networkId === networkId);
+    return socialNetworks.some((sn) => sn.networkId === networkId);
   };
 
   const getNetworkById = (networkId: string) => {
-    return SOCIAL_NETWORKS.find(n => n.id === networkId);
+    return SOCIAL_NETWORKS.find((n) => n.id === networkId);
   };
 
-  // Animação de entrada escalonada
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
+      transition: { staggerChildren: 0.1 },
     },
   };
 
@@ -624,6 +845,27 @@ const DashboardSocial = () => {
         </motion.div>
       </div>
 
+      {/* Error Message Global */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-6 p-4 rounded-[var(--border-radius-md)] bg-red-500/10 border border-red-500/30 flex items-center gap-3"
+          >
+            <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
+            <span className="text-sm text-red-400 flex-1">{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="p-1 rounded-full hover:bg-red-500/20 text-red-400"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Content Grid */}
       <motion.div
         variants={containerVariants}
@@ -657,49 +899,50 @@ const DashboardSocial = () => {
         <motion.div variants={itemVariants} className="xl:col-span-1">
           <SettingsCard>
             <SectionHeader
-              icon={Link}
+              icon={LinkIcon}
               title="Suas Redes"
               description="Gerencie suas Redes exibidas no perfil."
+              action={
+                <motion.button
+                  onClick={loadSocialNetworks}
+                  disabled={isLoading}
+                  className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] transition-colors disabled:opacity-50"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  title="Recarregar redes"
+                >
+                  <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                </motion.button>
+              }
             />
 
-            <div className="space-y-3">
-              <AnimatePresence mode="popLayout">
-                {userNetworks.length > 0 ? (
-                  userNetworks.map((userNetwork) => {
+            {isLoading ? (
+              <LoadingSkeleton />
+            ) : socialNetworks.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence mode="popLayout">
+                  {socialNetworks.map((userNetwork) => {
                     const network = getNetworkById(userNetwork.networkId);
                     if (!network) return null;
-                    
+
                     return (
                       <UserSocialCard
                         key={userNetwork.id}
                         userNetwork={userNetwork}
                         network={network}
                         onEdit={() => handleNetworkClick(network)}
-                        onDelete={() => handleDelete(userNetwork.id)}
+                        onDelete={() => handleDelete(userNetwork)}
+                        disabled={isSubmitting}
                       />
                     );
-                  })
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex flex-col items-center justify-center py-12 text-center"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-[var(--color-surface)] flex items-center justify-center mb-4">
-                      <Share2 size={24} className="text-[var(--color-text-muted)]" />
-                    </div>
-                    <p className="text-sm text-[var(--color-text-muted)]">
-                      Você não possui redes atualmente.
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                      Clique em uma rede social ao lado para adicionar.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                  })}
+                </AnimatePresence>
+              </div>
+            )}
 
-            {userNetworks.length > 0 && (
+            {!isLoading && socialNetworks.length > 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -719,7 +962,11 @@ const DashboardSocial = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={editingNetwork ? `Editar ${selectedNetwork?.name}` : `Adicionar ${selectedNetwork?.name}`}
+        title={
+          editingNetwork
+            ? `Editar ${selectedNetwork?.name}`
+            : `Adicionar ${selectedNetwork?.name}`
+        }
       >
         {successMessage ? (
           <motion.div
@@ -740,7 +987,9 @@ const DashboardSocial = () => {
                   {selectedNetwork.icon}
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-[var(--color-text)]">{selectedNetwork.name}</h3>
+                  <h3 className="text-sm font-medium text-[var(--color-text)]">
+                    {selectedNetwork.name}
+                  </h3>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     {editingNetwork ? "Atualize o link abaixo" : "Adicione o link ou usuário"}
                   </p>
@@ -754,37 +1003,37 @@ const DashboardSocial = () => {
               </label>
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
-                  <Link size={18} />
+                  <LinkIcon size={18} />
                 </div>
                 <input
                   type="text"
                   placeholder={selectedNetwork?.placeholder}
                   value={networkUrl}
-                  onChange={(e) => setNetworkUrl(e.target.value)}
-                  className={`
-                    w-full px-4 py-3 pl-10 rounded-[var(--border-radius-md)]
-                    bg-[var(--color-surface)] border transition-all duration-300
-                    text-[var(--color-text)] placeholder-[var(--color-text-muted)]
-                    focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
-                    ${error 
-                      ? "border-red-500/50 focus:border-red-500" 
+                  onChange={(e) => handleUrlChange(e.target.value)}
+                  disabled={isSubmitting}
+                  className={`w-full px-4 py-3 pl-10 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border transition-all duration-300 text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 ${
+                    formErrors.url
+                      ? "border-red-500/50 focus:border-red-500"
                       : "border-[var(--color-border)] focus:border-[var(--color-primary)]"
-                    }
-                  `}
+                  }`}
                 />
               </div>
-              {error && (
+              {formErrors.url && (
                 <p className="text-xs text-red-400 flex items-center gap-1">
                   <AlertCircle size={12} />
-                  {error}
+                  {formErrors.url}
                 </p>
               )}
             </div>
 
+            {/* Alerta de link não-social */}
+            <AnimatePresence>{detectedNonSocial && <NonSocialAlert />}</AnimatePresence>
+
             <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
               <motion.button
                 onClick={handleCloseModal}
-                className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] font-medium transition-all"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] font-medium transition-all disabled:opacity-50"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
@@ -792,39 +1041,100 @@ const DashboardSocial = () => {
               </motion.button>
               <motion.button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !networkUrl.trim() || detectedNonSocial}
                 className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                whileHover={isSubmitting ? {} : { scale: 1.02 }}
-                whileTap={isSubmitting ? {} : { scale: 0.98 }}
+                whileHover={isSubmitting || detectedNonSocial ? {} : { scale: 1.02 }}
+                whileTap={isSubmitting || detectedNonSocial ? {} : { scale: 0.98 }}
               >
                 {isSubmitting ? (
                   <>
-                    <motion.div
-                      className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    />
+                    <Loader2 size={16} className="animate-spin" />
                     {editingNetwork ? "Atualizando..." : "Adicionando..."}
                   </>
                 ) : (
                   <>
-                    {editingNetwork ? (
-                      <>
-                        <Edit3 size={16} />
-                        Atualizar
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={16} />
-                        Adicionar
-                      </>
-                    )}
+                    {editingNetwork ? <Edit3 size={16} /> : <Plus size={16} />}
+                    {editingNetwork ? "Atualizar" : "Adicionar"}
                   </>
                 )}
               </motion.button>
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Modal: Confirmar Exclusão */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setDeletingNetwork(null);
+        }}
+        title="Excluir Rede Social"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-[var(--border-radius-md)] bg-red-500/10 border border-red-500/30">
+            <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-[var(--color-text)]">
+                Tem certeza que deseja excluir esta rede social?
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                Esta ação não pode ser desfeita.
+              </p>
+            </div>
+          </div>
+
+          {deletingNetwork && (
+            <div className="flex items-center gap-3 p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)] border border-[var(--color-border)]">
+              <div className="w-10 h-10 flex items-center justify-center rounded bg-[var(--color-background)]">
+                {getNetworkById(deletingNetwork.networkId)?.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[var(--color-text)]">
+                  {getNetworkById(deletingNetwork.networkId)?.name}
+                </p>
+                <p className="text-xs text-[var(--color-text-muted)] truncate">
+                  {deletingNetwork.url}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+            <motion.button
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setDeletingNetwork(null);
+              }}
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] font-medium transition-all disabled:opacity-50"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              Cancelar
+            </motion.button>
+            <motion.button
+              onClick={confirmDelete}
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-red-500 hover:bg-red-600 text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              whileHover={isSubmitting ? {} : { scale: 1.02 }}
+              whileTap={isSubmitting ? {} : { scale: 0.98 }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                <>
+                  <Trash2 size={16} />
+                  Excluir Rede
+                </>
+              )}
+            </motion.button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

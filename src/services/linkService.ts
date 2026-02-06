@@ -1,5 +1,4 @@
-
-
+// src/services/linkService.ts
 import api from './api';
 import type { UserLinksResponse } from '../types/links.types';
 import type { DefaultResponse } from '../types/authtypes/auth.types';
@@ -16,7 +15,7 @@ class LinkService {
   async addLink(url: string, typeId?: number): Promise<DefaultResponse> {
     const params = new URLSearchParams();
     params.append('url', url);
-    if (typeId) {
+    if (typeId !== undefined) {
       params.append('typeId', typeId.toString());
     }
     
