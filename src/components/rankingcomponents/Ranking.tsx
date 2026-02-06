@@ -150,6 +150,7 @@ const Ranking: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] relative overflow-hidden">
+      <br /><br />
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div 
@@ -207,10 +208,10 @@ const Ranking: React.FC = () => {
                   <button
                     key={filter.id}
                     onClick={() => setActiveFilter(filter.id)}
-                    className="group relative flex items-center justify-center gap-2.5 px-5 sm:px-6 py-3.5 sm:py-4 font-semibold text-sm sm:text-base transition-all duration-500 ease-out"
+                    className="group relative flex items-center justify-center gap-1.5 px-6 sm:px-6 py-3.5 sm:py-4 font-semibold text-sm sm:text-base transition-all duration-500 ease-out"
                     style={{
                       backgroundColor: isActive ? 'var(--color-primary)' : 'var(--color-surface)',
-                      color: isActive ? 'var(--color-text)' : 'var(--color-text-muted)',
+                      color: isActive ? 'white' : 'var(--color-text)',
                       borderRadius: 'var(--border-radius-lg)',
                       border: `2px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'}`,
                       boxShadow: isActive ? '0 0 30px rgba(143, 124, 255, 0.4)' : 'none',

@@ -59,7 +59,7 @@ const FeaturesSection = () => {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="py-24 relative bg-gradient-to-b from-[var(--color-background)] via-[var(--color-accent)] to-black overflow-hidden">
+    <section ref={ref} className="py-24 relative bg-gradient-to-b from-[var(--color-background)] via-[var(--color-accent)] to-[var(--color-background)] overflow-hidden">
       <div className="max-w-6xl mx-auto px-6">
         {/* Section Header */}
         <motion.div
