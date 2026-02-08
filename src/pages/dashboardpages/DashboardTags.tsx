@@ -200,8 +200,8 @@ const TagChip = ({
   size?: "small" | "normal";
   disabled?: boolean;
 }) => {
-  const sizeClasses = size === "small" 
-    ? "px-2 py-1 text-xs gap-1" 
+  const sizeClasses = size === "small"
+    ? "px-2 py-1 text-xs gap-1"
     : "px-3 py-2 text-sm gap-2";
 
   return (
@@ -224,7 +224,7 @@ const TagChip = ({
     >
       {/* Emoji */}
       <span className={size === "small" ? "text-sm" : "text-base"}>{tag.emoji}</span>
-      
+
       {/* Name */}
       <span className="truncate max-w-[120px]">{tag.name}</span>
 
@@ -275,7 +275,9 @@ const CategorySection = ({
   return (
     <motion.div
       layout
-      className="border border-[var(--color-border)] rounded-[var(--border-radius-md)] overflow-hidden"
+      className="box-border border border-transparent border-[var(--color-border)] rounded-[var(--border-radius-md)]
+      overflow-hidden
+"
     >
       {/* Category Header */}
       <motion.button
@@ -371,7 +373,7 @@ const DashboardTags = () => {
   const [initialTags, setInitialTags] = useState<number[]>([]); // Para comparar mudanças
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["personality"]);
-  
+
   // ✅ Estados de loading e erro
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -384,7 +386,7 @@ const DashboardTags = () => {
   const loadUserTags = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const response = await tagService.getUserTags();
       const userTagIds = response.tags.map(tag => tag.tagId);
@@ -435,12 +437,12 @@ const DashboardTags = () => {
       if (prev.includes(tagId)) {
         return prev.filter((id) => id !== tagId);
       }
-      
+
       // Verificar limite
       if (prev.length >= MAX_TAGS) {
         return prev;
       }
-      
+
       return [...prev, tagId];
     });
   };
@@ -477,22 +479,22 @@ const DashboardTags = () => {
   // ✅ Salvar alterações no backend
   const handleSave = async () => {
     if (!hasChanges) return;
-    
+
     setIsSaving(true);
     setError(null);
-    
+
     try {
       const response = await tagService.updateUserTags(selectedTags);
       const updatedTagIds = response.tags.map(tag => tag.tagId);
-      
+
       setSelectedTags(updatedTagIds);
       setInitialTags(updatedTagIds);
       setShowSuccess(true);
-      
+
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: any) {
       console.error('Erro ao salvar tags:', err);
-      
+
       if (err.response?.status === 401) {
         setError('Sessão expirada. Faça login novamente.');
       } else if (err.response?.status === 404) {
@@ -749,11 +751,10 @@ const DashboardTags = () => {
             <div className="mb-4">
               <div className="h-2 bg-[var(--color-surface)] rounded-full overflow-hidden">
                 <motion.div
-                  className={`h-full rounded-full ${
-                    selectedTags.length >= MAX_TAGS
+                  className={`h-full rounded-full ${selectedTags.length >= MAX_TAGS
                       ? "bg-yellow-500"
                       : "bg-[var(--color-primary)]"
-                  }`}
+                    }`}
                   initial={{ width: 0 }}
                   animate={{ width: `${(selectedTags.length / MAX_TAGS) * 100}%` }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}

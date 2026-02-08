@@ -58,25 +58,17 @@ const Sidebar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [activeItem, setActiveItem] = useState("Início");
   const { isDark, toggleTheme } = useTheme();
-  
 
-  // Auth hooks e estados para logout
   const { user, logout, isLoading } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Estados para dados do perfil
-   const { profileData, isLoadingProfile } = useProfile();
+  const { profileData, isLoadingProfile } = useProfile();
 
-  if (isLoadingProfile) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  // ═══════════════════════════════════════════════════════════
+  // ✅ SEM early return — dados derivados usam fallback seguro
+  // ═══════════════════════════════════════════════════════════
 
-  // Função de Logout
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -90,12 +82,10 @@ const Sidebar = () => {
     }
   };
 
-  
-
   const displayName = profileData?.name || user?.name || "Usuário";
   const profileUrl = profileData?.url || user?.urlName || "usuario";
-  const profileImageUrl = profileData?.pageSettings?.mediaUrls?.profileImageUrl || "Usuário";
-
+  const profileImageUrl =
+    profileData?.pageSettings?.mediaUrls?.profileImageUrl || "";
 
   const navSections: NavSection[] = [
     {
@@ -115,7 +105,11 @@ const Sidebar = () => {
     {
       title: "Perfil",
       items: [
-        { icon: <Image size={20} />, label: "Ativos", href: "/dashboard/assets" },
+        {
+          icon: <Image size={20} />,
+          label: "Ativos",
+          href: "/dashboard/assets",
+        },
         {
           icon: <Palette size={20} />,
           label: "Customização",
@@ -127,7 +121,11 @@ const Sidebar = () => {
     {
       title: "Widgets",
       items: [
-        { icon: <Link2 size={20} />, label: "Links", href: "/dashboard/links" },
+        {
+          icon: <Link2 size={20} />,
+          label: "Links",
+          href: "/dashboard/links",
+        },
         {
           icon: <Share2 size={20} />,
           label: "Redes Sociais",
@@ -155,7 +153,11 @@ const Sidebar = () => {
           label: "Inventário",
           href: "/dashboard/inventory",
         },
-        { icon: <History size={20} />, label: "Histórico", href: "/dashboard/logs" },
+        {
+          icon: <History size={20} />,
+          label: "Histórico",
+          href: "/dashboard/logs",
+        },
       ],
     },
   ];
@@ -171,34 +173,40 @@ const Sidebar = () => {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // COMPONENTE: Avatar do Usuário (Reutilizável)
+  // COMPONENTE: Avatar do Usuário (com skeleton integrado)
   // ═══════════════════════════════════════════════════════════
 
   const UserAvatar = ({ size = "default" }: { size?: "default" | "small" }) => {
     const sizeClasses = size === "small" ? "w-8 h-8" : "w-9 h-9";
     const textSize = size === "small" ? "text-xs" : "text-sm";
 
-    // Se está carregando, mostra skeleton
     if (isLoadingProfile) {
       return (
-        <div className={`${sizeClasses} rounded-full bg-[var(--color-surface)] animate-pulse`} />
+        <div className="relative">
+          <div
+            className={`${sizeClasses} rounded-full bg-[var(--color-surface)] animate-pulse`}
+          />
+          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-gray-400 rounded-full border-2 border-[var(--color-background)] animate-pulse" />
+        </div>
       );
     }
 
-    
-
-
-
-    // Fallback: mostra iniciais
     return (
       <div className="relative">
         <div
-          className={`${sizeClasses} rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center`}
+          className={`${sizeClasses} rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center overflow-hidden`}
         >
-          <span className={`text-white font-semibold ${textSize}`}>
-            {/* ✅ CORRIGIDO: Usar displayName (que vem do profileData primeiro) */}
-            <img src={profileImageUrl} alt={displayName} className="w-full h-full rounded-full object-cover" />
-          </span>
+          {profileImageUrl ? (
+            <img
+              src={profileImageUrl}
+              alt={displayName}
+              className="w-full h-full rounded-full object-cover"
+            />
+          ) : (
+            <span className={`text-white font-semibold ${textSize}`}>
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+          )}
         </div>
         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-[var(--color-background)]" />
       </div>
@@ -215,11 +223,7 @@ const Sidebar = () => {
 
     const handleClick = (e: React.MouseEvent) => {
       e.preventDefault();
-
-      if (isBlocked) {
-        return;
-      }
-
+      if (isBlocked) return;
       setActiveItem(item.label);
       window.location.href = item.href;
     };
@@ -236,9 +240,7 @@ const Sidebar = () => {
           className={`
             relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
             transition-all duration-300 group
-            
             ${isBlocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
-            
             ${
               isActive && !isBlocked
                 ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
@@ -313,13 +315,13 @@ const Sidebar = () => {
           {isCollapsed && (
             <div
               className="
-              absolute left-full ml-3 px-3 py-1.5 rounded-[var(--border-radius-sm)]
-              bg-[var(--color-background)] border border-[var(--color-border)]
-              text-[var(--color-text)] text-sm font-medium
-              opacity-0 invisible group-hover:opacity-100 group-hover:visible
-              transition-all duration-200 whitespace-nowrap z-50
-              shadow-lg flex items-center gap-2
-            "
+                absolute left-full ml-3 px-3 py-1.5 rounded-[var(--border-radius-sm)]
+                bg-[var(--color-background)] border border-[var(--color-border)]
+                text-[var(--color-text)] text-sm font-medium
+                opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                transition-all duration-200 whitespace-nowrap z-50
+                shadow-lg flex items-center gap-2
+              "
             >
               <span className={isBlocked ? "line-through opacity-60" : ""}>
                 {item.label}
@@ -375,11 +377,7 @@ const Sidebar = () => {
 
     const handleClick = (e: React.MouseEvent) => {
       e.preventDefault();
-
-      if (isBlocked) {
-        return;
-      }
-
+      if (isBlocked) return;
       setActiveItem(item.label);
       setIsMobileOpen(false);
       window.location.href = item.href;
@@ -390,19 +388,17 @@ const Sidebar = () => {
         href={isBlocked ? undefined : item.href}
         onClick={handleClick}
         className={`
-        relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
-        transition-all duration-300
-        
-        ${isBlocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
-        
-        ${
-          isActive && !isBlocked
-            ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
-            : isBlocked
-            ? "text-[var(--color-text-muted)]"
-            : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
-        }
-      `}
+          relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
+          transition-all duration-300
+          ${isBlocked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+          ${
+            isActive && !isBlocked
+              ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
+              : isBlocked
+              ? "text-[var(--color-text-muted)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+          }
+        `}
         whileHover={isBlocked ? {} : { x: 4 }}
         whileTap={isBlocked ? {} : { scale: 0.98 }}
       >
@@ -414,7 +410,9 @@ const Sidebar = () => {
         )}
 
         <span
-          className={isActive && !isBlocked ? "text-[var(--color-primary)]" : ""}
+          className={
+            isActive && !isBlocked ? "text-[var(--color-primary)]" : ""
+          }
         >
           {item.icon}
         </span>
@@ -620,7 +618,6 @@ const Sidebar = () => {
             `}
             whileHover={{ scale: 1.02 }}
           >
-            {/* Avatar com imagem do perfil */}
             <UserAvatar />
 
             <AnimatePresence>
@@ -631,19 +628,25 @@ const Sidebar = () => {
                   exit={{ opacity: 0 }}
                   className="flex-1 min-w-0"
                 >
-                  {/* ✅ CORRIGIDO: Usar displayName */}
-                  <p className="text-sm font-semibold text-[var(--color-text)] truncate">
-                    {displayName}
-                  </p>
-                  {/* URL do perfil vindo do endpoint */}
-                  <p className="text-xs text-[var(--color-text-muted)] truncate">
-                    vxo.lat/{profileUrl}
-                  </p>
+                  {isLoadingProfile ? (
+                    <>
+                      <div className="h-4 w-24 bg-[var(--color-surface)] rounded animate-pulse" />
+                      <div className="h-3 w-20 bg-[var(--color-surface)] rounded animate-pulse mt-1" />
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-[var(--color-text)] truncate">
+                        {displayName}
+                      </p>
+                      <p className="text-xs text-[var(--color-text-muted)] truncate">
+                        vxo.lat/{profileUrl}
+                      </p>
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Dropdown Arrow */}
             <AnimatePresence>
               {!isCollapsed && (
                 <motion.div
@@ -675,7 +678,6 @@ const Sidebar = () => {
                   borderColor: "var(--color-border)",
                 }}
               >
-                {/* View Profile Button */}
                 <motion.button
                   onClick={() => {
                     setShowUserMenu(false);
@@ -688,7 +690,6 @@ const Sidebar = () => {
                   <span className="text-sm">Ver Perfil Público</span>
                 </motion.button>
 
-                {/* Profile Settings Button */}
                 <motion.button
                   onClick={() => {
                     setShowUserMenu(false);
@@ -701,10 +702,8 @@ const Sidebar = () => {
                   <span className="text-sm">Configurações</span>
                 </motion.button>
 
-                {/* Divider */}
                 <div className="my-2 border-t border-[var(--color-border)]" />
 
-                {/* Logout Button */}
                 <motion.button
                   onClick={handleLogout}
                   disabled={isLoggingOut || isLoading}
@@ -725,23 +724,21 @@ const Sidebar = () => {
             )}
           </AnimatePresence>
 
-          {/* Tooltip para modo collapsed com opção de logout */}
+          {/* Tooltip para modo collapsed */}
           {isCollapsed && (
             <div
               className="
-              absolute left-full ml-3 px-3 py-2 rounded-[var(--border-radius-md)]
-              bg-[var(--color-background)] border border-[var(--color-border)]
-              opacity-0 invisible group-hover:opacity-100 group-hover:visible
-              transition-all duration-200 whitespace-nowrap z-50
-              shadow-lg
-            "
+                absolute left-full ml-3 px-3 py-2 rounded-[var(--border-radius-md)]
+                bg-[var(--color-background)] border border-[var(--color-border)]
+                opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                transition-all duration-200 whitespace-nowrap z-50
+                shadow-lg
+              "
             >
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-3">
-                  {/* Mini avatar no tooltip */}
                   <UserAvatar size="small" />
                   <div>
-                    {/* ✅ CORRIGIDO: Usar displayName */}
                     <p className="text-sm font-semibold text-[var(--color-text)]">
                       {displayName}
                     </p>
@@ -824,21 +821,26 @@ const Sidebar = () => {
             className="flex items-center gap-3 p-3 rounded-[var(--border-radius-md)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 border border-[var(--color-border)] cursor-pointer hover:from-[var(--color-primary)]/20 hover:to-[var(--color-secondary)]/20 transition-all duration-300"
             whileHover={{ scale: 1.02 }}
           >
-            {/* Avatar com imagem do perfil */}
             <UserAvatar />
 
             <div className="flex-1 min-w-0">
-              {/* ✅ CORRIGIDO: Usar displayName */}
-              <p className="text-sm font-semibold text-[var(--color-text)] truncate">
-                {displayName}
-              </p>
-              {/* URL do perfil vindo do endpoint */}
-              <p className="text-xs text-[var(--color-text-muted)] truncate">
-                vxo.lat/{profileUrl}
-              </p>
+              {isLoadingProfile ? (
+                <>
+                  <div className="h-4 w-24 bg-[var(--color-surface)] rounded animate-pulse" />
+                  <div className="h-3 w-20 bg-[var(--color-surface)] rounded animate-pulse mt-1" />
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-[var(--color-text)] truncate">
+                    {displayName}
+                  </p>
+                  <p className="text-xs text-[var(--color-text-muted)] truncate">
+                    vxo.lat/{profileUrl}
+                  </p>
+                </>
+              )}
             </div>
 
-            {/* Dropdown Arrow */}
             <motion.div
               animate={{ rotate: showUserMenu ? 180 : 0 }}
               transition={{ duration: 0.2 }}
@@ -864,7 +866,6 @@ const Sidebar = () => {
                   borderColor: "var(--color-border)",
                 }}
               >
-                {/* View Profile Button */}
                 <motion.button
                   onClick={() => {
                     setShowUserMenu(false);
@@ -878,7 +879,6 @@ const Sidebar = () => {
                   <span className="text-sm">Ver Perfil Público</span>
                 </motion.button>
 
-                {/* Profile Settings Button */}
                 <motion.button
                   onClick={() => {
                     setShowUserMenu(false);
@@ -892,10 +892,8 @@ const Sidebar = () => {
                   <span className="text-sm">Configurações</span>
                 </motion.button>
 
-                {/* Divider */}
                 <div className="my-2 border-t border-[var(--color-border)]" />
 
-                {/* Logout Button */}
                 <motion.button
                   onClick={handleLogout}
                   disabled={isLoggingOut || isLoading}
@@ -926,8 +924,8 @@ const Sidebar = () => {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <motion.button
+      {/* Mobile Menu Button — CSS puro, sem framer-motion */}
+      <button
         onClick={() => setIsMobileOpen(true)}
         className="
           lg:hidden fixed top-4 left-4 z-50 w-11 h-11
@@ -935,12 +933,11 @@ const Sidebar = () => {
           bg-[var(--card-background-glass)] backdrop-blur-[var(--blur-amount)]
           border border-[var(--color-border)]
           text-[var(--color-text)] shadow-lg
+          hover:scale-105 active:scale-95 transition-transform
         "
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
       >
         <Menu size={22} />
-      </motion.button>
+      </button>
 
       {/* Mobile Overlay */}
       <AnimatePresence>
@@ -990,7 +987,7 @@ const Sidebar = () => {
         )}
       </AnimatePresence>
 
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar — fixed */}
       <motion.aside
         variants={sidebarVariants}
         animate={isCollapsed ? "collapsed" : "expanded"}
@@ -1005,11 +1002,10 @@ const Sidebar = () => {
         <DesktopSidebarContent />
       </motion.aside>
 
-      {/* Content Spacer */}
-      <motion.div
-        className="hidden lg:block flex-shrink-0"
-        animate={{ width: isCollapsed ? 80 : 280 }}
-        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+      {/* ✅ Content Spacer — div PURO com CSS transition, SEM motion */}
+      <div
+        className="hidden lg:block flex-shrink-0 transition-[width] duration-300 ease-in-out"
+        style={{ width: isCollapsed ? 80 : 280 }}
       />
     </>
   );

@@ -1,9 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
   /* Brand */
@@ -75,6 +74,7 @@ html {
 body {
   background-color: var(--color-background);
   color: var(--color-text);
+  overflow-x: hidden;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -235,5 +235,3 @@ a:focus-visible {
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
 }
-
-

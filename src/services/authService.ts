@@ -89,9 +89,7 @@ class AuthService {
     }
 
     try {
-      const response = await api.post<AuthResponse>('/user/auth/refresh', {
-        refreshToken,
-      });
+      const response = await api.post<AuthResponse>('/user/auth/refresh?refreshToken=' + encodeURIComponent(refreshToken));
 
       const { token, refreshToken: newRefreshToken } = response.data;
 
