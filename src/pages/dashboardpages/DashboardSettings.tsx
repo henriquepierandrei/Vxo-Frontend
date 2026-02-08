@@ -404,7 +404,7 @@ const DashboardSettings = () => {
 
   const displayName = profileData?.name || "Usuário";
   const profileUrl = profileData?.url || "usuario";
-  const isPremium = profileData?.premium ?? false;
+  const isPremium = profileData?.isPremium ?? false;
 
   // ── Estados locais ───────────────────────────────────────
   const [acceptGifts, setAcceptGifts] = useState<boolean>(false);

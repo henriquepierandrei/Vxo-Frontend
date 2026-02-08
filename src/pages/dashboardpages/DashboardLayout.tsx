@@ -1,15 +1,17 @@
-// layouts/DashboardLayout.tsx
+// pages/dashboardpages/DashboardLayout.tsx
+import { Outlet } from "react-router-dom";
 import Sidebar from "../../components/dashboardcomponents/Sidebar";
 
-const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
+const DashboardLayout = () => {
+  // ❌ REMOVA: { children }: { children: React.ReactNode }
+  // ✅ Agora não recebe mais children
+  
+  console.log("🟢 DashboardLayout montou"); // Debug - remova depois
+  
   return (
-    // ✅ Flex layout — sidebar spacer + main lado a lado, estável desde frame 1
     <div className="min-h-screen bg-[var(--color-background)] flex">
-
-      {/* Sidebar inclui: botão mobile, aside fixed, spacer div */}
       <Sidebar />
 
-      {/* Main Content — flex-1 preenche o espaço restante */}
       <main
         className="relative isolate min-h-screen flex-1 px-4 lg:px-6 xl:px-8 overflow-hidden"
         style={{
@@ -18,7 +20,8 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
         }}
       >
         <div className="relative max-w-[1600px] mx-auto w-full">
-          {children}
+          {/* ✅ OUTLET - renderiza a rota filha */}
+          <Outlet />
         </div>
       </main>
     </div>

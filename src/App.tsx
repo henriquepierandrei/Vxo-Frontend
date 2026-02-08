@@ -4,8 +4,10 @@ import { ThemeProvider } from "./hooks/ThemeProvider";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProfileProvider } from "./contexts/UserContext";
 
-// ✅ Importar os wrappers
-import { DashboardWithLinks, DashboardWithoutLinks } from "./components/DashboardWrappers";
+// ✅ Layouts (NOVOS)
+import DashboardLayout from "./pages/dashboardpages/DashboardLayout";
+import { ProtectedLayout } from "./components/layouts/ProtectedLayout";
+import { LinksLayout } from "./components/layouts/LinksLayout";
 
 // Páginas de autenticação
 import Login from "./pages/authpages/Login";
@@ -39,123 +41,50 @@ function App() {
           <ProfileProvider>
             <TitleManager />
 
-            <div className="min-h-screen transition-colors duration-300">
-              <main>
-                <Routes>
-                  {/* ========== ROTAS PÚBLICAS ========== */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/validate-email" element={<EmailValidation />} />
-                  <Route path="/plans" element={<PrincingSection />} />
-                  <Route path="/ranking" element={<RankingPage />} />
+            <Routes>
+              {/* ========== ROTAS PÚBLICAS ========== */}
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/validate-email" element={<EmailValidation />} />
+              <Route path="/plans" element={<PrincingSection />} />
+              <Route path="/ranking" element={<RankingPage />} />
 
-                  {/* ========== DASHBOARD SEM LINKS PROVIDER ========== */}
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardStart />
-                      </DashboardWithoutLinks>
-                    }
-                  />
+              {/* ========== DASHBOARD - ROTAS ANINHADAS ========== */}
+              {/* 
+                ✅ ESTRUTURA:
+                /dashboard/* → DashboardLayout (MONTA 1x, NUNCA REMONTA)
+                  └─ ProtectedLayout (verifica auth)
+                      └─ Páginas individuais (só isso muda!)
+              */}
+              <Route path="/dashboard" element={<DashboardLayout />}>
+                <Route element={<ProtectedLayout />}>
+                  
+                  {/* /dashboard → DashboardStart */}
+                  <Route index element={<DashboardStart />} />
+                  
+                  {/* Rotas SEM LinksProvider */}
+                  <Route path="start" element={<DashboardStart />} />
+                  <Route path="settings" element={<DashboardSettings />} />
+                  <Route path="tags" element={<DashboardTags />} />
+                  <Route path="logs" element={<LogsPremium />} />
+                  <Route path="store" element={<DashboardStore />} />
+                  <Route path="assets" element={<DashboardAssets />} />
+                  <Route path="inventory" element={<DashboardInventory />} />
+                  <Route path="customization" element={<DashboardCustomization />} />
 
-                  <Route
-                    path="/dashboard/start"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardStart />
-                      </DashboardWithoutLinks>
-                    }
-                  />
+                  {/* Rotas COM LinksProvider */}
+                  <Route element={<LinksLayout />}>
+                    <Route path="links" element={<DashboardLinks />} />
+                    <Route path="socialmedia" element={<DashboardSocial />} />
+                  </Route>
+                  
+                </Route>
+              </Route>
 
-                  <Route
-                    path="/dashboard/settings"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardSettings />
-                      </DashboardWithoutLinks>
-                    }
-                  />
-
-                  <Route
-                    path="/dashboard/tags"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardTags />
-                      </DashboardWithoutLinks>
-                    }
-                  />
-
-                  <Route
-                    path="/dashboard/logs"
-                    element={
-                      <DashboardWithoutLinks>
-                        <LogsPremium />
-                      </DashboardWithoutLinks>
-                    }
-                  />
-
-                  <Route
-                    path="/dashboard/store"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardStore />
-                      </DashboardWithoutLinks>
-                    }
-                  />
-
-                  <Route
-                    path="/dashboard/assets"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardAssets />
-                      </DashboardWithoutLinks>
-                    }
-                  />
-
-                  <Route
-                    path="/dashboard/inventory"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardInventory />
-                      </DashboardWithoutLinks>
-                    }
-                  />
-
-                  <Route
-                    path="/dashboard/customization"
-                    element={
-                      <DashboardWithoutLinks>
-                        <DashboardCustomization />
-                      </DashboardWithoutLinks>
-                    }
-                  />
-
-                  {/* ========== DASHBOARD COM LINKS PROVIDER ========== */}
-                  <Route
-                    path="/dashboard/links"
-                    element={
-                      <DashboardWithLinks>
-                        <DashboardLinks />
-                      </DashboardWithLinks>
-                    }
-                  />
-
-                  <Route
-                    path="/dashboard/socialmedia"
-                    element={
-                      <DashboardWithLinks>
-                        <DashboardSocial />
-                      </DashboardWithLinks>
-                    }
-                  />
-
-                  {/* ========== FALLBACK ========== */}
-                  <Route path="*" element={<Navigate to="/login" replace />} />
-                </Routes>
-              </main>
-            </div>
+              {/* ========== FALLBACK ========== */}
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
           </ProfileProvider>
         </AuthProvider>
       </Router>
