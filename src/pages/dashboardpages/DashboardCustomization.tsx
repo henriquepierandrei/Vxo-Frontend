@@ -39,7 +39,6 @@ import {
 } from "lucide-react";
 import { customizationService } from "../../services/customizationService";
 import { assetUploadService } from "../../services/assetUploadService";
-import type { UserPageFrontendResponse } from "../../types/customization.types";
 import { useProfile } from "../../contexts/UserContext";
 
 // ═══════════════════════════════════════════════════════════
@@ -113,7 +112,7 @@ interface FileUploadProps {
 
 const getFileType = (file: File | string): MediaType => {
   let type: string;
-  
+
   if (typeof file === "string") {
     // Detectar por extensão da URL
     const ext = file.split('.').pop()?.toLowerCase().split('?')[0] || '';
@@ -219,11 +218,11 @@ const settingsToRequest = (settings: CustomizationSettings) => ({
 // COMPONENTE AUDIO PLAYER
 // ═══════════════════════════════════════════════════════════
 
-const AudioPlayer = ({ 
-  src, 
-  fileName 
-}: { 
-  src: string; 
+const AudioPlayer = ({
+  src,
+  fileName
+}: {
+  src: string;
   fileName?: string;
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -309,7 +308,7 @@ const AudioPlayer = ({
   return (
     <div className="w-full space-y-2">
       <audio ref={audioRef} src={src} preload="metadata" />
-      
+
       {/* Player Controls */}
       <div className="flex items-center gap-3 p-3 rounded-lg bg-[var(--color-background)]/50">
         {/* Play/Pause Button */}
@@ -415,7 +414,7 @@ const FileUpload = ({
     if (file) {
       const fileType = getFileType(file);
       setMediaType(fileType);
-      
+
       if (previewType === "media" || previewType === "image" || previewType === "cursor" || previewType === "audio") {
         const url = URL.createObjectURL(file);
         setPreview(url);
@@ -542,8 +541,8 @@ const FileUpload = ({
         className={`
           relative rounded-[var(--border-radius-md)] border-2 border-dashed
           transition-all duration-300 overflow-hidden cursor-pointer
-          ${isDragging 
-            ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10" 
+          ${isDragging
+            ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
             : hasFile
               ? "border-[var(--color-border)] bg-[var(--color-surface)]"
               : "border-[var(--color-border)] hover:border-[var(--color-primary)]/50 bg-[var(--color-surface)]"
@@ -556,23 +555,23 @@ const FileUpload = ({
         {hasFile ? (
           <div className="relative">
             {/* Image/Cursor Preview */}
-            {(previewType === "image" || previewType === "cursor" || 
+            {(previewType === "image" || previewType === "cursor" ||
               (previewType === "media" && currentMediaType === "image")) && displayPreview && (
-              <div className="relative h-32 w-full">
-                <img
-                  src={displayPreview}
-                  alt="Preview"
-                  className={`
+                <div className="relative h-32 w-full">
+                  <img
+                    src={displayPreview}
+                    alt="Preview"
+                    className={`
                     w-full h-full object-cover
                     ${previewType === "cursor" ? "object-contain bg-[var(--color-background)]" : ""}
                   `}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              </div>
-            )}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                </div>
+              )}
 
             {/* Video Preview */}
             {previewType === "media" && currentMediaType === "video" && displayPreview && (
@@ -625,11 +624,11 @@ const FileUpload = ({
                     <Trash2 size={14} />
                   </motion.button>
                 </div>
-                
+
                 {/* Audio Player */}
                 {audioSrc && (
-                  <AudioPlayer 
-                    src={audioSrc} 
+                  <AudioPlayer
+                    src={audioSrc}
                     fileName={file?.name}
                   />
                 )}
@@ -663,7 +662,7 @@ const FileUpload = ({
                     {file?.name || "Arquivo atual"}
                   </span>
                 </div>
-                
+
                 <motion.button
                   onClick={handleRemove}
                   className="
@@ -695,14 +694,14 @@ const FileUpload = ({
           <div className="p-6 flex flex-col items-center justify-center text-center">
             <div className={`
               p-3 rounded-full mb-3 transition-colors
-              ${isDragging 
-                ? "bg-[var(--color-primary)]/20" 
+              ${isDragging
+                ? "bg-[var(--color-primary)]/20"
                 : "bg-[var(--color-surface-elevated)]"
               }
             `}>
-              <Upload 
-                size={24} 
-                className={isDragging ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"} 
+              <Upload
+                size={24}
+                className={isDragging ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"}
               />
             </div>
             <p className="text-sm text-[var(--color-text)]">
@@ -719,7 +718,7 @@ const FileUpload = ({
 
       {/* Error */}
       {error && (
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-xs text-red-400 flex items-center gap-1"
@@ -929,51 +928,57 @@ const Input = ({
   maxLength?: number;
   helperText?: string;
   disabled?: boolean;
-}) => (
-  <div className="space-y-2">
-    <div className="flex items-center justify-between">
-      <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
-      {maxLength && (
-        <span className={`text-xs ${value.length >= maxLength ? 'text-red-400' : 'text-[var(--color-text-muted)]'}`}>
-          {value.length}/{maxLength}
-        </span>
+}) => {
+  // ✅ GARANTE QUE VALUE NUNCA É NULL
+  const safeValue = value ?? "";
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
+        {maxLength && (
+          <span className={`text-xs ${safeValue.length >= maxLength ? 'text-red-400' : 'text-[var(--color-text-muted)]'}`}>
+            {safeValue.length}/{maxLength}
+          </span>
+        )}
+      </div>
+      <div className="relative">
+        {Icon && (
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
+            <Icon size={18} />
+          </div>
+        )}
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={safeValue}
+          onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
+          maxLength={maxLength}
+          disabled={disabled}
+          className={`
+            w-full px-4 py-3 rounded-[var(--border-radius-md)]
+            bg-[var(--color-surface)] border transition-all duration-300
+            text-[var(--color-text)] placeholder-[var(--color-text-muted)]
+            focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
+            ${Icon ? "pl-10" : ""}
+            ${error ? "border-red-500/50 focus:border-red-500" : "border-[var(--color-border)] focus:border-[var(--color-primary)]"}
+            ${disabled ? "opacity-50 cursor-not-allowed" : ""}
+          `}
+        />
+      </div>
+      {helperText && !error && (
+        <p className="text-xs text-[var(--color-text-muted)]">{helperText}</p>
+      )}
+      {error && (
+        <p className="text-xs text-red-400 flex items-center gap-1">
+          <AlertCircle size={12} />
+          {error}
+        </p>
       )}
     </div>
-    <div className="relative">
-      {Icon && (
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">
-          <Icon size={18} />
-        </div>
-      )}
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
-        maxLength={maxLength}
-        disabled={disabled}
-        className={`
-          w-full px-4 py-3 rounded-[var(--border-radius-md)]
-          bg-[var(--color-surface)] border transition-all duration-300
-          text-[var(--color-text)] placeholder-[var(--color-text-muted)]
-          focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
-          ${Icon ? "pl-10" : ""}
-          ${error ? "border-red-500/50 focus:border-red-500" : "border-[var(--color-border)] focus:border-[var(--color-primary)]"}
-          ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-        `}
-      />
-    </div>
-    {helperText && !error && (
-      <p className="text-xs text-[var(--color-text-muted)]">{helperText}</p>
-    )}
-    {error && (
-      <p className="text-xs text-red-400 flex items-center gap-1">
-        <AlertCircle size={12} />
-        {error}
-      </p>
-    )}
-  </div>
-);
+  );
+};
+
 
 const Textarea = ({
   label,
@@ -991,36 +996,41 @@ const Textarea = ({
   maxLength?: number;
   rows?: number;
   helperText?: string;
-}) => (
-  <div className="space-y-2">
-    <div className="flex items-center justify-between">
-      <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
-      {maxLength && (
-        <span className={`text-xs ${value.length >= maxLength ? 'text-red-400' : 'text-[var(--color-text-muted)]'}`}>
-          {value.length}/{maxLength}
-        </span>
+}) => {
+  // ✅ GARANTE QUE VALUE NUNCA É NULL
+  const safeValue = value ?? "";
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
+        {maxLength && (
+          <span className={`text-xs ${safeValue.length >= maxLength ? 'text-red-400' : 'text-[var(--color-text-muted)]'}`}>
+            {safeValue.length}/{maxLength}
+          </span>
+        )}
+      </div>
+      <textarea
+        placeholder={placeholder}
+        value={safeValue}
+        onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
+        maxLength={maxLength}
+        rows={rows}
+        className="
+          w-full px-4 py-3 rounded-[var(--border-radius-md)]
+          bg-[var(--color-surface)] border border-[var(--color-border)]
+          text-[var(--color-text)] placeholder-[var(--color-text-muted)]
+          focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
+          focus:border-[var(--color-primary)] transition-all duration-300
+          resize-none
+        "
+      />
+      {helperText && (
+        <p className="text-xs text-[var(--color-text-muted)]">{helperText}</p>
       )}
     </div>
-    <textarea
-      placeholder={placeholder}
-      value={value}
-      onChange={(e) => onChange(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)}
-      maxLength={maxLength}
-      rows={rows}
-      className="
-        w-full px-4 py-3 rounded-[var(--border-radius-md)]
-        bg-[var(--color-surface)] border border-[var(--color-border)]
-        text-[var(--color-text)] placeholder-[var(--color-text-muted)]
-        focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
-        focus:border-[var(--color-primary)] transition-all duration-300
-        resize-none
-      "
-    />
-    {helperText && (
-      <p className="text-xs text-[var(--color-text-muted)]">{helperText}</p>
-    )}
-  </div>
-);
+  );
+};
 
 const CustomizationCard = ({
   children,
@@ -1100,11 +1110,11 @@ const LivePreview = ({
 
   const backgroundMedia = previews.background || settings.backgroundUrl;
   const profileImage = previews.avatar || settings.profileImageUrl;
-  
+
   // Detectar se o background é vídeo ou imagem
-  const backgroundType = fileUploads.background 
+  const backgroundType = fileUploads.background
     ? getFileType(fileUploads.background)
-    : settings.backgroundUrl 
+    : settings.backgroundUrl
       ? getFileType(settings.backgroundUrl)
       : "unknown";
 
@@ -1176,7 +1186,7 @@ const LivePreview = ({
                     ${settings.contentCenter ? 'text-center' : 'text-left'}
                   `}
                   style={{
-                    backgroundColor: settings.cardColor 
+                    backgroundColor: settings.cardColor
                       ? `${settings.cardColor}${Math.round(settings.cardOpacity * 2.55).toString(16).padStart(2, '0')}`
                       : `rgba(0, 0, 0, ${settings.cardOpacity / 100})`,
                     backdropFilter: `blur(${settings.cardBlur}px)`,
@@ -1198,7 +1208,7 @@ const LivePreview = ({
                       )}
                     </div>
                   </div>
-                  
+
                   <h2
                     className={`
                       text-2xl font-bold mb-2
@@ -1212,7 +1222,7 @@ const LivePreview = ({
                   >
                     {settings.name || "Seu Nome"}
                   </h2>
-                  
+
                   <p
                     className="text-sm opacity-80"
                     style={{ color: settings.biographyColor || 'rgba(255,255,255,0.7)' }}
@@ -1352,17 +1362,17 @@ const DashboardCustomization = () => {
     try {
       // Verificar se há arquivos para upload
       const hasFilesToUpload = Object.values(fileUploads).some(file => file !== null);
-      
+
       if (hasFilesToUpload) {
         setUploadProgress("Fazendo upload dos arquivos...");
-        
+
         const uploadResponse = await assetUploadService.uploadAssets({
           avatar: fileUploads.avatar,
           background: fileUploads.background,
           music: fileUploads.music,
           cursor: fileUploads.cursor,
         });
-        
+
         // Atualizar as URLs com as retornadas pelo servidor
         if (uploadResponse.urls) {
           if (uploadResponse.urls.avatarUrl) {
@@ -1379,16 +1389,16 @@ const DashboardCustomization = () => {
           }
         }
       }
-      
+
       setUploadProgress("Salvando configurações...");
-      
+
       // Salvar as configurações
       const requestData = settingsToRequest(settings);
       await customizationService.updatePageSettings(requestData);
-      
+
       // Atualizar o contexto global após salvar
       await refreshProfile();
-      
+
       // Limpar arquivos de upload após sucesso
       setFileUploads({
         avatar: null,
@@ -1396,15 +1406,15 @@ const DashboardCustomization = () => {
         music: null,
         cursor: null,
       });
-      
+
       setSuccessMessage("Configurações salvas com sucesso!");
       setTimeout(() => setSuccessMessage(""), 3000);
-      
+
     } catch (err: unknown) {
       console.error("Erro ao salvar:", err);
-      
+
       const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
-      
+
       if (axiosError.response?.status === 403) {
         setError(axiosError.response.data?.message || "Você não tem permissão para usar este recurso.");
       } else if (axiosError.response?.status === 401) {
@@ -1523,7 +1533,7 @@ const DashboardCustomization = () => {
               Personalize seu perfil
             </h1>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <motion.button
               onClick={() => setShowPreview(true)}
@@ -1539,7 +1549,7 @@ const DashboardCustomization = () => {
               <Eye size={18} />
               <span className="hidden sm:inline">Preview</span>
             </motion.button>
-            
+
             <motion.button
               onClick={handleRefresh}
               disabled={isLoadingProfile}
@@ -1555,7 +1565,7 @@ const DashboardCustomization = () => {
             >
               <RefreshCw size={18} className={isLoadingProfile ? "animate-spin" : ""} />
             </motion.button>
-            
+
             {hasChanges && (
               <motion.button
                 onClick={handleReset}
@@ -1913,7 +1923,7 @@ const DashboardCustomization = () => {
                 {uploadProgress || "Você tem alterações não salvas"}
               </p>
             </div>
-            
+
             <motion.button
               onClick={handleSave}
               disabled={isSubmitting}

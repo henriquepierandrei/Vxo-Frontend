@@ -33,6 +33,7 @@ import DashboardStore from "./pages/dashboardpages/DashboardStore";
 
 import TitleManager from "./types/TitleManager";
 import { StoreLayout } from "./components/layouts/StoreLayout";
+import { InventoryProvider } from "./contexts/InventoryContext";
 
 function App() {
   return (
@@ -41,52 +42,54 @@ function App() {
         <AuthProvider>
           <ProfileProvider>
             <TitleManager />
+            <InventoryProvider>
+              <Routes>
+                {/* ========== ROTAS PÚBLICAS ========== */}
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/validate-email" element={<EmailValidation />} />
+                <Route path="/plans" element={<PrincingSection />} />
+                <Route path="/ranking" element={<RankingPage />} />
 
-            <Routes>
-              {/* ========== ROTAS PÚBLICAS ========== */}
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/validate-email" element={<EmailValidation />} />
-              <Route path="/plans" element={<PrincingSection />} />
-              <Route path="/ranking" element={<RankingPage />} />
-
-              {/* ========== DASHBOARD - ROTAS ANINHADAS ========== */}
-              {/* 
+                {/* ========== DASHBOARD - ROTAS ANINHADAS ========== */}
+                {/* 
                 ✅ ESTRUTURA:
                 /dashboard/* → DashboardLayout (MONTA 1x, NUNCA REMONTA)
                   └─ ProtectedLayout (verifica auth)
                       └─ Páginas individuais (só isso muda!)
               */}
-              <Route path="/dashboard" element={<DashboardLayout />}>
-                <Route element={<ProtectedLayout />}>
+                <Route path="/dashboard" element={<DashboardLayout />}>
+                  <Route element={<ProtectedLayout />}>
 
-                  {/* /dashboard → DashboardStart */}
-                  <Route index element={<DashboardStart />} />
+                    {/* /dashboard → DashboardStart */}
+                    <Route index element={<DashboardStart />} />
 
-                  {/* Rotas SEM LinksProvider */}
-                  <Route path="start" element={<DashboardStart />} />
-                  <Route path="settings" element={<DashboardSettings />} />
-                  <Route path="tags" element={<DashboardTags />} />
-                  <Route path="logs" element={<LogsPremium />} />
-                  <Route element={<StoreLayout />}>
-                    <Route path="store" element={<DashboardStore />} />
-                  </Route>                  <Route path="assets" element={<DashboardAssets />} />
-                  <Route path="inventory" element={<DashboardInventory />} />
-                  <Route path="customization" element={<DashboardCustomization />} />
+                    {/* Rotas SEM LinksProvider */}
+                    <Route path="start" element={<DashboardStart />} />
+                    <Route path="settings" element={<DashboardSettings />} />
+                    <Route path="tags" element={<DashboardTags />} />
+                    <Route path="logs" element={<LogsPremium />} />
+                    <Route element={<StoreLayout />}>
+                      <Route path="store" element={<DashboardStore />} />
+                    </Route>                  <Route path="assets" element={<DashboardAssets />} />
+                    <Route path="inventory" element={<DashboardInventory />} />
+                    <Route path="customization" element={<DashboardCustomization />} />
 
-                  {/* Rotas COM LinksProvider */}
-                  <Route element={<LinksLayout />}>
-                    <Route path="links" element={<DashboardLinks />} />
-                    <Route path="socialmedia" element={<DashboardSocial />} />
+                    {/* Rotas COM LinksProvider */}
+                    <Route element={<LinksLayout />}>
+                      <Route path="links" element={<DashboardLinks />} />
+                      <Route path="socialmedia" element={<DashboardSocial />} />
+                    </Route>
+
                   </Route>
-
                 </Route>
-              </Route>
 
-              {/* ========== FALLBACK ========== */}
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
+                {/* ========== FALLBACK ========== */}
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </Routes>
+            </InventoryProvider>
+
           </ProfileProvider>
         </AuthProvider>
       </Router>

@@ -1,5 +1,5 @@
 // pages/dashboard/DashboardStore.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useProfile } from "../../contexts/UserContext";
 import { useStore, type StoreItem, type StoreItemType, type ItemRarity } from "../../contexts/StoreContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,7 +24,6 @@ import {
   Lock,
   Crown,
   Zap,
-  Gift,
   Tag,
   Video,
   FileCode,
@@ -105,58 +104,93 @@ const FramePreview = ({
   frameUrl,
   size = "medium",
   profileImageUrl = PREVIEW_PROFILE_IMAGE,
-  rarity
+  rarity,
+  onLoadComplete,
 }: {
   frameUrl: string;
   size?: "small" | "medium" | "large";
   profileImageUrl?: string;
   rarity: ItemRarity;
+  onLoadComplete?: () => void;
 }) => {
   const [frameError, setFrameError] = useState(false);
   const [profileError, setProfileError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   const sizeConfig = {
-    small: { container: "w-16 h-16", profile: "w-10 h-10", frame: "w-16 h-16" },
-    medium: { container: "w-32 h-32", profile: "w-28 h-28", frame: "w-32 h-32" },
-    large: { container: "w-48 h-48", profile: "w-32 h-32", frame: "w-48 h-48" },
+    small: { container: 80, frame: 80, profile: 60 },
+    medium: { container: 140, frame: 140, profile: 110 },
+    large: { container: 200, frame: 200, profile: 160 },
   };
 
   const config = sizeConfig[size];
 
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current?.naturalHeight !== 0) {
+      setIsLoading(false);
+      onLoadComplete?.();
+    }
+  }, [profileImageUrl, onLoadComplete]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('FramePreview: Timeout - forçando fim do loading');
+        setIsLoading(false);
+        onLoadComplete?.();
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [isLoading, onLoadComplete]);
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    onLoadComplete?.();
+  };
+
+  const handleImageError = () => {
+    setProfileError(true);
+    setIsLoading(false);
+    onLoadComplete?.();
+  };
+
   return (
-    // ✅ ADICIONADO: aspect-ratio e contain para evitar reflow
     <div
-      className={`${config.container} relative flex items-center justify-center`}
+      className="relative flex items-center justify-center"
       style={{
+        width: config.container,
+        height: config.container,
         filter: `drop-shadow(${getRarityGlow(rarity)})`,
-        aspectRatio: '1/1', // ✅ Força proporção quadrada
-        contain: 'layout style paint', // ✅ Isola o elemento
       }}
     >
-      {/* ✅ Loading com posição absoluta para não afetar layout */}
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center z-30 bg-[var(--color-surface)]">
+        <div
+          className="absolute z-30 bg-[var(--color-surface)] rounded-full flex items-center justify-center"
+          style={{
+            width: config.profile,
+            height: config.profile,
+          }}
+        >
           <Loader2 className="w-6 h-6 animate-spin text-[var(--color-text-muted)]" />
         </div>
       )}
 
-      {/* ✅ Container de imagem de perfil com dimensões fixas */}
       <div
-        className={`${config.profile} rounded-full overflow-hidden absolute z-10`}
-        style={{ aspectRatio: '1/1' }} // ✅ Garante proporção
+        className="absolute rounded-full overflow-hidden z-10"
+        style={{
+          width: config.profile,
+          height: config.profile,
+        }}
       >
         {!profileError ? (
           <img
-            src={profileImageUrl}
+            ref={imgRef}
+            src={profileImageUrl || PREVIEW_PROFILE_IMAGE}
             alt="Preview do perfil"
             className="w-full h-full object-cover"
-            // ✅ ADICIONADO: dimensões explícitas
-            width={size === "small" ? 40 : size === "medium" ? 112 : 128}
-            height={size === "small" ? 40 : size === "medium" ? 112 : 128}
-            loading="lazy"
-            onLoad={() => setIsLoading(false)}
-            onError={() => { setProfileError(true); setIsLoading(false); }}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center">
@@ -165,25 +199,28 @@ const FramePreview = ({
         )}
       </div>
 
-      {/* ✅ Frame com dimensões explícitas */}
       {!frameError && frameUrl && (
         <img
           src={frameUrl}
           alt="Moldura"
-          className={`${config.frame} absolute z-20 object-contain pointer-events-none`}
-          style={{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
-          // ✅ ADICIONADO: dimensões explícitas
-          width={size === "small" ? 64 : size === "medium" ? 128 : 192}
-          height={size === "small" ? 64 : size === "medium" ? 128 : 192}
-          loading="lazy"
+          className="absolute z-20 pointer-events-none"
+          style={{
+            width: config.frame,
+            height: config.frame,
+            objectFit: 'contain',
+          }}
           onError={() => setFrameError(true)}
         />
       )}
 
       {rarity === "legendary" && (
         <motion.div
-          className="absolute inset-0 rounded-full z-5 pointer-events-none"
-          style={{ background: `radial-gradient(circle, transparent 40%, ${getRarityColor(rarity)}20 100%)` }}
+          className="absolute rounded-full z-5 pointer-events-none"
+          style={{
+            width: config.frame,
+            height: config.frame,
+            background: `radial-gradient(circle, transparent 40%, ${getRarityColor(rarity)}20 100%)`
+          }}
           animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.05, 1] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -213,7 +250,6 @@ const ItemMediaPreview = ({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const sizeConfig = {
-    // ✅ ALTERADO: Altura fixa para todos os tamanhos
     small: { container: "w-16 h-16", svg: "w-10 h-10", icon: "w-8 h-8" },
     medium: { container: "w-full h-40", svg: "w-20 h-20", icon: "w-16 h-16" },
     large: { container: "w-full h-64", svg: "w-32 h-32", icon: "w-24 h-24" },
@@ -227,15 +263,13 @@ const ItemMediaPreview = ({
     }
   }, [item.type, videoError]);
 
-  // Badge
   if (item.type === "badge") {
     if (item.svgUrl) {
       return (
         <div
           className={`${config.container} flex items-center justify-center p-4 relative`}
-          style={{ contain: 'layout style paint' }} // ✅ ADICIONADO
+          style={{ contain: 'layout style paint' }}
         >
-          {/* ✅ Loading state absoluto */}
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] z-20">
               <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
@@ -247,9 +281,10 @@ const ItemMediaPreview = ({
           <img
             src={item.svgUrl}
             alt={item.name}
-            className={`${config.svg} object-contain relative z-10`}
-            style={{ filter: `drop-shadow(${getRarityGlow(item.rarity)})` }}
-            // ✅ ADICIONADO: dimensões explícitas
+            className={config.svg}
+            style={{
+              filter: "invert(100%) sepia(100%) saturate(0%) hue-rotate(200deg)",
+            }}
             width={size === "small" ? 40 : size === "medium" ? 80 : 128}
             height={size === "small" ? 40 : size === "medium" ? 80 : 128}
             loading="lazy"
@@ -262,7 +297,7 @@ const ItemMediaPreview = ({
     return (
       <div
         className={`${config.container} flex items-center justify-center relative`}
-        style={{ contain: 'layout style paint' }} // ✅ ADICIONADO
+        style={{ contain: 'layout style paint' }}
       >
         <div className="absolute inset-0 flex items-center justify-center" style={{ filter: "blur(20px)", opacity: 0.5 }}>
           <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(item.rarity) }} />
@@ -272,21 +307,15 @@ const ItemMediaPreview = ({
     );
   }
 
-  // Frame
   if (item.type === "frame") {
     return (
       <div
         className={`${config.container} flex items-center justify-center relative`}
         style={{
           background: `radial-gradient(circle, ${getRarityColor(item.rarity)}10, transparent)`,
-          contain: 'layout style paint' // ✅ ADICIONADO
+          contain: 'layout style paint'
         }}
       >
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] z-20">
-            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
-          </div>
-        )}
         <FramePreview
           frameUrl={item.imageUrl || ''}
           size={size}
@@ -297,13 +326,12 @@ const ItemMediaPreview = ({
     );
   }
 
-  // Effect
   if (item.type === "effect") {
     if (item.videoUrl && !videoError) {
       return (
         <div
           className={`${config.container} relative overflow-hidden bg-black`}
-          style={{ contain: 'layout style paint' }} // ✅ ADICIONADO
+          style={{ contain: 'layout style paint' }}
         >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
@@ -316,7 +344,6 @@ const ItemMediaPreview = ({
             className="w-full h-full object-cover"
             loop muted playsInline
             poster={item.thumbnailUrl}
-
             onLoadedData={() => setIsLoading(false)}
             onError={() => { setVideoError(true); setIsLoading(false); }}
           />
@@ -333,20 +360,19 @@ const ItemMediaPreview = ({
     return (
       <div
         className={`${config.container} flex items-center justify-center bg-black`}
-        style={{ contain: 'layout style paint' }} // ✅ ADICIONADO
+        style={{ contain: 'layout style paint' }}
       >
         <Video className={`${config.icon} text-white/50`} />
       </div>
     );
   }
 
-  // Bundle
   if (item.type === "bundle") {
     if (item.imageUrl && !imageError) {
       return (
         <div
           className={`${config.container} relative overflow-hidden`}
-          style={{ contain: 'layout style paint' }} // ✅ ADICIONADO
+          style={{ contain: 'layout style paint' }}
         >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] z-20">
@@ -367,7 +393,7 @@ const ItemMediaPreview = ({
     return (
       <div
         className={`${config.container} flex items-center justify-center relative`}
-        style={{ contain: 'layout style paint' }} // ✅ ADICIONADO
+        style={{ contain: 'layout style paint' }}
       >
         <div className="absolute inset-0 flex items-center justify-center" style={{ filter: "blur(20px)", opacity: 0.5 }}>
           <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(item.rarity) }} />
@@ -379,11 +405,11 @@ const ItemMediaPreview = ({
 
   return null;
 };
+
 // ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE - ✅ CORRIGIDOS PARA CLS
+// COMPONENTES BASE
 // ═══════════════════════════════════════════════════════════
 
-// ✅ StoreCard sem animação inicial que causa layout shift
 const StoreCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-[var(--card-background-glass)] backdrop-blur-[var(--blur-amount)] border border-[var(--color-border)] rounded-[var(--border-radius-lg)] p-4 sm:p-6 ${className}`}>
     {children}
@@ -436,7 +462,6 @@ const Modal = ({
   </AnimatePresence>
 );
 
-// ✅ TabButton com largura mínima fixa para o contador - EVITA CLS
 const TabButton = ({
   active,
   onClick,
@@ -453,13 +478,12 @@ const TabButton = ({
   <button
     onClick={onClick}
     className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-[var(--border-radius-md)] font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${active
-        ? "bg-[var(--color-primary)] text-white shadow-lg"
-        : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+      ? "bg-[var(--color-primary)] text-white shadow-lg"
+      : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
       }`}
   >
     <Icon size={16} className="flex-shrink-0" />
     <span>{label}</span>
-    {/* ✅ Contador com largura mínima fixa para evitar CLS */}
     <span
       className={`min-w-[24px] px-1.5 py-0.5 rounded-full text-xs font-semibold text-center ${active ? "bg-white/20" : "bg-[var(--color-background)]"
         }`}
@@ -469,7 +493,6 @@ const TabButton = ({
   </button>
 );
 
-// ✅ Loading Skeleton com altura fixa igual ao grid final
 const LoadingSkeleton = () => (
   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
     {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
@@ -505,7 +528,7 @@ const EmptyState = ({ type }: { type: StoreItemType | "all" }) => {
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTE: Item da Loja - ✅ SEM motion.div com layout
+// COMPONENTE: Item da Loja
 // ═══════════════════════════════════════════════════════════
 
 const StoreItemCard = ({
@@ -543,14 +566,14 @@ const StoreItemCard = ({
       `}
       style={{
         borderColor: item.isEquipped ? rarityColor : "var(--color-border)",
-        contain: 'layout', // ✅ ADICIONADO: Isola o card
-        minHeight: '400px', // ✅ ADICIONADO: Altura mínima fixa
+        contain: 'layout',
+        minHeight: '400px',
       }}
     >
-      {/* ✅ Badges com altura fixa reservada */}
+      {/* Badges */}
       <div
         className="absolute top-2 left-2 right-2 flex items-start justify-between gap-2 z-10"
-        style={{ minHeight: '24px' }} // ✅ Altura mínima para evitar shift
+        style={{ minHeight: '24px' }}
       >
         <div className="flex flex-wrap gap-1">
           {item.isLimited && (
@@ -594,12 +617,12 @@ const StoreItemCard = ({
         </button>
       </div>
 
-      {/* ✅ Preview com altura fixa */}
+      {/* Preview */}
       <div
         className="relative overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${rarityColor}20, ${rarityColor}05)`,
-          height: '160px', // ✅ Altura fixa
+          height: '160px',
         }}
       >
         {isLocked && (
@@ -631,12 +654,10 @@ const StoreItemCard = ({
           </p>
         </div>
 
-        {/* ✅ Descrição com altura fixa */}
         <p className="text-xs text-[var(--color-text-muted)] line-clamp-2 h-10">
           {item.description}
         </p>
 
-        {/* ✅ Quantidade com altura mínima */}
         <div style={{ minHeight: '16px' }}>
           {item.quantityAvailable !== null && item.quantityAvailable !== undefined && (
             <div className="flex items-center gap-1 text-[10px] text-[var(--color-text-muted)]">
@@ -666,7 +687,6 @@ const StoreItemCard = ({
                     )}
                   </div>
                 </div>
-                {/* ✅ Mensagem de erro com largura/altura fixa */}
                 <div style={{ minWidth: '120px', minHeight: '14px' }}>
                   {!canAfford && item.price > 0 && (
                     <span className="text-[10px] text-red-400 font-medium">Moedas insuficientes</span>
@@ -687,8 +707,8 @@ const StoreItemCard = ({
                   onClick={onPurchase}
                   disabled={disabled || !canAfford || isLocked}
                   className={`flex-1 px-3 py-2 rounded-[var(--border-radius-md)] text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1 ${canAfford && !isLocked
-                      ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white"
-                      : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+                    ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
                     }`}
                 >
                   <ShoppingCart size={14} />
@@ -723,8 +743,8 @@ const StoreItemCard = ({
                   onClick={onEquip}
                   disabled={disabled}
                   className={`flex-1 px-3 py-2 rounded-[var(--border-radius-md)] text-xs font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-1 ${item.isEquipped
-                      ? "bg-red-500/10 hover:bg-red-500/20 text-red-400"
-                      : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white"
+                    ? "bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                    : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white"
                     }`}
                 >
                   {item.isEquipped ? (
@@ -749,13 +769,12 @@ const StoreItemCard = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTE PRINCIPAL
+// COMPONENTE PRINCIPAL - ✅ CORRIGIDO
 // ═══════════════════════════════════════════════════════════
 
 const DashboardStore = () => {
   const {
     items,
-    userCoins,
     isLoadingStore,
     storeError,
     refreshStore,
@@ -766,7 +785,7 @@ const DashboardStore = () => {
     clearError,
   } = useStore();
 
-  const { profileData } = useProfile();
+  const { profileData, refreshProfile } = useProfile();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -780,27 +799,33 @@ const DashboardStore = () => {
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null);
 
+  // ✅ CORREÇÃO: Usar diretamente profileData?.coins com fallback seguro
+  const userCoins = useMemo(() => {
+    return profileData?.coins ?? 0;
+  }, [profileData?.coins]);
+
   const error = storeError || localError;
 
-  const filteredItems = items.filter((item) => {
-    if (activeTab !== "all" && item.type !== activeTab) return false;
-    if (filterOwned === "owned" && !item.isOwned) return false;
-    if (filterOwned === "not_owned" && item.isOwned) return false;
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      return item.name.toLowerCase().includes(query) || item.description.toLowerCase().includes(query);
-    }
-    return true;
-  });
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      if (activeTab !== "all" && item.type !== activeTab) return false;
+      if (filterOwned === "owned" && !item.isOwned) return false;
+      if (filterOwned === "not_owned" && item.isOwned) return false;
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        return item.name.toLowerCase().includes(query) || item.description.toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [items, activeTab, filterOwned, searchQuery]);
 
-  // ✅ Contadores sempre calculados, mesmo durante loading
-  const counts = {
+  const counts = useMemo(() => ({
     all: items.length,
     badge: items.filter((i) => i.type === "badge").length,
     frame: items.filter((i) => i.type === "frame").length,
     effect: items.filter((i) => i.type === "effect").length,
     bundle: items.filter((i) => i.type === "bundle").length,
-  };
+  }), [items]);
 
   const handlePreview = (item: StoreItem) => {
     setSelectedItem(item);
@@ -814,15 +839,29 @@ const DashboardStore = () => {
 
   const handlePurchase = async () => {
     if (!selectedItem) return;
+    
+    const finalPrice = calculateDiscount(selectedItem.price, selectedItem.discount);
+    
+    // ✅ Verificação extra antes de comprar
+    if (userCoins < finalPrice) {
+      setLocalError(`Moedas insuficientes. Você tem ${userCoins} moedas, mas precisa de ${finalPrice}.`);
+      setIsPurchaseModalOpen(false);
+      return;
+    }
+    
     setIsSubmitting(true);
     setLocalError(null);
 
     try {
       await purchaseItem(selectedItem.id);
+      
+      // ✅ IMPORTANTE: Atualizar o perfil para obter o novo saldo
+      await refreshProfile();
+      
       setSuccessMessage(`${selectedItem.name} adquirido com sucesso!`);
       setIsPurchaseModalOpen(false);
       setSelectedItem(null);
-      setTimeout(() => setSuccessMessage(""), 3000);
+      setTimeout(() => setSuccessMessage(""), 5000);
     } catch (err: any) {
       console.error("Erro ao comprar item:", err);
       setLocalError(err.response?.data?.message || "Erro ao comprar item. Tente novamente.");
@@ -862,6 +901,12 @@ const DashboardStore = () => {
     clearError();
   };
 
+  // ✅ DEBUG: Log para verificar o saldo
+  useEffect(() => {
+    console.log('[DashboardStore] userCoins:', userCoins);
+    console.log('[DashboardStore] profileData?.coins:', profileData?.coins);
+  }, [userCoins, profileData?.coins]);
+
   return (
     <div className="min-h-screen bg-[var(--color-background)] pb-8">
       {/* Page Header */}
@@ -878,12 +923,14 @@ const DashboardStore = () => {
             Personalize seu perfil com itens exclusivos
           </h1>
 
-          {/* Saldo de Moedas - ✅ Altura fixa */}
+          {/* ✅ Saldo de Moedas - Agora usa userCoins corretamente */}
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-[var(--border-radius-lg)] bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 h-[60px]">
             <Coins size={20} className="text-yellow-500" />
             <div>
               <p className="text-[10px] text-[var(--color-text-muted)] font-medium">Suas Moedas</p>
-              <p className="text-lg font-bold text-[var(--color-text)]">{userCoins.toLocaleString()}</p>
+              <p className="text-lg font-bold text-[var(--color-text)]">
+                {userCoins.toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
@@ -934,7 +981,7 @@ const DashboardStore = () => {
             />
           </div>
 
-          {/* Category Tabs - ✅ Sem animações que causam CLS */}
+          {/* Category Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <TabButton active={activeTab === "all"} onClick={() => setActiveTab("all")} icon={Store} label="Todos" count={counts.all} />
             <TabButton active={activeTab === "badge"} onClick={() => setActiveTab("badge")} icon={Award} label="Insígnias" count={counts.badge} />
@@ -955,8 +1002,8 @@ const DashboardStore = () => {
                   key={filter}
                   onClick={() => setFilterOwned(filter)}
                   className={`px-3 py-1.5 rounded-[var(--border-radius-sm)] text-xs font-medium transition-colors ${filterOwned === filter
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
+                    ? "bg-[var(--color-primary)] text-white"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)]"
                     }`}
                 >
                   {filter === "all" ? "Todos" : filter === "owned" ? "Meus Itens" : "Disponíveis"}
@@ -984,7 +1031,6 @@ const DashboardStore = () => {
         </div>
       </StoreCard>
 
-      {/* Items Grid - ✅ Container com altura mínima */}
       {/* Items Grid */}
       <StoreCard>
         <div className="min-h-[400px]">
@@ -996,14 +1042,14 @@ const DashboardStore = () => {
             <div
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 store-card-grid"
               style={{
-                contain: 'layout', // ✅ ADICIONADO
-                contentVisibility: 'auto' // ✅ ADICIONADO
+                contain: 'layout',
+                contentVisibility: 'auto'
               }}
             >
               {filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className="store-item-card" // ✅ ADICIONADO
+                  className="store-item-card"
                   style={{
                     contain: 'layout style paint',
                     minHeight: '400px'
@@ -1011,7 +1057,7 @@ const DashboardStore = () => {
                 >
                   <StoreItemCard
                     item={item}
-                    userCoins={userCoins}
+                    userCoins={userCoins} // ✅ Agora sempre sincronizado
                     userProfileImage={profileData?.pageSettings?.mediaUrls?.profileImageUrl}
                     onPreview={() => handlePreview(item)}
                     onPurchase={() => handlePurchaseClick(item)}
@@ -1127,8 +1173,8 @@ const DashboardStore = () => {
                   <button
                     onClick={() => { handleEquip(selectedItem); setIsPreviewModalOpen(false); }}
                     className={`flex-1 px-4 py-3 rounded-[var(--border-radius-md)] font-medium transition-all flex items-center justify-center gap-2 ${selectedItem.isEquipped
-                        ? "bg-red-500/20 hover:bg-red-500/30 text-red-400"
-                        : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white"
+                      ? "bg-red-500/20 hover:bg-red-500/30 text-red-400"
+                      : "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white"
                       }`}
                   >
                     {selectedItem.isEquipped ? (<><X size={18} />Desequipar</>) : (<><Check size={18} />Equipar</>)}
@@ -1146,107 +1192,112 @@ const DashboardStore = () => {
         onClose={() => { setIsPurchaseModalOpen(false); setSelectedItem(null); }}
         title="Confirmar Compra"
       >
-        {selectedItem && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)]">
-              <div
-                className="rounded-[var(--border-radius-md)] overflow-hidden flex-shrink-0 flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${getRarityColor(selectedItem.rarity)}30, ${getRarityColor(selectedItem.rarity)}10)` }}
-              >
-                <ItemMediaPreview item={selectedItem} size="small" userProfileImage={profileData?.pageSettings?.mediaUrls?.profileImageUrl} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-[var(--color-text)] truncate">{selectedItem.name}</h3>
-                <p className="text-xs text-[var(--color-text-muted)] truncate">{selectedItem.description}</p>
-                <span
-                  className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase"
-                  style={{ backgroundColor: `${getRarityColor(selectedItem.rarity)}20`, color: getRarityColor(selectedItem.rarity) }}
+        {selectedItem && (() => {
+          const finalPrice = calculateDiscount(selectedItem.price, selectedItem.discount);
+          const canAfford = userCoins >= finalPrice;
+          const balanceAfter = userCoins - finalPrice;
+          
+          return (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4 p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)]">
+                <div
+                  className="rounded-[var(--border-radius-md)] overflow-hidden flex-shrink-0 flex items-center justify-center"
+                  style={{ background: `linear-gradient(135deg, ${getRarityColor(selectedItem.rarity)}30, ${getRarityColor(selectedItem.rarity)}10)` }}
                 >
-                  {getRarityLabel(selectedItem.rarity)}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)]">
-                <span className="text-sm text-[var(--color-text-muted)]">Preço original</span>
-                <span className="text-sm font-medium text-[var(--color-text)] flex items-center gap-1">
-                  <Coins size={14} className="text-yellow-500" />
-                  {selectedItem.price.toLocaleString()}
-                </span>
-              </div>
-
-              {selectedItem.discount && (
-                <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-green-500/10">
-                  <span className="text-sm text-green-400 flex items-center gap-1">
-                    <Tag size={14} />Desconto ({selectedItem.discount}%)
+                  <ItemMediaPreview item={selectedItem} size="small" userProfileImage={profileData?.pageSettings?.mediaUrls?.profileImageUrl} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-[var(--color-text)] truncate">{selectedItem.name}</h3>
+                  <p className="text-xs text-[var(--color-text-muted)] truncate">{selectedItem.description}</p>
+                  <span
+                    className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                    style={{ backgroundColor: `${getRarityColor(selectedItem.rarity)}20`, color: getRarityColor(selectedItem.rarity) }}
+                  >
+                    {getRarityLabel(selectedItem.rarity)}
                   </span>
-                  <span className="text-sm font-medium text-green-400">
-                    -{(selectedItem.price - calculateDiscount(selectedItem.price, selectedItem.discount)).toLocaleString()}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)]">
+                  <span className="text-sm text-[var(--color-text-muted)]">Preço original</span>
+                  <span className="text-sm font-medium text-[var(--color-text)] flex items-center gap-1">
+                    <Coins size={14} className="text-yellow-500" />
+                    {selectedItem.price.toLocaleString()}
                   </span>
+                </div>
+
+                {selectedItem.discount && (
+                  <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-green-500/10">
+                    <span className="text-sm text-green-400 flex items-center gap-1">
+                      <Tag size={14} />Desconto ({selectedItem.discount}%)
+                    </span>
+                    <span className="text-sm font-medium text-green-400">
+                      -{(selectedItem.price - finalPrice).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between p-4 rounded-[var(--border-radius-md)] bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30">
+                  <span className="text-base font-semibold text-[var(--color-text)]">Total a pagar</span>
+                  <span className="text-lg font-bold text-[var(--color-primary)] flex items-center gap-1">
+                    <Coins size={18} className="text-yellow-500" />
+                    {finalPrice.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)]">
+                  <span className="text-sm text-[var(--color-text-muted)]">Saldo atual</span>
+                  <span className="text-sm font-medium text-[var(--color-text)] flex items-center gap-1">
+                    <Coins size={14} className="text-yellow-500" />
+                    {userCoins.toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)]">
+                  <span className="text-sm text-[var(--color-text-muted)]">Saldo após compra</span>
+                  <span className={`text-sm font-bold flex items-center gap-1 ${balanceAfter < 0 ? "text-red-400" : "text-green-400"}`}>
+                    <Coins size={14} className="text-yellow-500" />
+                    {balanceAfter.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {!canAfford && (
+                <div className="flex items-start gap-3 p-4 rounded-[var(--border-radius-md)] bg-red-500/10 border border-red-500/30">
+                  <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-red-400">Moedas insuficientes</p>
+                    <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                      Você precisa de mais {(finalPrice - userCoins).toLocaleString()} moedas.
+                    </p>
+                  </div>
                 </div>
               )}
 
-              <div className="flex items-center justify-between p-4 rounded-[var(--border-radius-md)] bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30">
-                <span className="text-base font-semibold text-[var(--color-text)]">Total a pagar</span>
-                <span className="text-lg font-bold text-[var(--color-primary)] flex items-center gap-1">
-                  <Coins size={18} className="text-yellow-500" />
-                  {calculateDiscount(selectedItem.price, selectedItem.discount).toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)]">
-                <span className="text-sm text-[var(--color-text-muted)]">Saldo atual</span>
-                <span className="text-sm font-medium text-[var(--color-text)] flex items-center gap-1">
-                  <Coins size={14} className="text-yellow-500" />
-                  {userCoins.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)]">
-                <span className="text-sm text-[var(--color-text-muted)]">Saldo após compra</span>
-                <span className={`text-sm font-bold flex items-center gap-1 ${userCoins - calculateDiscount(selectedItem.price, selectedItem.discount) < 0 ? "text-red-400" : "text-green-400"
-                  }`}>
-                  <Coins size={14} className="text-yellow-500" />
-                  {(userCoins - calculateDiscount(selectedItem.price, selectedItem.discount)).toLocaleString()}
-                </span>
+              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
+                <button
+                  onClick={() => { setIsPurchaseModalOpen(false); setSelectedItem(null); }}
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] font-medium transition-all disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handlePurchase}
+                  disabled={isSubmitting || !canAfford}
+                  className="flex-1 px-4 py-3 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <><Loader2 size={18} className="animate-spin" />Processando...</>
+                  ) : (
+                    <><ShoppingCart size={18} />Confirmar Compra</>
+                  )}
+                </button>
               </div>
             </div>
-
-            {userCoins < calculateDiscount(selectedItem.price, selectedItem.discount) && (
-              <div className="flex items-start gap-3 p-4 rounded-[var(--border-radius-md)] bg-red-500/10 border border-red-500/30">
-                <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-400">Moedas insuficientes</p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    Você precisa de mais {(calculateDiscount(selectedItem.price, selectedItem.discount) - userCoins).toLocaleString()} moedas.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
-              <button
-                onClick={() => { setIsPurchaseModalOpen(false); setSelectedItem(null); }}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] font-medium transition-all disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handlePurchase}
-                disabled={isSubmitting || userCoins < calculateDiscount(selectedItem.price, selectedItem.discount)}
-                className="flex-1 px-4 py-3 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <><Loader2 size={18} className="animate-spin" />Processando...</>
-                ) : (
-                  <><ShoppingCart size={18} />Confirmar Compra</>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
     </div>
   );

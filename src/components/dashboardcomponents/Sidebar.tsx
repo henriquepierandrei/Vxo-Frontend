@@ -1,6 +1,6 @@
 // components/Sidebar/Sidebar.tsx
-import { useState, useMemo, memo, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom"; // ✅ ADICIONAR
+import { useState, useMemo, memo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../../hooks/ThemeProvider";
 import { useAuth } from "../../hooks/useAuth";
@@ -80,7 +80,7 @@ const UserAvatar = memo(({
 
   return (
     <div className="relative">
-      <div className={`${sizeClasses} rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center overflow-hidden`}>
+      <div className={`${sizeClasses} rounded-full  flex items-center justify-center overflow-hidden`}>
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -355,7 +355,7 @@ const Sidebar = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMobileOpen(false)}
-            className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="lg:hidden fixed inset-0 backdrop-blur-sm z-40"
           />
         )}
       </AnimatePresence>

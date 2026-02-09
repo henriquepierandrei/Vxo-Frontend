@@ -21,45 +21,28 @@ import {
   User,
   Box,
   PartyPopper,
+  RefreshCw,
+  Loader2,
+  Award,
+  Video,
 } from "lucide-react";
+import { useInventory, type InventoryItem, type PendingGift, type Rarity } from "../../contexts/InventoryContext";
+import { useProfile } from "../../contexts/UserContext";
 
 // ═══════════════════════════════════════════════════════════
 // TIPOS E INTERFACES
 // ═══════════════════════════════════════════════════════════
 
-type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 type ItemType = "frame" | "badge" | "effect" | "gift";
 type ItemStatus = "active" | "inactive" | "expired";
-
-interface InventoryItem {
-  id: string;
-  name: string;
-  description: string;
-  type: ItemType;
-  rarity: Rarity;
-  status: ItemStatus;
-  image?: string;
-  expiresAt?: Date;
-  obtainedAt: Date;
-  isNew?: boolean;
-  isEquipped?: boolean;
-}
-
-interface PendingGift {
-  id: string;
-  itemName: string;
-  itemType: ItemType;
-  rarity: Rarity;
-  senderName: string;
-  senderAvatar?: string;
-  sentAt: Date;
-  message?: string;
-}
 
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES E CONFIGURAÇÕES
 // ═══════════════════════════════════════════════════════════
 
+const PREVIEW_PROFILE_IMAGE = "https://i.pravatar.cc/300?u=preview";
+
+// ✅ TODAS as 5 raridades do backend
 const RARITY_CONFIG: Record<
   Rarity,
   {
@@ -130,87 +113,11 @@ const ITEM_TYPE_CONFIG: Record<
 };
 
 // ═══════════════════════════════════════════════════════════
-// DADOS MOCK
-// ═══════════════════════════════════════════════════════════
-
-const MOCK_ITEMS: InventoryItem[] = [
-  {
-    id: "1",
-    name: "Moldura Neon",
-    description: "Uma moldura vibrante com efeito neon pulsante",
-    type: "frame",
-    rarity: "rare",
-    status: "active",
-    obtainedAt: new Date("2024-01-15"),
-    isEquipped: true,
-  },
-  {
-    id: "2",
-    name: "Insígnia VIP",
-    description: "Mostre seu status VIP com orgulho",
-    type: "badge",
-    rarity: "epic",
-    status: "active",
-    obtainedAt: new Date("2024-02-20"),
-    expiresAt: new Date("2024-08-20"),
-    isNew: true,
-  },
-  {
-    id: "3",
-    name: "Efeito Partículas",
-    description: "Partículas brilhantes seguem seu cursor",
-    type: "effect",
-    rarity: "legendary",
-    status: "active",
-    obtainedAt: new Date("2024-03-01"),
-  },
-  {
-    id: "4",
-    name: "Moldura Cristal",
-    description: "Elegante moldura com reflexos de cristal",
-    type: "frame",
-    rarity: "uncommon",
-    status: "expired",
-    obtainedAt: new Date("2023-06-10"),
-    expiresAt: new Date("2024-01-10"),
-  },
-  {
-    id: "5",
-    name: "Insígnia Early Adopter",
-    description: "Para os primeiros usuários da plataforma",
-    type: "badge",
-    rarity: "common",
-    status: "active",
-    obtainedAt: new Date("2023-01-01"),
-  },
-  {
-    id: "6",
-    name: "Efeito Aurora",
-    description: "Luzes da aurora boreal em seu perfil",
-    type: "effect",
-    rarity: "epic",
-    status: "inactive",
-    obtainedAt: new Date("2024-02-14"),
-  },
-];
-
-const MOCK_PENDING_GIFTS: PendingGift[] = [
-  {
-    id: "g1",
-    itemName: "Moldura Presente",
-    itemType: "frame",
-    rarity: "uncommon",
-    senderName: "João Silva",
-    sentAt: new Date("2024-03-20"),
-    message: "Feliz aniversário! 🎉",
-  },
-];
-
-// ═══════════════════════════════════════════════════════════
 // FUNÇÕES UTILITÁRIAS
 // ═══════════════════════════════════════════════════════════
 
-const getDaysRemaining = (expiresAt: Date): number => {
+const getDaysRemaining = (expiresAt?: Date): number | null => {
+  if (!expiresAt) return null;
   const now = new Date();
   const diff = expiresAt.getTime() - now.getTime();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -224,11 +131,319 @@ const formatDate = (date: Date): string => {
   });
 };
 
+// ✅ SAFEGUARD: Sempre retorna uma cor válida
+const getRarityColor = (rarity: Rarity): string => {
+  const colors: Record<Rarity, string> = {
+    common: "#9CA3AF",
+    uncommon: "#10B981",
+    rare: "#3B82F6",
+    epic: "#A855F7",
+    legendary: "#F59E0B",
+  };
+  return colors[rarity] || colors.common; // fallback para common
+};
+
+// ✅ SAFEGUARD: Sempre retorna um glow válido
+const getRarityGlow = (rarity: Rarity): string => {
+  const glows: Record<Rarity, string> = {
+    common: "0 0 20px rgba(156, 163, 175, 0.5)",
+    uncommon: "0 0 20px rgba(16, 185, 129, 0.6)",
+    rare: "0 0 20px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.4)",
+    epic: "0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.4)",
+    legendary: "0 0 25px rgba(245, 158, 11, 0.7), 0 0 50px rgba(245, 158, 11, 0.5)",
+  };
+  return glows[rarity] || glows.common; // fallback para common
+};
+
+// ✅ SAFEGUARD: Garante que a raridade existe no config
+const getRarityConfig = (rarity: Rarity) => {
+  return RARITY_CONFIG[rarity] || RARITY_CONFIG.common;
+};
+
 // ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE
+// COMPONENTE: Preview de Moldura
 // ═══════════════════════════════════════════════════════════
 
-// Card Container - Responsivo
+const FramePreview = ({
+  frameUrl,
+  size = "medium",
+  profileImageUrl = PREVIEW_PROFILE_IMAGE,
+  rarity,
+  onLoadComplete,
+}: {
+  frameUrl: string;
+  size?: "small" | "medium" | "large";
+  profileImageUrl?: string;
+  rarity: Rarity;
+  onLoadComplete?: () => void;
+}) => {
+  const [frameError, setFrameError] = useState(false);
+  const [profileError, setProfileError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const sizeConfig = {
+    small: { container: 80, frame: 80, profile: 60 },
+    medium: { container: 140, frame: 140, profile: 110 },
+    large: { container: 200, frame: 200, profile: 160 },
+  };
+
+  const config = sizeConfig[size];
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    onLoadComplete?.();
+  };
+
+  const handleImageError = () => {
+    setProfileError(true);
+    setIsLoading(false);
+    onLoadComplete?.();
+  };
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{
+        width: config.container,
+        height: config.container,
+        filter: `drop-shadow(${getRarityGlow(rarity)})`,
+      }}
+    >
+      {isLoading && (
+        <div
+          className="absolute z-30 bg-[var(--color-surface)] rounded-full flex items-center justify-center"
+          style={{
+            width: config.profile,
+            height: config.profile,
+          }}
+        >
+          <Loader2 className="w-6 h-6 animate-spin text-[var(--color-text-muted)]" />
+        </div>
+      )}
+
+      <div
+        className="absolute rounded-full overflow-hidden z-10"
+        style={{
+          width: config.profile,
+          height: config.profile,
+        }}
+      >
+        {!profileError ? (
+          <img
+            src={profileImageUrl || PREVIEW_PROFILE_IMAGE}
+            alt="Preview do perfil"
+            className="w-full h-full object-cover"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center">
+            <User className="w-1/2 h-1/2 text-white/80" />
+          </div>
+        )}
+      </div>
+
+      {!frameError && frameUrl && (
+        <img
+          src={frameUrl}
+          alt="Moldura"
+          className="absolute z-20 pointer-events-none"
+          style={{
+            width: config.frame,
+            height: config.frame,
+            objectFit: 'contain',
+          }}
+          onError={() => setFrameError(true)}
+        />
+      )}
+
+      {rarity === "legendary" && (
+        <motion.div
+          className="absolute rounded-full z-5 pointer-events-none"
+          style={{
+            width: config.frame,
+            height: config.frame,
+            background: `radial-gradient(circle, transparent 40%, ${getRarityColor(rarity)}20 100%)`
+          }}
+          animate={{ opacity: [0.5, 1, 0.5], scale: [1, 1.05, 1] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        />
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENTE: Preview de Mídia
+// ═══════════════════════════════════════════════════════════
+
+const ItemMediaPreview = ({
+  item,
+  size = "medium",
+  showPlayButton = false,
+  userProfileImage,
+}: {
+  item: InventoryItem;
+  size?: "small" | "medium" | "large";
+  showPlayButton?: boolean;
+  userProfileImage?: string;
+}) => {
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const sizeConfig = {
+    small: { container: "w-16 h-16", svg: "w-10 h-10", icon: "w-8 h-8" },
+    medium: { container: "w-full h-40", svg: "w-20 h-20", icon: "w-16 h-16" },
+    large: { container: "w-full h-64", svg: "w-32 h-32", icon: "w-24 h-24" },
+  };
+
+  const config = sizeConfig[size];
+
+  // Badge
+  if (item.type === "badge") {
+    if (item.imageUrl && !imageError) {
+      return (
+        <div
+          className={`${config.container} flex items-center justify-center p-4 relative`}
+          style={{ contain: 'layout style paint' }}
+        >
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] z-20">
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center" style={{ filter: "blur(20px)", opacity: 0.6 }}>
+            <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(item.rarity) }} />
+          </div>
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className={config.svg}
+            style={{
+              filter: "invert(100%) sepia(100%) saturate(0%) hue-rotate(200deg)",
+            }}
+            loading="lazy"
+            onLoad={() => setIsLoading(false)}
+            onError={() => { setImageError(true); setIsLoading(false); }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div
+        className={`${config.container} flex items-center justify-center relative`}
+        style={{ contain: 'layout style paint' }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center" style={{ filter: "blur(20px)", opacity: 0.5 }}>
+          <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(item.rarity) }} />
+        </div>
+        <Award className={`${config.icon} relative z-10`} style={{ color: "white", filter: `drop-shadow(${getRarityGlow(item.rarity)})` }} />
+      </div>
+    );
+  }
+
+  // Frame
+  if (item.type === "frame") {
+    return (
+      <div
+        className={`${config.container} flex items-center justify-center relative`}
+        style={{
+          background: `radial-gradient(circle, ${getRarityColor(item.rarity)}10, transparent)`,
+          contain: 'layout style paint'
+        }}
+      >
+        <FramePreview
+          frameUrl={item.imageUrl || ''}
+          size={size}
+          profileImageUrl={userProfileImage || PREVIEW_PROFILE_IMAGE}
+          rarity={item.rarity}
+        />
+      </div>
+    );
+  }
+
+  // Effect
+  if (item.type === "effect") {
+    if (item.imageUrl && !imageError) {
+      return (
+        <div
+          className={`${config.container} relative overflow-hidden bg-black`}
+          style={{ contain: 'layout style paint' }}
+        >
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
+              <Loader2 className="w-8 h-8 animate-spin text-white" />
+            </div>
+          )}
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onLoad={() => setIsLoading(false)}
+            onError={() => { setImageError(true); setIsLoading(false); }}
+          />
+          {showPlayButton && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                <Video className="w-6 h-6 text-black" />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div
+        className={`${config.container} flex items-center justify-center bg-black`}
+        style={{ contain: 'layout style paint' }}
+      >
+        <Zap className={`${config.icon} text-white/50`} />
+      </div>
+    );
+  }
+
+  // Gift (fallback)
+  if (item.imageUrl && !imageError) {
+    return (
+      <div
+        className={`${config.container} relative overflow-hidden`}
+        style={{ contain: 'layout style paint' }}
+      >
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)] z-20">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
+          </div>
+        )}
+        <img
+          src={item.imageUrl}
+          alt={item.name}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          onLoad={() => setIsLoading(false)}
+          onError={() => { setImageError(true); setIsLoading(false); }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`${config.container} flex items-center justify-center relative`}
+      style={{ contain: 'layout style paint' }}
+    >
+      <div className="absolute inset-0 flex items-center justify-center" style={{ filter: "blur(20px)", opacity: 0.5 }}>
+        <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(item.rarity) }} />
+      </div>
+      <Package className={`${config.icon} relative z-10`} style={{ color: "white", filter: `drop-shadow(${getRarityGlow(item.rarity)})` }} />
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENTES BASE (mantidos iguais, mas com getRarityConfig)
+// ═══════════════════════════════════════════════════════════
+
 const InventoryCard = ({
   children,
   className = "",
@@ -257,7 +472,6 @@ const InventoryCard = ({
   </motion.div>
 );
 
-// Section Header - Responsivo
 const SectionHeader = ({
   icon: Icon,
   title,
@@ -283,7 +497,6 @@ const SectionHeader = ({
   </div>
 );
 
-// Stat Card - Responsivo
 const StatCard = ({
   icon: Icon,
   label,
@@ -375,7 +588,7 @@ const StatCard = ({
   );
 };
 
-// Rarity Badge - Responsivo
+// ✅ ATUALIZADO: Usa getRarityConfig
 const RarityBadge = ({
   rarity,
   size = "md",
@@ -383,7 +596,7 @@ const RarityBadge = ({
   rarity: Rarity;
   size?: "sm" | "md" | "lg";
 }) => {
-  const config = RARITY_CONFIG[rarity];
+  const config = getRarityConfig(rarity); // ✅ Safeguard
   const sizes = {
     sm: "text-[7px] sm:text-[8px] px-1 sm:px-1.5 py-0.5",
     md: "text-[8px] sm:text-[9px] lg:text-[10px] px-1.5 sm:px-2 py-0.5",
@@ -403,7 +616,6 @@ const RarityBadge = ({
   );
 };
 
-// Status Badge
 const StatusBadge = ({ status }: { status: ItemStatus }) => {
   const configs = {
     active: { label: "Ativo", color: "text-green-400", bg: "bg-green-500/10" },
@@ -420,7 +632,6 @@ const StatusBadge = ({ status }: { status: ItemStatus }) => {
   );
 };
 
-// Filter Tab - Responsivo
 const FilterTab = ({
   label,
   count,
@@ -462,22 +673,28 @@ const FilterTab = ({
   </motion.button>
 );
 
-// Item Card - Responsivo
+// ✅ ATUALIZADO: Usa getRarityConfig
 const ItemCard = ({
   item,
   onClick,
+  userProfileImage,
 }: {
   item: InventoryItem;
   onClick: () => void;
+  userProfileImage?: string;
 }) => {
-  const rarityConfig = RARITY_CONFIG[item.rarity];
+  const rarityConfig = getRarityConfig(item.rarity); // ✅ Safeguard
   const typeConfig = ITEM_TYPE_CONFIG[item.type];
   const TypeIcon = typeConfig.icon;
-  const daysRemaining = item.expiresAt ? getDaysRemaining(item.expiresAt) : null;
+  const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
 
   return (
     <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
       onClick={onClick}
       className={`
         relative overflow-hidden rounded-[var(--border-radius-md)] sm:rounded-[var(--border-radius-lg)]
@@ -488,12 +705,9 @@ const ItemCard = ({
       `}
       whileHover={{ scale: 1.02, y: -4 }}
       whileTap={{ scale: 0.98 }}
-      layout
     >
-      {/* Gradient Background */}
       <div className={`absolute inset-0 bg-gradient-to-br ${rarityConfig.gradient} opacity-50`} />
 
-      {/* New Badge */}
       {item.isNew && (
         <div className="absolute top-1 sm:top-1.5 lg:top-2 right-1 sm:right-1.5 lg:right-2 z-20">
           <motion.div
@@ -508,7 +722,6 @@ const ItemCard = ({
         </div>
       )}
 
-      {/* Equipped Badge */}
       {item.isEquipped && (
         <div className="absolute top-1 sm:top-1.5 lg:top-2 left-1 sm:left-1.5 lg:left-2 z-20">
           <div className="p-0.5 sm:px-1.5 sm:py-0.5 rounded-full bg-green-500/20 text-green-400 text-[6px] sm:text-[8px] lg:text-[10px] font-bold flex items-center gap-0.5 border border-green-500/30">
@@ -518,9 +731,7 @@ const ItemCard = ({
         </div>
       )}
 
-      {/* Content */}
       <div className="relative z-10 p-2 sm:p-2.5 lg:p-3 xl:p-4">
-        {/* Item Icon/Preview */}
         <div
           className={`
             w-full aspect-square rounded-[var(--border-radius-sm)] sm:rounded-[var(--border-radius-md)] mb-1.5 sm:mb-2 lg:mb-3
@@ -528,12 +739,17 @@ const ItemCard = ({
             flex items-center justify-center
             border ${rarityConfig.borderColor}
             group-hover:scale-105 transition-transform duration-300
+            overflow-hidden
           `}
         >
-          <TypeIcon size={20} className={`sm:w-7 sm:h-7 lg:w-8 lg:h-8 xl:w-10 xl:h-10 ${rarityConfig.color} opacity-80`} />
+          <ItemMediaPreview
+            item={item}
+            size="medium"
+            showPlayButton={item.type === "effect"}
+            userProfileImage={userProfileImage}
+          />
         </div>
 
-        {/* Info */}
         <div className="space-y-1 sm:space-y-1.5 lg:space-y-2">
           <div className="flex items-start justify-between gap-1">
             <RarityBadge rarity={item.rarity} size="sm" />
@@ -552,7 +768,6 @@ const ItemCard = ({
             {item.description}
           </p>
 
-          {/* Expiration Warning */}
           {daysRemaining !== null && !isExpired && (
             <div
               className={`
@@ -567,8 +782,7 @@ const ItemCard = ({
         </div>
       </div>
 
-      {/* Hover Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-2 sm:pb-3 lg:pb-4">
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-2 sm:pb-3 lg:pb-4 z-30">
         <span className="text-[8px] sm:text-[10px] lg:text-xs text-white font-medium flex items-center gap-1">
           <span className="hidden sm:inline">Ver detalhes</span>
           <ArrowRight size={10} className="sm:w-3 sm:h-3" />
@@ -578,7 +792,7 @@ const ItemCard = ({
   );
 };
 
-// Pending Gift Card - Responsivo
+// ✅ ATUALIZADO: Usa getRarityConfig
 const PendingGiftCard = ({
   gift,
   onAccept,
@@ -588,7 +802,7 @@ const PendingGiftCard = ({
   onAccept: () => void;
   onDecline: () => void;
 }) => {
-  const rarityConfig = RARITY_CONFIG[gift.rarity];
+  const rarityConfig = getRarityConfig(gift.rarity); // ✅ Safeguard
 
   return (
     <motion.div
@@ -602,7 +816,6 @@ const PendingGiftCard = ({
         backdrop-blur-[var(--blur-amount)]
       `}
     >
-      {/* Animated Background */}
       <motion.div
         className="absolute inset-0 opacity-30"
         animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
@@ -610,21 +823,24 @@ const PendingGiftCard = ({
       />
 
       <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 lg:gap-4">
-        {/* Gift Icon */}
         <div
           className={`
             w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-[var(--border-radius-md)]
             bg-gradient-to-br ${rarityConfig.gradient}
             border ${rarityConfig.borderColor}
             flex items-center justify-center flex-shrink-0
+            overflow-hidden
           `}
         >
-          <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ duration: 2, repeat: Infinity }}>
-            <Gift size={16} className={`sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${rarityConfig.color}`} />
-          </motion.div>
+          {gift.itemUrl ? (
+            <img src={gift.itemUrl} alt={gift.itemName} className="w-full h-full object-cover" />
+          ) : (
+            <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ duration: 2, repeat: Infinity }}>
+              <Gift size={16} className={`sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${rarityConfig.color}`} />
+            </motion.div>
+          )}
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 flex-wrap">
             <RarityBadge rarity={gift.rarity} size="sm" />
@@ -633,11 +849,13 @@ const PendingGiftCard = ({
             </span>
           </div>
           <h3 className="text-[10px] sm:text-xs lg:text-sm font-semibold text-[var(--color-text)] truncate">
-            {gift.itemName}
+            {gift.hasCoinOffered && gift.amountCoinsOffered 
+              ? `${gift.amountCoinsOffered} Vcoins`
+              : gift.itemName || "Presente"}
           </h3>
           <p className="text-[9px] sm:text-[10px] lg:text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-0.5 truncate">
             <User size={10} className="sm:w-3 sm:h-3 flex-shrink-0" />
-            <span className="truncate">De {gift.senderName}</span>
+            <span className="truncate">De {gift.fromUsername}</span>
           </p>
           {gift.message && (
             <p className="text-[8px] sm:text-[9px] lg:text-[10px] text-[var(--color-text-muted)] mt-1 sm:mt-1.5 italic line-clamp-1">
@@ -646,7 +864,6 @@ const PendingGiftCard = ({
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex gap-1.5 sm:gap-2 sm:flex-col mt-1 sm:mt-0">
           <motion.button
             onClick={onAccept}
@@ -672,7 +889,6 @@ const PendingGiftCard = ({
   );
 };
 
-// Modal Component - Responsivo
 const Modal = ({
   isOpen,
   onClose,
@@ -744,29 +960,30 @@ const Modal = ({
   );
 };
 
-// Item Detail Modal Content - Responsivo
+// ✅ ATUALIZADO: Usa getRarityConfig
 const ItemDetailModal = ({
   item,
   onClose,
   onEquip,
   onUnequip,
   onGift,
+  userProfileImage,
 }: {
   item: InventoryItem;
   onClose: () => void;
   onEquip: () => void;
   onUnequip: () => void;
   onGift: () => void;
+  userProfileImage?: string;
 }) => {
-  const rarityConfig = RARITY_CONFIG[item.rarity];
+  const rarityConfig = getRarityConfig(item.rarity); // ✅ Safeguard
   const typeConfig = ITEM_TYPE_CONFIG[item.type];
   const TypeIcon = typeConfig.icon;
-  const daysRemaining = item.expiresAt ? getDaysRemaining(item.expiresAt) : null;
+  const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
 
   return (
     <div className="relative overflow-hidden">
-      {/* Close button */}
       <motion.button
         onClick={onClose}
         className="absolute top-2 sm:top-3 lg:top-4 right-2 sm:right-3 lg:right-4 z-20 p-1.5 sm:p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-all"
@@ -776,29 +993,19 @@ const ItemDetailModal = ({
         <X size={14} className="sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" />
       </motion.button>
 
-      {/* Header with gradient */}
       <div
         className={`
-          relative h-28 sm:h-36 lg:h-48 xl:h-64 bg-gradient-to-br ${rarityConfig.gradient}
-          flex items-center justify-center
+          relative h-40 sm:h-48 lg:h-64 xl:h-80 bg-gradient-to-br ${rarityConfig.gradient}
+          flex items-center justify-center overflow-hidden
         `}
       >
-        <motion.div
-          initial={{ scale: 0, rotate: -180 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", damping: 15 }}
-          className={`
-            w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 xl:w-32 xl:h-32 rounded-full
-            bg-gradient-to-br ${rarityConfig.gradient}
-            border-2 sm:border-4 ${rarityConfig.borderColor}
-            flex items-center justify-center
-            shadow-2xl ${rarityConfig.glowColor}
-          `}
-        >
-          <TypeIcon size={24} className={`sm:w-8 sm:h-8 lg:w-12 lg:h-12 xl:w-16 xl:h-16 ${rarityConfig.color}`} />
-        </motion.div>
+        <ItemMediaPreview
+          item={item}
+          size="large"
+          showPlayButton={item.type === "effect"}
+          userProfileImage={userProfileImage}
+        />
 
-        {/* Rarity Badge */}
         <div className="absolute top-2 sm:top-3 lg:top-4 left-2 sm:left-3 lg:left-4">
           <span
             className={`
@@ -811,7 +1018,6 @@ const ItemDetailModal = ({
           </span>
         </div>
 
-        {/* Equipped indicator */}
         {item.isEquipped && (
           <div className="absolute bottom-2 sm:bottom-3 lg:bottom-4 left-2 sm:left-3 lg:left-4">
             <span className="px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full bg-green-500/20 text-green-400 text-[8px] sm:text-[10px] lg:text-xs font-bold border border-green-500/30 flex items-center gap-1">
@@ -822,7 +1028,6 @@ const ItemDetailModal = ({
         )}
       </div>
 
-      {/* Content */}
       <div className="p-3 sm:p-4 lg:p-5 xl:p-6">
         <div className="mb-3 sm:mb-4 lg:mb-6">
           <h2 className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-[var(--color-text)] mb-1 sm:mb-2">
@@ -833,7 +1038,6 @@ const ItemDetailModal = ({
           </p>
         </div>
 
-        {/* Info Grid */}
         <div className="grid grid-cols-2 gap-1.5 sm:gap-2 lg:gap-3 mb-3 sm:mb-4 lg:mb-6">
           <div className="p-2 sm:p-2.5 lg:p-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)]">
             <p className="text-[8px] sm:text-[9px] lg:text-[10px] text-[var(--color-text-muted)] mb-0.5">Tipo</p>
@@ -866,7 +1070,6 @@ const ItemDetailModal = ({
           )}
         </div>
 
-        {/* Actions */}
         {!isExpired && (
           <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 lg:gap-3">
             {item.isEquipped ? (
@@ -924,7 +1127,7 @@ const ItemDetailModal = ({
   );
 };
 
-// Gift Opening Animation Modal - Responsivo
+// ✅ ATUALIZADO: Usa getRarityConfig
 const GiftOpeningModal = ({
   isOpen,
   gift,
@@ -948,7 +1151,7 @@ const GiftOpeningModal = ({
 
   if (!gift) return null;
 
-  const rarityConfig = RARITY_CONFIG[gift.rarity];
+  const rarityConfig = getRarityConfig(gift.rarity); // ✅ Safeguard
 
   return (
     <AnimatePresence>
@@ -997,7 +1200,7 @@ const GiftOpeningModal = ({
                       Toque para abrir!
                     </p>
                     <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs lg:text-sm text-[var(--color-text-muted)]">
-                      De {gift.senderName}
+                      De {gift.fromUsername}
                     </p>
                   </motion.div>
                 )}
@@ -1046,9 +1249,16 @@ const GiftOpeningModal = ({
                         border-2 sm:border-4 ${rarityConfig.borderColor}
                         flex items-center justify-center
                         shadow-2xl
+                        overflow-hidden
                       `}
                     >
-                      <PartyPopper size={32} className={`sm:w-12 sm:h-12 lg:w-14 lg:h-14 ${rarityConfig.color} drop-shadow-lg`} />
+                      {gift.itemUrl ? (
+                        <img src={gift.itemUrl} alt={gift.itemName} className="w-full h-full object-cover" />
+                      ) : gift.hasCoinOffered ? (
+                        <Coins size={32} className={`sm:w-12 sm:h-12 lg:w-14 lg:h-14 ${rarityConfig.color} drop-shadow-lg`} />
+                      ) : (
+                        <PartyPopper size={32} className={`sm:w-12 sm:h-12 lg:w-14 lg:h-14 ${rarityConfig.color} drop-shadow-lg`} />
+                      )}
                     </motion.div>
 
                     <motion.div
@@ -1074,7 +1284,9 @@ const GiftOpeningModal = ({
                       transition={{ delay: 0.5 }}
                       className="mt-2 sm:mt-3 lg:mt-4 text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-[var(--color-text)] px-4"
                     >
-                      {gift.itemName}
+                      {gift.hasCoinOffered && gift.amountCoinsOffered 
+                        ? `${gift.amountCoinsOffered} Vcoins`
+                        : gift.itemName || "Presente Especial"}
                     </motion.h2>
 
                     <motion.p
@@ -1083,7 +1295,7 @@ const GiftOpeningModal = ({
                       transition={{ delay: 0.6 }}
                       className="mt-1 sm:mt-2 text-[10px] sm:text-xs lg:text-sm text-[var(--color-text-muted)]"
                     >
-                      Presente de {gift.senderName}
+                      Presente de {gift.fromUsername}
                     </motion.p>
 
                     <motion.button
@@ -1108,7 +1320,6 @@ const GiftOpeningModal = ({
   );
 };
 
-// Empty State - Responsivo
 const EmptyState = ({
   icon: Icon,
   title,
@@ -1145,22 +1356,44 @@ const EmptyState = ({
   </motion.div>
 );
 
+const LoadingSpinner = () => (
+  <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
+    <div className="text-center">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-[var(--color-primary)]/20 border-t-[var(--color-primary)] rounded-full mx-auto mb-4"
+      />
+      <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">Carregando inventário...</p>
+    </div>
+  </div>
+);
+
 // ═══════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 
 const DashboardInventory = () => {
-  // Estados
-  const [items] = useState<InventoryItem[]>(MOCK_ITEMS);
-  const [pendingGifts, setPendingGifts] = useState<PendingGift[]>(MOCK_PENDING_GIFTS);
+  const {
+    items,
+    pendingGifts,
+    unviewedGiftsCount,
+    isLoadingInventory,
+    refreshInventory,
+    markGiftAsViewed,
+    markAllGiftsAsViewed,
+  } = useInventory();
+
+  const { profileData } = useProfile();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | ItemType | "expired">("all");
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [giftToOpen, setGiftToOpen] = useState<PendingGift | null>(null);
   const [showGiftOpening, setShowGiftOpening] = useState(false);
-  const [balance] = useState(1250);
 
-  // Filtros
+  const userProfileImage = profileData?.pageSettings?.mediaUrls?.profileImageUrl;
+
   const filters: {
     key: "all" | ItemType | "expired";
     label: string;
@@ -1174,9 +1407,8 @@ const DashboardInventory = () => {
     { key: "expired", label: "Expirados", icon: Clock },
   ];
 
-  // Items filtrados
   const filteredItems = useMemo(() => {
-    let result = items;
+    let result = [...items];
 
     if (activeFilter !== "all") {
       if (activeFilter === "expired") {
@@ -1186,18 +1418,18 @@ const DashboardInventory = () => {
       }
     }
 
-    if (searchQuery) {
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
       result = result.filter(
         (item) =>
-          item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.description.toLowerCase().includes(searchQuery.toLowerCase())
+          item.name.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query)
       );
     }
 
     return result;
   }, [items, activeFilter, searchQuery]);
 
-  // Contadores
   const counts = useMemo(() => {
     return {
       all: items.length,
@@ -1209,37 +1441,34 @@ const DashboardInventory = () => {
     };
   }, [items]);
 
-  // Handlers
-  const handleAcceptGift = (gift: PendingGift) => {
+  const handleAcceptGift = async (gift: PendingGift) => {
     setGiftToOpen(gift);
     setShowGiftOpening(true);
   };
 
-  const handleDeclineGift = (giftId: string) => {
-    setPendingGifts((prev) => prev.filter((g) => g.id !== giftId));
+  const handleDeclineGift = async (giftId: string) => {
+    try {
+      await markGiftAsViewed(giftId);
+    } catch (error) {
+      console.error("Erro ao recusar presente:", error);
+    }
   };
 
-  const handleGiftOpenComplete = () => {
+  const handleGiftOpenComplete = async () => {
     if (giftToOpen) {
-      setPendingGifts((prev) => prev.filter((g) => g.id !== giftToOpen.id));
+      try {
+        await markGiftAsViewed(giftToOpen.id);
+      } catch (error) {
+        console.error("Erro ao aceitar presente:", error);
+      }
     }
     setShowGiftOpening(false);
     setGiftToOpen(null);
   };
 
-  // Animação
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
-  };
+  if (isLoadingInventory && items.length === 0) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-background)] pb-4 sm:pb-6 lg:pb-8 overflow-x-hidden">
@@ -1259,68 +1488,70 @@ const DashboardInventory = () => {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
+          className="flex items-start justify-between gap-2"
         >
-          <h1 className="text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-bold text-[var(--color-text)] flex items-center gap-2 sm:gap-3">
-            <Package className="text-[var(--color-primary)] w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 2xl:w-8 2xl:h-8 flex-shrink-0" />
-            <span>Inventário</span>
-          </h1>
-          <p className="text-[9px] sm:text-[10px] lg:text-xs xl:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1 lg:mt-2">
-            Gerencie seus itens e presentes.
-          </p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base sm:text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-bold text-[var(--color-text)] flex items-center gap-2 sm:gap-3">
+              <Package className="text-[var(--color-primary)] w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 2xl:w-8 2xl:h-8 flex-shrink-0" />
+              <span>Inventário</span>
+            </h1>
+            <p className="text-[9px] sm:text-[10px] lg:text-xs xl:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1 lg:mt-2">
+              Gerencie seus itens e presentes.
+            </p>
+          </div>
+
+          <motion.button
+            onClick={refreshInventory}
+            disabled={isLoadingInventory}
+            className="p-2 sm:p-2.5 lg:p-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 transition-all flex-shrink-0"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            title="Atualizar inventário"
+          >
+            <RefreshCw 
+              size={14} 
+              className={`sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[var(--color-text-muted)] ${isLoadingInventory ? 'animate-spin' : ''}`} 
+            />
+          </motion.button>
         </motion.div>
       </div>
 
       {/* Stats Cards */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6 xl:mb-8"
-      >
-        <motion.div variants={itemVariants}>
-          <StatCard
-            icon={Coins}
-            label="Saldo"
-            value={balance.toLocaleString()}
-            subValue="Vcoins"
-            variant="premium"
-            action="Obter"
-            onClick={() => console.log("Obter mais Vcoins")}
-          />
-        </motion.div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6 xl:mb-8">
+        <StatCard
+          icon={Box}
+          label="Itens"
+          value={items.filter((i) => i.status === "active").length}
+          subValue="ativos"
+          variant="primary"
+          action="Ver"
+        />
 
-        <motion.div variants={itemVariants}>
-          <StatCard
-            icon={Box}
-            label="Itens"
-            value={items.filter((i) => i.status === "active").length}
-            subValue="ativos"
-            variant="primary"
-            action="Ver"
-          />
-        </motion.div>
+        <StatCard
+          icon={Gift}
+          label="Presentes"
+          value={unviewedGiftsCount}
+          subValue="novos"
+          variant={unviewedGiftsCount > 0 ? "warning" : "default"}
+          action={unviewedGiftsCount > 0 ? "Abrir" : undefined}
+        />
 
-        <motion.div variants={itemVariants}>
-          <StatCard
-            icon={Gift}
-            label="Presentes"
-            value={pendingGifts.length}
-            subValue="novos"
-            variant={pendingGifts.length > 0 ? "warning" : "default"}
-            action="Abrir"
-          />
-        </motion.div>
+        <StatCard
+          icon={Star}
+          label="Raros"
+          value={items.filter((i) => ["rare", "epic", "legendary"].includes(i.rarity)).length}
+          subValue="itens"
+          variant="success"
+        />
 
-        <motion.div variants={itemVariants}>
-          <StatCard
-            icon={Star}
-            label="Raros"
-            value={items.filter((i) => ["rare", "epic", "legendary"].includes(i.rarity)).length}
-            subValue="itens"
-            variant="success"
-          />
-        </motion.div>
-      </motion.div>
+        <StatCard
+          icon={Sparkles}
+          label="Premium"
+          value={items.filter((i) => i.isPremium).length}
+          subValue="itens"
+          variant="premium"
+        />
+      </div>
 
       {/* Pending Gifts Section */}
       <AnimatePresence>
@@ -1336,6 +1567,18 @@ const DashboardInventory = () => {
                 icon={Gift}
                 title="Presentes Pendentes"
                 description={`${pendingGifts.length} aguardando`}
+                action={
+                  pendingGifts.length > 1 ? (
+                    <motion.button
+                      onClick={markAllGiftsAsViewed}
+                      className="text-[9px] sm:text-[10px] lg:text-xs text-[var(--color-primary)] hover:underline font-medium"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      Aceitar todos
+                    </motion.button>
+                  ) : undefined
+                }
               />
 
               <div className="space-y-2 sm:space-y-3">
@@ -1354,80 +1597,75 @@ const DashboardInventory = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <motion.div variants={containerVariants} initial="hidden" animate="visible">
-        <InventoryCard noPadding>
-          {/* Search and Filter Header */}
-          <div className="p-2.5 sm:p-3 lg:p-4 xl:p-6 border-b border-[var(--color-border)]">
-            {/* Search Bar */}
-            <div className="relative mb-2.5 sm:mb-3 lg:mb-4">
-              <Search
-                size={12}
-                className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-[18px] xl:h-[18px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
-              />
-              <input
-                type="text"
-                placeholder="Buscar itens..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="
-                  w-full pl-7 sm:pl-8 lg:pl-9 xl:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 lg:py-2.5 xl:py-3 rounded-[var(--border-radius-md)]
-                  bg-[var(--color-surface)] border border-[var(--color-border)]
-                  text-[10px] sm:text-xs lg:text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)]
-                  focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
-                  focus:border-[var(--color-primary)] transition-all
-                "
-              />
-            </div>
-
-            {/* Filter Tabs - Scrollable */}
-            <div className="flex gap-1 sm:gap-1.5 lg:gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-              {filters.map((filter) => (
-                <FilterTab
-                  key={filter.key}
-                  label={filter.label}
-                  count={counts[filter.key]}
-                  active={activeFilter === filter.key}
-                  onClick={() => setActiveFilter(filter.key)}
-                  icon={filter.icon}
-                />
-              ))}
-            </div>
+      <InventoryCard noPadding>
+        <div className="p-2.5 sm:p-3 lg:p-4 xl:p-6 border-b border-[var(--color-border)]">
+          <div className="relative mb-2.5 sm:mb-3 lg:mb-4">
+            <Search
+              size={12}
+              className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 xl:w-[18px] xl:h-[18px] absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
+            />
+            <input
+              type="text"
+              placeholder="Buscar itens..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="
+                w-full pl-7 sm:pl-8 lg:pl-9 xl:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 lg:py-2.5 xl:py-3 rounded-[var(--border-radius-md)]
+                bg-[var(--color-surface)] border border-[var(--color-border)]
+                text-[10px] sm:text-xs lg:text-sm text-[var(--color-text)] placeholder-[var(--color-text-muted)]
+                focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50
+                focus:border-[var(--color-primary)] transition-all
+              "
+            />
           </div>
 
-          {/* Items Grid */}
-          <div className="p-2.5 sm:p-3 lg:p-4 xl:p-6">
-            {filteredItems.length > 0 ? (
-              <motion.div
-                className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 xl:gap-4"
-                variants={containerVariants}
-              >
+          <div className="flex gap-1 sm:gap-1.5 lg:gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
+            {filters.map((filter) => (
+              <FilterTab
+                key={filter.key}
+                label={filter.label}
+                count={counts[filter.key]}
+                active={activeFilter === filter.key}
+                onClick={() => setActiveFilter(filter.key)}
+                icon={filter.icon}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="p-2.5 sm:p-3 lg:p-4 xl:p-6">
+          {filteredItems.length > 0 ? (
+            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 xl:gap-4">
+              <AnimatePresence mode="popLayout">
                 {filteredItems.map((item) => (
-                  <motion.div key={item.id} variants={itemVariants} layout>
-                    <ItemCard item={item} onClick={() => setSelectedItem(item)} />
-                  </motion.div>
+                  <ItemCard 
+                    key={item.id} 
+                    item={item} 
+                    onClick={() => setSelectedItem(item)}
+                    userProfileImage={userProfileImage}
+                  />
                 ))}
-              </motion.div>
-            ) : (
-              <EmptyState
-                icon={searchQuery ? Search : Package}
-                title={searchQuery ? "Nenhum item encontrado" : "Inventário vazio"}
-                description={
-                  searchQuery
-                    ? "Tente buscar por outro termo ou remova os filtros."
-                    : "Você ainda não possui itens. Visite a loja para adquirir novos itens!"
-                }
-                action={
-                  !searchQuery
-                    ? { label: "Ir para a Loja", onClick: () => console.log("Ir para loja") }
-                    : undefined
-                }
-              />
-            )}
-          </div>
-        </InventoryCard>
-      </motion.div>
+              </AnimatePresence>
+            </div>
+          ) : (
+            <EmptyState
+              icon={searchQuery ? Search : Package}
+              title={searchQuery ? "Nenhum item encontrado" : "Inventário vazio"}
+              description={
+                searchQuery
+                  ? "Tente buscar por outro termo ou remova os filtros."
+                  : "Você ainda não possui itens. Visite a loja para adquirir novos itens!"
+              }
+              action={
+                !searchQuery
+                  ? { label: "Ir para a Loja", onClick: () => console.log("Ir para loja") }
+                  : undefined
+              }
+            />
+          )}
+        </div>
+      </InventoryCard>
 
-      {/* Item Detail Modal */}
       <Modal
         isOpen={selectedItem !== null}
         onClose={() => setSelectedItem(null)}
@@ -1449,11 +1687,11 @@ const DashboardInventory = () => {
               console.log("Presentear", selectedItem.id);
               setSelectedItem(null);
             }}
+            userProfileImage={userProfileImage}
           />
         )}
       </Modal>
 
-      {/* Gift Opening Modal */}
       <GiftOpeningModal
         isOpen={showGiftOpening}
         gift={giftToOpen}
