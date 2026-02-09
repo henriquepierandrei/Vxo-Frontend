@@ -99,6 +99,30 @@ body {
   }
 }
 
+
+/* Previne CLS em imagens */
+img {
+  content-visibility: auto;
+}
+
+/* Otimiza renderização de cards */
+.store-card-grid {
+  content-visibility: auto;
+  contain-intrinsic-size: 400px;
+}
+
+/* Força aceleração de hardware */
+.store-item-card {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Previne layout shift em badges */
+.badge-container {
+  min-height: 24px;
+  contain: layout style;
+}
+
 /* Glass Card Effect */
 .glass-card {
   background: var(--card-background-glass);
