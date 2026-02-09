@@ -1,6 +1,6 @@
 // src/components/FormLogin.tsx
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
 
@@ -14,6 +14,13 @@ interface FormErrors {
   password?: string;
   general?: string;
 }
+
+// Constantes para localStorage
+const STORAGE_KEYS = {
+  REMEMBER_ME: 'rememberMe',
+  USER_EMAIL: 'userEmail',
+  LAST_LOGIN: 'lastLogin'
+};
 
 const FormLogin: React.FC = () => {
   const { login, isLoading: authLoading } = useAuth();
@@ -29,6 +36,50 @@ const FormLogin: React.FC = () => {
 
   // Mensagem de redirecionamento (ex: sessão expirada)
   const redirectMessage = (location.state as { message?: string })?.message;
+
+  // Carrega dados salvos do localStorage ao montar o componente
+  useEffect(() => {
+    try {
+      const savedRememberMe = localStorage.getItem(STORAGE_KEYS.REMEMBER_ME) === 'true';
+      const savedEmail = localStorage.getItem(STORAGE_KEYS.USER_EMAIL);
+      const lastLogin = localStorage.getItem(STORAGE_KEYS.LAST_LOGIN);
+      
+      // Verifica se o último login foi há menos de 30 dias
+      if (savedRememberMe && savedEmail && lastLogin) {
+        const lastLoginDate = new Date(lastLogin);
+        const daysSinceLogin = Math.floor((Date.now() - lastLoginDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceLogin < 30) {
+          setRememberMe(true);
+          setFormData(prev => ({ ...prev, email: savedEmail }));
+        } else {
+          // Limpa dados antigos
+          localStorage.removeItem(STORAGE_KEYS.USER_EMAIL);
+          localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
+          localStorage.removeItem(STORAGE_KEYS.LAST_LOGIN);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados salvos:', error);
+    }
+  }, []);
+
+  // Gerencia o localStorage quando rememberMe muda
+  useEffect(() => {
+    try {
+      if (!rememberMe) {
+        // Remove dados do localStorage se desmarcado
+        localStorage.removeItem(STORAGE_KEYS.USER_EMAIL);
+        localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
+        localStorage.removeItem(STORAGE_KEYS.LAST_LOGIN);
+      } else {
+        // Salva o estado rememberMe
+        localStorage.setItem(STORAGE_KEYS.REMEMBER_ME, 'true');
+      }
+    } catch (error) {
+      console.error('Erro ao gerenciar localStorage:', error);
+    }
+  }, [rememberMe]);
 
   const validateEmail = (email: string): string | undefined => {
     if (!email.trim()) return 'Email é obrigatório';
@@ -88,6 +139,18 @@ const FormLogin: React.FC = () => {
       
       try {
         await login(formData.email, formData.password, rememberMe);
+        
+        // Salva dados no localStorage se rememberMe estiver ativo
+        if (rememberMe) {
+          try {
+            localStorage.setItem(STORAGE_KEYS.USER_EMAIL, formData.email);
+            localStorage.setItem(STORAGE_KEYS.LAST_LOGIN, new Date().toISOString());
+            localStorage.setItem(STORAGE_KEYS.REMEMBER_ME, 'true');
+          } catch (error) {
+            console.error('Erro ao salvar no localStorage:', error);
+          }
+        }
+        
         // Sucesso! O AuthContext cuida do redirecionamento
       } catch (error: any) {
         console.error('Login error:', error);
@@ -147,6 +210,19 @@ const FormLogin: React.FC = () => {
     ];
 
     return levels[Math.min(strength - 1, 4)] || { level: 0, text: '', color: 'bg-transparent' };
+  };
+
+  // Função para limpar dados salvos
+  const handleClearSavedData = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.USER_EMAIL);
+      localStorage.removeItem(STORAGE_KEYS.REMEMBER_ME);
+      localStorage.removeItem(STORAGE_KEYS.LAST_LOGIN);
+      setFormData(prev => ({ ...prev, email: '' }));
+      setRememberMe(false);
+    } catch (error) {
+      console.error('Erro ao limpar dados salvos:', error);
+    }
   };
 
   const passwordStrength = getPasswordStrength();
@@ -220,6 +296,34 @@ const FormLogin: React.FC = () => {
             Entre na sua conta para continuar
           </p>
         </div>
+
+        {/* Indicador de dados salvos */}
+        {rememberMe && formData.email && (
+          <div 
+            className="mb-4 p-3 rounded-lg border flex items-center justify-between animate-fade-in"
+            style={{
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              borderColor: 'rgba(34, 197, 94, 0.3)',
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-green-500 text-xs">Dados salvos localmente</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearSavedData}
+              className="text-green-500 hover:text-green-600 transition-colors"
+              title="Limpar dados salvos"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Mensagem de redirecionamento */}
         {redirectMessage && (

@@ -32,6 +32,7 @@ import DashboardStart from "./pages/dashboardpages/DashboardStart";
 import DashboardStore from "./pages/dashboardpages/DashboardStore";
 
 import TitleManager from "./types/TitleManager";
+import { StoreLayout } from "./components/layouts/StoreLayout";
 
 function App() {
   return (
@@ -59,17 +60,18 @@ function App() {
               */}
               <Route path="/dashboard" element={<DashboardLayout />}>
                 <Route element={<ProtectedLayout />}>
-                  
+
                   {/* /dashboard → DashboardStart */}
                   <Route index element={<DashboardStart />} />
-                  
+
                   {/* Rotas SEM LinksProvider */}
                   <Route path="start" element={<DashboardStart />} />
                   <Route path="settings" element={<DashboardSettings />} />
                   <Route path="tags" element={<DashboardTags />} />
                   <Route path="logs" element={<LogsPremium />} />
-                  <Route path="store" element={<DashboardStore />} />
-                  <Route path="assets" element={<DashboardAssets />} />
+                  <Route element={<StoreLayout />}>
+                    <Route path="store" element={<DashboardStore />} />
+                  </Route>                  <Route path="assets" element={<DashboardAssets />} />
                   <Route path="inventory" element={<DashboardInventory />} />
                   <Route path="customization" element={<DashboardCustomization />} />
 
@@ -78,7 +80,7 @@ function App() {
                     <Route path="links" element={<DashboardLinks />} />
                     <Route path="socialmedia" element={<DashboardSocial />} />
                   </Route>
-                  
+
                 </Route>
               </Route>
 
