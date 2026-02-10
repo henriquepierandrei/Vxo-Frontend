@@ -11,6 +11,7 @@ interface APIStoreItem {
   itemUrl: string;
   itemName: string;
   itemDescription: string;
+  itemRarity: string | null; // ✅ Adicionado - vem da API
   itemType: 'BADGE' | 'FRAME' | 'EFFECT' | 'BUNDLE';
   itemPrice: number;
   limited: boolean;
@@ -25,6 +26,23 @@ interface APIStoreResponse {
   alreadyOwnedItemIds: string[];
   equippedItemIds?: string[];
   userCoins?: number;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TIPOS DE PRESENTE
+// ═══════════════════════════════════════════════════════════
+
+export interface SendGiftRequest {
+  toUserUrlName: string;
+  itemId?: string;
+  coinsAmount?: number;
+  message: string;
+}
+
+export interface SendGiftResponse {
+  success: boolean;
+  message: string;
+  remainingCoins?: number;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -64,6 +82,7 @@ interface StoreContextType {
   equipItem: (itemId: string) => Promise<void>;
   unequipItem: (itemId: string) => Promise<void>;
   toggleFavorite: (itemId: string) => void;
+  sendGift: (request: SendGiftRequest) => Promise<SendGiftResponse>;
   clearError: () => void;
 }
 
@@ -71,13 +90,57 @@ interface StoreContextType {
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-const determineRarity = (item: APIStoreItem): ItemRarity => {
+/**
+ * Normaliza a raridade vinda da API
+ * Se for null/undefined, retorna 'common'
+ */
+const normalizeRarity = (apiRarity: string | null | undefined): ItemRarity => {
+  if (!apiRarity) return 'common';
+  
+  const normalized = apiRarity.toLowerCase().trim();
+  
+  switch (normalized) {
+    case 'legendary':
+    case 'lendario':
+    case 'lendária':
+      return 'legendary';
+    case 'epic':
+    case 'epico':
+    case 'épico':
+      return 'epic';
+    case 'rare':
+    case 'raro':
+      return 'rare';
+    case 'common':
+    case 'comum':
+    default:
+      return 'common';
+  }
+};
+
+/**
+ * Determina a raridade com base nos atributos do item
+ * Usado como fallback se a API não enviar itemRarity
+ */
+const determineRarityFallback = (item: APIStoreItem): ItemRarity => {
   if (item.limited && item.isPremium) return 'legendary';
   if (item.limited) return 'epic';
   if (item.isPremium) return 'rare';
   if (item.itemPrice >= 4000) return 'epic';
   if (item.itemPrice >= 2000) return 'rare';
   return 'common';
+};
+
+/**
+ * Obtém a raridade do item - prioriza API, usa fallback se necessário
+ */
+const getRarity = (item: APIStoreItem): ItemRarity => {
+  // Se a API enviar itemRarity, usa ela
+  if (item.itemRarity) {
+    return normalizeRarity(item.itemRarity);
+  }
+  // Caso contrário, calcula baseado nos atributos
+  return determineRarityFallback(item);
 };
 
 const mapItemType = (apiType: string): StoreItemType => {
@@ -102,20 +165,24 @@ const transformAPIItem = (
   let imageUrl: string | undefined;
   let videoUrl: string | undefined;
 
+  // Normaliza a URL base
+  const baseUrl = 'https://vxo.lat/';
+  const itemUrl = apiItem.itemUrl?.startsWith('http') 
+    ? apiItem.itemUrl 
+    : `${baseUrl}${apiItem.itemUrl}`;
+
   switch (type) {
     case 'badge':
-      svgUrl = apiItem.itemUrl.startsWith('http') 
-        ? apiItem.itemUrl 
-        : `https://vxo.lat/${apiItem.itemUrl}`;
+      svgUrl = itemUrl;
       break;
     case 'frame':
-      imageUrl = apiItem.itemUrl;
+      imageUrl = itemUrl;
       break;
     case 'effect':
-      videoUrl = apiItem.itemUrl;
+      videoUrl = itemUrl;
       break;
     case 'bundle':
-      imageUrl = apiItem.itemUrl;
+      imageUrl = itemUrl;
       break;
   }
 
@@ -124,7 +191,7 @@ const transformAPIItem = (
     name: apiItem.itemName,
     description: apiItem.itemDescription,
     type,
-    rarity: determineRarity(apiItem),
+    rarity: getRarity(apiItem), // ✅ Usa a nova função que considera itemRarity da API
     price: apiItem.itemPrice,
     svgUrl,
     imageUrl,
@@ -164,32 +231,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [storeError, setStoreError] = useState<string | null>(null);
   const [equippedIds, setEquippedIds] = useState<string[]>([]);
   
-  // ✅ Refs para controlar requests duplicados
+  // Refs para controlar requests duplicados
   const hasFetchedRef = useRef(false);
   const isFetchingRef = useRef(false);
   
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('store_favorites');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('store_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   // Salvar favoritos no localStorage
   useEffect(() => {
-    localStorage.setItem('store_favorites', JSON.stringify(favoriteIds));
+    try {
+      localStorage.setItem('store_favorites', JSON.stringify(favoriteIds));
+    } catch (error) {
+      console.warn('[Store] Erro ao salvar favoritos:', error);
+    }
   }, [favoriteIds]);
 
   // ═══════════════════════════════════════════════════════════
-  // FETCH STORE ITEMS (com proteção contra duplicados)
+  // FETCH STORE ITEMS
   // ═══════════════════════════════════════════════════════════
 
   const fetchStoreItems = useCallback(async (force = false) => {
-    // ✅ Evita requests duplicados
+    // Evita requests duplicados
     if (isFetchingRef.current) {
       console.log('[Store] Request já em andamento, ignorando...');
       return;
     }
 
-    // ✅ Se já carregou e não é forçado, não refaz
+    // Se já carregou e não é forçado, não refaz
     if (hasFetchedRef.current && !force) {
       console.log('[Store] Dados já carregados, usando cache...');
       return;
@@ -211,7 +286,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // Pegar favoritos atuais do localStorage
-      const currentFavorites = JSON.parse(localStorage.getItem('store_favorites') || '[]');
+      let currentFavorites: string[] = [];
+      try {
+        currentFavorites = JSON.parse(localStorage.getItem('store_favorites') || '[]');
+      } catch {
+        currentFavorites = [];
+      }
 
       const transformedItems = apiItems
         .filter(item => item.isActive)
@@ -223,10 +303,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setUserCoins(coins);
       }
 
-      // ✅ Marca como carregado
+      // Marca como carregado
       hasFetchedRef.current = true;
       
-      console.log('[Store] Dados carregados com sucesso!');
+      console.log('[Store] Dados carregados com sucesso!', {
+        totalItems: transformedItems.length,
+        ownedCount: alreadyOwnedItemIds.length,
+      });
 
     } catch (err: any) {
       console.error('[Store] Erro ao carregar itens:', err);
@@ -238,12 +321,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [equippedIds]);
 
   // ═══════════════════════════════════════════════════════════
-  // REFRESH STORE (força novo request)
+  // REFRESH STORE
   // ═══════════════════════════════════════════════════════════
 
   const refreshStore = useCallback(async () => {
     console.log('[Store] Refresh forçado...');
-    await fetchStoreItems(true); // ✅ força = true
+    await fetchStoreItems(true);
   }, [fetchStoreItems]);
 
   // ═══════════════════════════════════════════════════════════
@@ -252,29 +335,87 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const purchaseItem = useCallback(async (itemId: string) => {
     try {
+      console.log('[Store] Comprando item:', itemId);
+      
       const response = await api.post(`/user/store/purchase/${itemId}`);
 
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, isOwned: true } : item
       ));
 
+      // Atualiza o saldo de moedas
       if (response.data?.userCoins !== undefined) {
         setUserCoins(response.data.userCoins);
       } else if (response.data?.remainingCoins !== undefined) {
         setUserCoins(response.data.remainingCoins);
       } else {
+        // Fallback: calcula localmente
         const item = items.find(i => i.id === itemId);
         if (item) {
           const finalPrice = item.discount 
             ? Math.floor(item.price * (1 - item.discount / 100)) 
             : item.price;
-          setUserCoins(prev => prev - finalPrice);
+          setUserCoins(prev => Math.max(0, prev - finalPrice));
         }
       }
 
+      console.log('[Store] Item comprado com sucesso!');
+
     } catch (err: any) {
-      console.error('Erro ao comprar item:', err);
+      console.error('[Store] Erro ao comprar item:', err);
       throw err;
+    }
+  }, [items]);
+
+  // ═══════════════════════════════════════════════════════════
+  // SEND GIFT - ✅ NOVA FUNÇÃO
+  // ═══════════════════════════════════════════════════════════
+
+  const sendGift = useCallback(async (request: SendGiftRequest): Promise<SendGiftResponse> => {
+    try {
+      console.log('[Store] Enviando presente:', {
+        to: request.toUserUrlName,
+        itemId: request.itemId,
+        coinsAmount: request.coinsAmount,
+        hasMessage: !!request.message,
+      });
+
+      const response = await api.post<SendGiftResponse>('/user/gift/send', request);
+
+      // Atualiza o saldo de moedas se retornado
+      if (response.data?.remainingCoins !== undefined) {
+        setUserCoins(response.data.remainingCoins);
+      } else if (request.itemId) {
+        // Fallback: calcula localmente para item
+        const item = items.find(i => i.id === request.itemId);
+        if (item) {
+          const finalPrice = item.discount 
+            ? Math.floor(item.price * (1 - item.discount / 100)) 
+            : item.price;
+          setUserCoins(prev => Math.max(0, prev - finalPrice));
+        }
+      } else if (request.coinsAmount) {
+        // Fallback: calcula localmente para moedas
+        setUserCoins(prev => Math.max(0, prev - request.coinsAmount!));
+      }
+
+      console.log('[Store] Presente enviado com sucesso!');
+
+      return {
+        success: true,
+        message: response.data?.message || 'Presente enviado com sucesso!',
+        remainingCoins: response.data?.remainingCoins,
+      };
+
+    } catch (err: any) {
+      console.error('[Store] Erro ao enviar presente:', err);
+      
+      // Retorna erro formatado
+      const errorMessage = err.response?.data?.message 
+        || err.response?.data?.error 
+        || 'Erro ao enviar presente. Verifique o nome de usuário e tente novamente.';
+      
+      throw new Error(errorMessage);
     }
   }, [items]);
 
@@ -284,10 +425,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const equipItem = useCallback(async (itemId: string) => {
     try {
+      console.log('[Store] Equipando item:', itemId);
+      
       await api.post(`/user/store/equip/${itemId}`);
 
       const item = items.find(i => i.id === itemId);
       if (item) {
+        // Desequipa outros itens do mesmo tipo e equipa o novo
         setItems(prev => prev.map(i => {
           if (i.type === item.type && i.id !== itemId) {
             return { ...i, isEquipped: false };
@@ -307,8 +451,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
       }
 
+      console.log('[Store] Item equipado com sucesso!');
+
     } catch (err: any) {
-      console.error('Erro ao equipar item:', err);
+      console.error('[Store] Erro ao equipar item:', err);
       throw err;
     }
   }, [items]);
@@ -319,6 +465,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const unequipItem = useCallback(async (itemId: string) => {
     try {
+      console.log('[Store] Desequipando item:', itemId);
+      
       await api.post(`/user/store/unequip/${itemId}`);
 
       setItems(prev => prev.map(item =>
@@ -327,8 +475,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setEquippedIds(prev => prev.filter(id => id !== itemId));
 
+      console.log('[Store] Item desequipado com sucesso!');
+
     } catch (err: any) {
-      console.error('Erro ao desequipar item:', err);
+      console.error('[Store] Erro ao desequipar item:', err);
       throw err;
     }
   }, []);
@@ -359,31 +509,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // ═══════════════════════════════════════════════════════════
-  // INITIAL LOAD - ✅ CORRIGIDO
+  // INITIAL LOAD
   // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
-    // ✅ Só faz o request se ainda não fez
     if (!hasFetchedRef.current) {
       fetchStoreItems();
     }
-  }, []); // ✅ Array vazio - roda só 1x
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════
+  // PROVIDER VALUE
+  // ═══════════════════════════════════════════════════════════
+
+  const contextValue: StoreContextType = {
+    items,
+    userCoins,
+    isLoadingStore,
+    storeError,
+    refreshStore,
+    purchaseItem,
+    equipItem,
+    unequipItem,
+    toggleFavorite,
+    sendGift, // ✅ Adicionado
+    clearError,
+  };
 
   return (
-    <StoreContext.Provider
-      value={{
-        items,
-        userCoins,
-        isLoadingStore,
-        storeError,
-        refreshStore,
-        purchaseItem,
-        equipItem,
-        unequipItem,
-        toggleFavorite,
-        clearError,
-      }}
-    >
+    <StoreContext.Provider value={contextValue}>
       {children}
     </StoreContext.Provider>
   );

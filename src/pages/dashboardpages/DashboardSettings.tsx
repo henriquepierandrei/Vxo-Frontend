@@ -810,7 +810,7 @@ const DashboardSettings = () => {
 
               {!isPremium && (
                 <motion.div
-                  className="mt-4 sm:mt-6 p-3 sm:p-4 rounded-[var(--border-radius-md)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 border border-[var(--color-primary)/30]"
+                  className="mt-4 sm:mt-6 p-3 sm:p-4 rounded-[var(--border-radius-md)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 border border-[var(--color-primary)]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5 }}

@@ -10,7 +10,7 @@ const DashboardLayout = () => {
   
   return (
     <div className="min-h-screen bg-[var(--color-background)] flex">
-      <Sidebar />
+      <Sidebar/>
 
       <main
         className="relative isolate min-h-screen flex-1 px-4 lg:px-6 xl:px-8 overflow-hidden"

@@ -592,7 +592,7 @@ const Sidebar = () => {
               w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
               bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]
               text-[var(--color-text-muted)] hover:text-[var(--color-text)]
-              transition-all duration-300
+              transition-all duration-300 z-0
               ${isCollapsed ? "justify-center" : ""}
             `}
           >

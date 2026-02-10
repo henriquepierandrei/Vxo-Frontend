@@ -684,8 +684,6 @@ const ItemCard = ({
   userProfileImage?: string;
 }) => {
   const rarityConfig = getRarityConfig(item.rarity); // ✅ Safeguard
-  const typeConfig = ITEM_TYPE_CONFIG[item.type];
-  const TypeIcon = typeConfig.icon;
   const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
 
@@ -872,17 +870,9 @@ const PendingGiftCard = ({
             whileTap={{ scale: 0.95 }}
           >
             <Check size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" />
-            <span>Aceitar</span>
+            <span>Marcar como visto</span>
           </motion.button>
-          <motion.button
-            onClick={onDecline}
-            className="flex-1 sm:flex-none px-2.5 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)] hover:bg-red-500/20 text-[var(--color-text-muted)] hover:text-red-400 text-[9px] sm:text-[10px] lg:text-xs font-medium transition-colors flex items-center justify-center gap-1"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <X size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" />
-            <span>Recusar</span>
-          </motion.button>
+          
         </div>
       </div>
     </motion.div>
@@ -1093,15 +1083,7 @@ const ItemDetailModal = ({
                 Equipar
               </motion.button>
             )}
-            <motion.button
-              onClick={onGift}
-              className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-[var(--border-radius-md)] bg-pink-500/10 hover:bg-pink-500/20 text-pink-400 text-[10px] sm:text-xs lg:text-sm font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 border border-pink-500/30"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Gift size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
-              Presentear
-            </motion.button>
+            
           </div>
         )}
 
@@ -1307,7 +1289,7 @@ const GiftOpeningModal = ({
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      Adicionar ao Inventário
+                      Visualizar no Inventário
                     </motion.button>
                   </motion.div>
                 )}
