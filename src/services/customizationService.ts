@@ -17,10 +17,10 @@ class CustomizationService {
   }
 
   /**
-   * Busca as configurações públicas de um usuário por urlName
+   * Busca as configurações públicas de um usuário por slug
    */
-  async getPublicPageSettings(urlName: string): Promise<UserPageFrontendResponse> {
-    const response = await api.get<UserPageFrontendResponse>(`/public/page/${urlName}`);
+  async getPublicPageSettings(slug: string): Promise<UserPageFrontendResponse> {
+    const response = await api.get<UserPageFrontendResponse>(`/public/page/${slug}`);
     return response.data;
   }
 

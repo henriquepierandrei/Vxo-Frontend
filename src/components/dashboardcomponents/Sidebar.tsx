@@ -287,7 +287,7 @@ const Sidebar = () => {
       '/dashboard': 'Início',
       '/dashboard/start': 'Início',
       '/dashboard/store': 'Loja',
-      '/dashboard/daily-spin': 'Giro Diário', // ✅ Nova rota
+      '/dashboard/roulette': 'Giro Diário', // ✅ Nova rota
       '/dashboard/assets': 'Ativos',
       '/dashboard/customization': 'Customização',
       '/dashboard/tags': 'Tags',
@@ -305,7 +305,7 @@ const Sidebar = () => {
   // ✅ Dados derivados com fallback
   const displayName = profileData?.name || user?.name || "Usuário";
   const isPremium = profileData?.isPremium === true;
-  const profileUrl = profileData?.url || user?.urlName || "usuario";
+  const profileUrl = profileData?.url || user?.slug || "usuario";
   const profileImageUrl = profileData?.pageSettings?.mediaUrls?.profileImageUrl || "";
 
   // ✅ navSections memoizado COM isPremium como dependência
@@ -323,7 +323,7 @@ const Sidebar = () => {
         {
           icon: <Gift size={20} />,
           label: "Giro Diário",
-          href: "/dashboard/daily-spin",
+          href: "/dashboard/roulette",
           badge: "🎁",
           highlight: true, // ✅ Destaque especial para o Giro Diário
         },

@@ -21,7 +21,7 @@ import Home from "./pages/homepages/Home";
 
 // Páginas do Dashboard
 import DashboardSettings from "./pages/dashboardpages/DashboardSettings";
-import LogsPremium from "./pages/dashboardpages/DashboardLogs";
+import DashboardLogs from "./pages/dashboardpages/DashboardLogs";
 import DashboardLinks from "./pages/dashboardpages/DashboardLinks";
 import DashboardSocial from "./pages/dashboardpages/DashboardSocial";
 import DashboardCustomization from "./pages/dashboardpages/DashboardCustomization";
@@ -37,6 +37,7 @@ import { InventoryProvider } from "./contexts/InventoryContext";
 import DashboardEmbeds from "./pages/dashboardpages/DashboardEmbeds";
 import Unauthorized from "./pages/Unauthorized";
 import RequiresPremium from "./components/guards/RequirePremium";
+import DashboardRoulette from "./pages/dashboardpages/DashboardRoulette";
 
 function App() {
   return (
@@ -75,14 +76,13 @@ function App() {
                     <Route path="embeds" element={<RequiresPremium><DashboardEmbeds /></RequiresPremium>} />
                     <Route path="settings" element={<DashboardSettings />} />
                     <Route path="tags" element={<DashboardTags />} />
-                    <Route path="logs" element={<LogsPremium />} />
+                    <Route path="logs" element={<DashboardLogs />} />
                     <Route element={<StoreLayout />}>
                       <Route path="store" element={<DashboardStore />} />
                     </Route>                  <Route path="assets" element={<DashboardAssets />} />
                     <Route path="inventory" element={<DashboardInventory />} />
                     <Route path="customization" element={<DashboardCustomization />} />
-
-
+                    <Route path="roulette" element={<DashboardRoulette />} />
 
                     {/* Rotas COM LinksProvider */}
                     <Route element={<LinksLayout />}>

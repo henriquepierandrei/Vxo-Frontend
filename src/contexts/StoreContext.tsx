@@ -33,7 +33,7 @@ interface APIStoreResponse {
 // ═══════════════════════════════════════════════════════════
 
 export interface SendGiftRequest {
-  toUserUrlName: string;
+  toUserSlug: string;
   itemId?: string;
   message: string;
 }
@@ -373,7 +373,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const sendGift = useCallback(async (request: SendGiftRequest): Promise<SendGiftResponse> => {
     try {
       console.log('[Store] Enviando presente:', {
-        to: request.toUserUrlName,
+        to: request.toUserSlug,
         itemId: request.itemId,
         hasMessage: !!request.message,
       });

@@ -121,7 +121,7 @@ class AuthService {
         id: payload.sub || payload.id,
         email: payload.email,
         name: payload.name,
-        urlName: payload.urlName,
+        slug: payload.slug,
       };
     } catch (error) {
       console.error('Error decoding token:', error);
