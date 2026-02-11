@@ -1,4 +1,3 @@
-import Footer from "../../components/homecomponents/Footer"
 import Navbar from "../../components/homecomponents/Navbar"
 import PricingPage from "../../components/PricingPlans"
 
@@ -8,7 +7,6 @@ function PrincingSection() {
     <div className="min-h-screen bg-[var(--background-color)] text-white overflow-x-hidden">
       <Navbar />
       <PricingPage />
-      <Footer />
     </div>
   )
 }

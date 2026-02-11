@@ -70,6 +70,7 @@ interface ProfileResponse {
   isPremium: boolean;
   receiveGifts: boolean;
   coins: number;
+  views: number;
   pageSettings: PageSettings;
 }
 

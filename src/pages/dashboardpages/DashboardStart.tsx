@@ -5,9 +5,7 @@ import {
   LayoutDashboard,
   Eye,
   Zap,
-  Award,
   CreditCard,
-  User,
   Image,
   Link,
   LogOut,
@@ -22,15 +20,9 @@ import {
   Target,
   Flame,
   Gift,
-  ArrowUpRight,
   Copy,
   Settings,
-  TrendingUp,
-  MousePointerClick,
-  Lightbulb,
   ExternalLink,
-  Heart,
-  MessageCircle,
   Rocket,
   Wand2,
   Tags,
@@ -43,7 +35,6 @@ import {
   AlertCircle,
   Star,
   PartyPopper,
-  Coffee,
   Sun,
   Moon,
   Sunrise,
@@ -121,14 +112,7 @@ const getLevelByApiKey = (apiKey: string): RankingLevel => {
   return RANKING_LEVELS.find(l => l.apiKey === apiKey) || RANKING_LEVELS[0];
 };
 
-const getUserLevel = (views: number): RankingLevel => {
-  for (let i = RANKING_LEVELS.length - 1; i >= 0; i--) {
-    if (views >= RANKING_LEVELS[i].viewsRequired) {
-      return RANKING_LEVELS[i];
-    }
-  }
-  return RANKING_LEVELS[0];
-};
+
 
 const getNextLevel = (currentLevel: RankingLevel): RankingLevel | null => {
   const nextLevelIndex = RANKING_LEVELS.findIndex(l => l.level === currentLevel.level) + 1;
@@ -702,19 +686,7 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
                 {typeof stat.value === 'number' ? formatNumber(stat.value) : stat.value}
               </p>
             )}
-            {stat.trend && (
-              <span
-                className={`flex items-center gap-0.5 text-xs font-medium ${
-                  stat.trend.isPositive ? "text-emerald-400" : "text-red-400"
-                }`}
-              >
-                <TrendingUp
-                  size={12}
-                  className={stat.trend.isPositive ? "" : "rotate-180"}
-                />
-                {stat.trend.value}%
-              </span>
-            )}
+            
           </div>
         </div>
 
@@ -1084,7 +1056,7 @@ const PremiumSection = ({ isPremium }: { isPremium: boolean }) => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("/dashboard/premium")}
+            onClick={() => navigate("/plans")}
             className="px-4 py-2 rounded-[var(--border-radius-md)] bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-400 text-sm font-medium border border-amber-500/30 transition-all"
           >
             Ver benefícios
@@ -1259,7 +1231,6 @@ const ActivityFeed = ({ receiveGifts, isPremium }: { receiveGifts: boolean; isPr
 // ═══════════════════════════════════════════════════════════
 
 const DashboardStart = () => {
-  const navigate = useNavigate();
   const { profileData, isLoadingProfile, refreshProfile } = useProfile();
   
   const [showNotifications, setShowNotifications] = useState(false);
@@ -1271,7 +1242,6 @@ const DashboardStart = () => {
     return getLevelByApiKey(profileData.level);
   }, [profileData]);
 
-  const views = 0; // A API não retorna views, então usamos 0 por padrão
   
   const daysSinceCreation = useMemo(() => {
     if (!profileData) return 0;
@@ -1286,10 +1256,10 @@ const DashboardStart = () => {
       {
         id: "views",
         label: "Visualizações",
-        value: views,
+        value: profileData.views,
         icon: Eye,
         color: "var(--color-primary)",
-        bgColor: "var(--color-primary-10)",
+        bgColor: "rgba(0, 50, 255, 0.1)",
         trend: { value: 0, isPositive: true },
       },
       {
@@ -1318,7 +1288,7 @@ const DashboardStart = () => {
         bgColor: profileData.isPremium ? "rgba(245, 158, 11, 0.1)" : "rgba(16, 185, 129, 0.1)",
       },
     ];
-  }, [profileData, userLevel, views]);
+  }, [profileData, userLevel, profileData?.views]);
 
   // Notificações dinâmicas
   const notifications: Notification[] = useMemo(() => {
@@ -1520,7 +1490,7 @@ const DashboardStart = () => {
             avatarUrl={profileData.pageSettings?.mediaUrls?.profileImageUrl}
             level={userLevel}
           />
-          <GoalProgress views={views} currentLevel={userLevel} />
+          <GoalProgress views={profileData.views} currentLevel={userLevel} />
         </div>
 
         {/* Center Column - Activity Feed (substituindo top links) */}
@@ -1533,7 +1503,7 @@ const DashboardStart = () => {
 
         {/* Right Column */}
         <div className="lg:col-span-4 space-y-4 sm:space-y-6">
-          <RankingCard currentLevel={userLevel} views={views} />
+          <RankingCard currentLevel={userLevel} views={profileData?.views} />
         </div>
       </div>
 

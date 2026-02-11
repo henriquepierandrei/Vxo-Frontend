@@ -113,15 +113,6 @@ const getLevelByApiKey = (apiKey: string): RankingLevel => {
   return RANKING_LEVELS.find(l => l.apiKey === apiKey) || RANKING_LEVELS[0];
 };
 
-const getUserLevel = (views: number): RankingLevel => {
-  for (let i = RANKING_LEVELS.length - 1; i >= 0; i--) {
-    if (views >= RANKING_LEVELS[i].viewsRequired) {
-      return RANKING_LEVELS[i];
-    }
-  }
-  return RANKING_LEVELS[0];
-};
-
 const getNextLevel = (currentLevel: RankingLevel): RankingLevel | null => {
   const nextLevelIndex = RANKING_LEVELS.findIndex(l => l.level === currentLevel.level) + 1;
   return nextLevelIndex < RANKING_LEVELS.length ? RANKING_LEVELS[nextLevelIndex] : null;
@@ -1248,10 +1239,7 @@ const ActivityFeed = ({ receiveGifts, isPremium }: { receiveGifts: boolean; isPr
 // ═══════════════════════════════════════════════════════════
 
 const DashboardStart = () => {
-  const navigate = useNavigate();
   const { profileData, isLoadingProfile, refreshProfile } = useProfile();
-
-
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);

@@ -54,6 +54,7 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 <Route path="/validate-email" element={<EmailValidation />} />
                 <Route path="/plans" element={<PrincingSection />} />
+
                 <Route path="/ranking" element={<RankingPage />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
 
