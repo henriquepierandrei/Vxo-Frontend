@@ -63,7 +63,8 @@ interface PageSettings {
 }
 
 interface ProfileResponse {
-  url: string;
+  slug: string;
+  level: string;
   name: string;
   createdAt: string;
   isPremium: boolean;

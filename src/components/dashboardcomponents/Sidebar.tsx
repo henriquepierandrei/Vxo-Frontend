@@ -305,7 +305,7 @@ const Sidebar = () => {
   // ✅ Dados derivados com fallback
   const displayName = profileData?.name || user?.name || "Usuário";
   const isPremium = profileData?.isPremium === true;
-  const profileUrl = profileData?.url || user?.slug || "usuario";
+  const profileUrl = profileData?.slug || user?.slug || "usuario";
   const profileImageUrl = profileData?.pageSettings?.mediaUrls?.profileImageUrl || "";
 
   // ✅ navSections memoizado COM isPremium como dependência
