@@ -44,7 +44,7 @@ export interface InventoryItem {
 export interface PendingGift {
   id: string;
   fromUserId: string;
-  fromUsername: string;
+  fromUrlName: string;
   fromUserProfilePicture: string;
   
   // Item
@@ -171,7 +171,7 @@ function mapToPendingGift(raw: GiftResponse): PendingGift {
   return {
     id: raw.giftId,
     fromUserId: raw.fromUserId,
-    fromUsername: raw.fromUsername,
+    fromUrlName: raw.fromUrlName,
     fromUserProfilePicture: raw.fromUserProfilePicture,
     
     itemId: raw.itemId,

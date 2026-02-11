@@ -35,7 +35,6 @@ interface APIStoreResponse {
 export interface SendGiftRequest {
   toUserUrlName: string;
   itemId?: string;
-  coinsAmount?: number;
   message: string;
 }
 
@@ -376,7 +375,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.log('[Store] Enviando presente:', {
         to: request.toUserUrlName,
         itemId: request.itemId,
-        coinsAmount: request.coinsAmount,
         hasMessage: !!request.message,
       });
 
@@ -394,9 +392,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             : item.price;
           setUserCoins(prev => Math.max(0, prev - finalPrice));
         }
-      } else if (request.coinsAmount) {
-        // Fallback: calcula localmente para moedas
-        setUserCoins(prev => Math.max(0, prev - request.coinsAmount!));
       }
 
       console.log('[Store] Presente enviado com sucesso!');

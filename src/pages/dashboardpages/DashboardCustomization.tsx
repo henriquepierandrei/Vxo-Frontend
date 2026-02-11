@@ -78,6 +78,9 @@ interface CustomizationSettings {
   matrixRainEffect: boolean;
   particlesEffect: boolean;
   particlesColor: string;
+
+  hasEmbed: boolean;
+  embedUrl: string;
 }
 
 interface FileUploads {
@@ -174,6 +177,9 @@ const profileDataToSettings = (
     matrixRainEffect: profileData.pageSettings.pageEffects.matrixRain,
     particlesEffect: profileData.pageSettings.pageEffects.particles.enabled,
     particlesColor: profileData.pageSettings.pageEffects.particles.color,
+
+    hasEmbed: profileData.pageSettings.hasEmbed,
+    embedUrl: profileData.pageSettings.embedUrl
   };
 };
 
@@ -1279,6 +1285,8 @@ const DashboardCustomization = () => {
     matrixRainEffect: false,
     particlesEffect: false,
     particlesColor: "#ffffff",
+    hasEmbed: false,
+    embedUrl: ""
   };
 
   // ═══════════════════════════════════════════════════════════

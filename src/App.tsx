@@ -21,7 +21,7 @@ import Home from "./pages/homepages/Home";
 
 // Páginas do Dashboard
 import DashboardSettings from "./pages/dashboardpages/DashboardSettings";
-import LogsPremium from "./pages/dashboardpages/LogsPremium";
+import LogsPremium from "./pages/dashboardpages/DashboardLogs";
 import DashboardLinks from "./pages/dashboardpages/DashboardLinks";
 import DashboardSocial from "./pages/dashboardpages/DashboardSocial";
 import DashboardCustomization from "./pages/dashboardpages/DashboardCustomization";

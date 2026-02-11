@@ -30,6 +30,7 @@ import {
   ChevronDown,
   User,
   Loader2,
+  Gift, // Ícone para o Giro Diário
 } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════
@@ -43,6 +44,7 @@ interface NavItem {
   badge?: string;
   isBlock?: boolean;
   blockReason?: string;
+  highlight?: boolean; // Para destacar itens especiais como Giro Diário
 }
 
 interface NavSection {
@@ -55,12 +57,12 @@ interface NavSection {
 // ═══════════════════════════════════════════════════════════
 
 // Avatar do Usuário
-const UserAvatar = memo(({ 
+const UserAvatar = memo(({
   size = "default",
   isLoading,
   imageUrl,
   displayName
-}: { 
+}: {
   size?: "default" | "small";
   isLoading: boolean;
   imageUrl: string;
@@ -80,7 +82,7 @@ const UserAvatar = memo(({
 
   return (
     <div className="relative">
-      <div className={`${sizeClasses} rounded-full  flex items-center justify-center overflow-hidden`}>
+      <div className={`${sizeClasses} rounded-full flex items-center justify-center overflow-hidden`}>
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -102,6 +104,41 @@ const UserAvatar = memo(({
 UserAvatar.displayName = 'UserAvatar';
 
 // ═══════════════════════════════════════════════════════════
+// Ícone de Roleta Animado para o Giro Diário
+// ═══════════════════════════════════════════════════════════
+
+const SpinWheelIcon = memo(({ size = 20, className = "" }: { size?: number; className?: string }) => {
+  return (
+    <div className={`relative ${className}`} style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="animate-spin-slow"
+        style={{ animationDuration: '3s' }}
+      >
+        {/* Círculo externo */}
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+        
+        {/* Segmentos da roleta */}
+        <path d="M12 2 L12 12 L20.5 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M12 12 L20.5 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M12 12 L12 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M12 12 L3.5 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M12 12 L3.5 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        
+        {/* Centro */}
+        <circle cx="12" cy="12" r="3" fill="currentColor" />
+      </svg>
+    </div>
+  );
+});
+
+SpinWheelIcon.displayName = 'SpinWheelIcon';
+
+// ═══════════════════════════════════════════════════════════
 // NavItem Component (extraído e memoizado)
 // ═══════════════════════════════════════════════════════════
 
@@ -112,13 +149,14 @@ interface NavItemComponentProps {
   onNavigate: (href: string, label: string) => void;
 }
 
-const NavItemComponent = memo(({ 
-  item, 
-  isActive, 
+const NavItemComponent = memo(({
+  item,
+  isActive,
   isCollapsed,
-  onNavigate 
+  onNavigate
 }: NavItemComponentProps) => {
   const isBlocked = item.isBlock === true;
+  const isHighlight = item.highlight === true;
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -135,34 +173,43 @@ const NavItemComponent = memo(({
           relative flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
           transition-all duration-200
           ${isBlocked ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:translate-x-1"}
-          ${
-            isActive && !isBlocked
-              ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
-              : isBlocked
+          ${isActive && !isBlocked
+            ? "bg-[var(--color-primary)]/20 text-[var(--color-primary)]"
+            : isBlocked
               ? "text-[var(--color-text-muted)]"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+              : isHighlight
+                ? "text-amber-500 hover:text-amber-400 hover:bg-amber-500/10"
+                : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
           }
+          ${isHighlight && !isActive && !isBlocked ? "bg-gradient-to-r from-amber-500/5 to-orange-500/5 border border-amber-500/20" : ""}
         `}
       >
-        {/* Indicador ativo - SEM layoutId para evitar animações entre rotas */}
+        {/* Indicador ativo */}
         {isActive && !isBlocked && (
           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--color-primary)] rounded-r-full" />
         )}
 
-        <span className={`flex-shrink-0 ${isActive && !isBlocked ? "text-[var(--color-primary)]" : ""}`}>
+        {/* Efeito de brilho para itens destacados */}
+        {isHighlight && !isBlocked && (
+          <div className="absolute inset-0 rounded-[var(--border-radius-sm)] bg-gradient-to-r from-amber-500/10 to-orange-500/10 animate-pulse" />
+        )}
+
+        <span className={`flex-shrink-0 relative z-10 ${isActive && !isBlocked ? "text-[var(--color-primary)]" : ""} ${isHighlight && !isBlocked ? "text-amber-500" : ""}`}>
           {item.icon}
         </span>
 
         {!isCollapsed && (
-          <span className={`text-sm font-medium whitespace-nowrap ${isBlocked ? "line-through" : ""}`}>
+          <span className={`text-sm font-medium whitespace-nowrap relative z-10 ${isBlocked ? "line-through" : ""}`}>
             {item.label}
           </span>
         )}
 
         {!isCollapsed && (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 relative z-10">
             {item.badge && !isBlocked && (
-              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-[var(--color-primary)] text-white">
+              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full text-white ${
+                isHighlight ? "bg-gradient-to-r from-amber-500 to-orange-500 animate-pulse" : "bg-[var(--color-primary)]"
+              }`}>
                 {item.badge}
               </span>
             )}
@@ -190,11 +237,13 @@ const NavItemComponent = memo(({
             transition-all duration-200 whitespace-nowrap z-50
             shadow-lg flex items-center gap-2
           ">
-            <span className={isBlocked ? "line-through opacity-60" : ""}>
+            <span className={`${isBlocked ? "line-through opacity-60" : ""} ${isHighlight ? "text-amber-500" : ""}`}>
               {item.label}
             </span>
             {item.badge && !isBlocked && (
-              <span className="px-1.5 py-0.5 text-xs rounded-full bg-[var(--color-primary)] text-white">
+              <span className={`px-1.5 py-0.5 text-xs rounded-full text-white ${
+                isHighlight ? "bg-gradient-to-r from-amber-500 to-orange-500" : "bg-[var(--color-primary)]"
+              }`}>
                 {item.badge}
               </span>
             )}
@@ -222,42 +271,44 @@ const Sidebar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  
+
   const { isDark, toggleTheme } = useTheme();
   const { user, logout, isLoading } = useAuth();
   const { profileData, isLoadingProfile } = useProfile();
-  
-  // ✅ USAR REACT ROUTER PARA NAVEGAÇÃO
+
   const navigate = useNavigate();
   const location = useLocation();
 
   // ✅ Determinar item ativo baseado na URL atual
   const activeItem = useMemo(() => {
     const path = location.pathname;
-    
+
     const pathToLabel: Record<string, string> = {
       '/dashboard': 'Início',
       '/dashboard/start': 'Início',
       '/dashboard/store': 'Loja',
+      '/dashboard/daily-spin': 'Giro Diário', // ✅ Nova rota
       '/dashboard/assets': 'Ativos',
       '/dashboard/customization': 'Customização',
       '/dashboard/tags': 'Tags',
       '/dashboard/links': 'Links',
       '/dashboard/socialmedia': 'Redes Sociais',
+      '/dashboard/embeds': 'Embeds',
       '/dashboard/settings': 'Configurações',
       '/dashboard/inventory': 'Inventário',
       '/dashboard/logs': 'Histórico',
     };
-    
+
     return pathToLabel[path] || 'Início';
   }, [location.pathname]);
 
   // ✅ Dados derivados com fallback
   const displayName = profileData?.name || user?.name || "Usuário";
+  const isPremium = profileData?.isPremium === true;
   const profileUrl = profileData?.url || user?.urlName || "usuario";
   const profileImageUrl = profileData?.pageSettings?.mediaUrls?.profileImageUrl || "";
 
-  // ✅ navSections memoizado - NÃO recria a cada render
+  // ✅ navSections memoizado COM isPremium como dependência
   const navSections: NavSection[] = useMemo(() => [
     {
       title: "Painel",
@@ -268,6 +319,13 @@ const Sidebar = () => {
           label: "Loja",
           href: "/dashboard/store",
           badge: "Novo",
+        },
+        {
+          icon: <Gift size={20} />,
+          label: "Giro Diário",
+          href: "/dashboard/daily-spin",
+          badge: "🎁",
+          highlight: true, // ✅ Destaque especial para o Giro Diário
         },
       ],
     },
@@ -287,8 +345,8 @@ const Sidebar = () => {
         {
           icon: <Code size={20} />,
           label: "Embeds",
-          href: "/embeds",
-          isBlock: true,
+          href: "/dashboard/embeds",
+          isBlock: !isPremium, // ✅ Bloqueia se NÃO for premium
           blockReason: "Premium",
         },
       ],
@@ -301,11 +359,11 @@ const Sidebar = () => {
         { icon: <History size={20} />, label: "Histórico", href: "/dashboard/logs" },
       ],
     },
-  ], []);
+  ], [isPremium]); // ✅ CORREÇÃO: isPremium como dependência
 
   // ✅ Handler de navegação usando React Router
   const handleNavigate = (href: string, _label: string) => {
-    navigate(href); // ✅ SEM page reload!
+    navigate(href);
   };
 
   const handleMobileNavigate = (href: string, _label: string) => {
@@ -511,7 +569,7 @@ const Sidebar = () => {
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* Desktop Sidebar - SEM animações de entrada */}
+      {/* Desktop Sidebar */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <aside
         className={`
@@ -550,8 +608,8 @@ const Sidebar = () => {
               ${isCollapsed ? "absolute -right-3 top-6 shadow-lg border border-[var(--color-border)] bg-[var(--color-background)]" : ""}
             `}
           >
-            <ChevronLeft 
-              size={16} 
+            <ChevronLeft
+              size={16}
               className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`}
             />
           </button>

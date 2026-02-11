@@ -58,6 +58,8 @@ interface PageSettings {
   nameEffects: NameEffects;
   mediaUrls: MediaUrls;
   pageEffects: PageEffects;
+  hasEmbed: boolean;
+  embedUrl: string;
 }
 
 interface ProfileResponse {

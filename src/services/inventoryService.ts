@@ -32,7 +32,7 @@ export interface InventoryItemResponse {
 export interface GiftResponse {
   giftId: string;
   fromUserId: string;
-  fromUsername: string;
+  fromUrlName: string;
   fromUserProfilePicture: string;
   
   // Item details (if present)
