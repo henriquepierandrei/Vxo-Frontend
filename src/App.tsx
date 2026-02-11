@@ -34,6 +34,9 @@ import DashboardStore from "./pages/dashboardpages/DashboardStore";
 import TitleManager from "./types/TitleManager";
 import { StoreLayout } from "./components/layouts/StoreLayout";
 import { InventoryProvider } from "./contexts/InventoryContext";
+import DashboardEmbeds from "./pages/dashboardpages/DashboardEmbeds";
+import Unauthorized from "./pages/Unauthorized";
+import RequiresPremium from "./components/guards/RequirePremium";
 
 function App() {
   return (
@@ -51,6 +54,8 @@ function App() {
                 <Route path="/validate-email" element={<EmailValidation />} />
                 <Route path="/plans" element={<PrincingSection />} />
                 <Route path="/ranking" element={<RankingPage />} />
+                <Route path="/unauthorized" element={<Unauthorized />} />
+
 
                 {/* ========== DASHBOARD - ROTAS ANINHADAS ========== */}
                 {/* 
@@ -67,6 +72,7 @@ function App() {
 
                     {/* Rotas SEM LinksProvider */}
                     <Route path="start" element={<DashboardStart />} />
+                    <Route path="embeds" element={<RequiresPremium><DashboardEmbeds /></RequiresPremium>} />
                     <Route path="settings" element={<DashboardSettings />} />
                     <Route path="tags" element={<DashboardTags />} />
                     <Route path="logs" element={<LogsPremium />} />
@@ -75,6 +81,8 @@ function App() {
                     </Route>                  <Route path="assets" element={<DashboardAssets />} />
                     <Route path="inventory" element={<DashboardInventory />} />
                     <Route path="customization" element={<DashboardCustomization />} />
+
+
 
                     {/* Rotas COM LinksProvider */}
                     <Route element={<LinksLayout />}>
@@ -87,6 +95,8 @@ function App() {
 
                 {/* ========== FALLBACK ========== */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
+
+                
               </Routes>
             </InventoryProvider>
 

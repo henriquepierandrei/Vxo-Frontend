@@ -1,4 +1,4 @@
-// src/contexts/InventoryContext.tsx
+import { useLocation } from "react-router-dom";
 import {
   createContext,
   useContext,
@@ -12,7 +12,6 @@ import { useAuth } from "../hooks/useAuth";
 import inventoryService, {
   type InventoryItemResponse,
   type GiftResponse,
-  type UserInventoryResponse,
   ItemType,
 } from "../services/inventoryService";
 
@@ -201,6 +200,8 @@ const InventoryContext = createContext<InventoryContextData>(
 
 export function InventoryProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const location = useLocation();
+
   
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [pendingGifts, setPendingGifts] = useState<PendingGift[]>([]);
@@ -297,21 +298,23 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   // ── Carregar quando user mudar ──────────────────────────
   useEffect(() => {
     const currentUserId = user?.id || null;
+    const isInventoryPage = location.pathname === "/dashboard/inventory" 
+      || location.pathname.startsWith("/dashboard/inventory/");
+
+    // ✅ Só faz fetch se estiver na página de inventário
+    if (!isInventoryPage) {
+      return;
+    }
 
     if (currentUserId !== lastUserIdRef.current) {
       lastUserIdRef.current = currentUserId;
       hasFetchedRef.current = false;
-
-      if (currentUserId) {
-        fetchInventory();
-      } else {
-        // Logout - limpar
-        setItems([]);
-        setPendingGifts([]);
-        setUnviewedGiftsCount(0);
-      }
     }
-  }, [user?.id, fetchInventory]);
+
+    if (currentUserId && !hasFetchedRef.current) {
+      fetchInventory();
+    }
+  }, [user?.id, location.pathname, fetchInventory]);
 
   return (
     <InventoryContext.Provider
