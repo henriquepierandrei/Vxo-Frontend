@@ -37,6 +37,7 @@ interface MediaUrls {
   profileImageUrl: string;
   musicUrl: string;
   cursorUrl: string;
+  faviconUrl: string;
 }
 
 interface ParticlesSettings {

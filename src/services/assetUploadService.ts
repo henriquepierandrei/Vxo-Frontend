@@ -9,6 +9,7 @@ export interface AssetUploadResponse {
     cursorUrl?: string;
     backgroundUrl?: string;
     musicUrl?: string;
+    faviconUrl?: string;
   };
 }
 
@@ -21,6 +22,7 @@ export const assetUploadService = {
     cursor?: File | null;
     background?: File | null;
     music?: File | null;
+    favicon?: File | null;
   }): Promise<AssetUploadResponse> => {
     const formData = new FormData();
 
@@ -35,6 +37,9 @@ export const assetUploadService = {
     }
     if (files.music) {
       formData.append('music', files.music);
+    }
+     if (files.favicon) {
+      formData.append('favicon', files.favicon);
     }
 
     const response = await api.post('/user/assets/all-upload', formData, {
