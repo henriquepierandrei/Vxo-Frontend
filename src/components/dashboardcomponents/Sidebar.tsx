@@ -4,8 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../../hooks/ThemeProvider";
 import { useAuth } from "../../hooks/useAuth";
-import { VxoLogo } from "../LogoProps";
-import { VxoLogoSmall } from "../LogoPropsSmall";
+import { VxoLogo } from "../logo/LogoProps";
+import { VxoLogoSmall } from "../logo/LogoPropsSmall";
 import { useProfile } from "../../contexts/UserContext";
 
 import {
@@ -30,7 +30,7 @@ import {
   ChevronDown,
   User,
   Loader2,
-  Gift, // Ícone para o Giro Diário
+  Gift, 
 } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════
@@ -287,7 +287,7 @@ const Sidebar = () => {
       '/dashboard': 'Início',
       '/dashboard/start': 'Início',
       '/dashboard/store': 'Loja',
-      '/dashboard/roulette': 'Giro Diário', // ✅ Nova rota
+      // '/dashboard/roulette': 'Giro Diário', // EM BREVE
       '/dashboard/assets': 'Ativos',
       '/dashboard/customization': 'Customização',
       '/dashboard/tags': 'Tags',
@@ -325,7 +325,9 @@ const Sidebar = () => {
           label: "Giro Diário",
           href: "/dashboard/roulette",
           badge: "🎁",
-          highlight: true, // ✅ Destaque especial para o Giro Diário
+          highlight: true, // EM BREVE
+          isBlock: true,
+          blockReason:  "Breve"
         },
       ],
     },
@@ -448,7 +450,7 @@ const Sidebar = () => {
             </button>
 
             {/* Mobile Header */}
-            <div className="flex items-center justify-center p-4 border-b border-[var(--color-border)]">
+            <div className="flex items-center justify-start p-4 border-b border-[var(--color-border)]">
               <div className="flex items-center gap-3">
                 <VxoLogo />
                 <div className="flex flex-col">
@@ -582,7 +584,7 @@ const Sidebar = () => {
         style={{ width: isCollapsed ? 80 : 280 }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between p-4 pr-8 border-b border-[var(--color-border)]">
           <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center w-full" : ""}`}>
             {isCollapsed ? (
               <div className="flex items-center justify-center">

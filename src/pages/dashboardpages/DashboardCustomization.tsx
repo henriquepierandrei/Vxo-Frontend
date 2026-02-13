@@ -19,13 +19,14 @@ import {
   Music,
   MousePointer2,
   Snowflake,
-  PartyPopper,
-  Binary,
-  Atom,
+  CloudRain,
+  DollarSign,
+  CloudLightning,
+  Cloud,
+  Stars,
   AlignCenter,
   Upload,
   X,
-  Monitor,
   Loader2,
   RefreshCw,
   Trash2,
@@ -36,45 +37,58 @@ import {
   Pause,
   Volume2,
   VolumeX,
-  Globe,
   Info,
+  Globe, // ✅ Novo ícone para favicon
+  Crown,  // ✅ Ícone premium
 } from "lucide-react";
 import { customizationService } from "../../services/customizationService";
 import { assetUploadService } from "../../services/assetUploadService";
 import { useProfile } from "../../contexts/UserContext";
+import type {
+  CardSettings,
+  ContentSettings,
+  NameEffects,
+  MediaUrls,
+  PageEffects,
+  UserPageFrontendRequest,
+} from "../../types/customization.types";
 
 // ═══════════════════════════════════════════════════════════
-// TIPOS
+// TIPOS LOCAIS
 // ═══════════════════════════════════════════════════════════
 
 type MediaType = "image" | "video" | "audio" | "unknown";
 
 interface CustomizationSettings {
+  // Card Settings
   cardOpacity: number;
   cardBlur: number;
   cardColor: string;
   cardPerspective: boolean;
   cardHoverGrow: boolean;
   rgbBorder: boolean;
+  // Content Settings
   biography: string;
   contentCenter: boolean;
   biographyColor: string;
+  // Name Effects
   name: string;
   neonName: boolean;
   shinyName: boolean;
   rgbName: boolean;
+  // Media URLs
   backgroundUrl: string;
   profileImageUrl: string;
   musicUrl: string;
   cursorUrl: string;
-  faviconUrl: string;
+  faviconUrl: string; // ✅ NOVO
+  // Page Effects
   snowEffect: boolean;
-  confettiEffect: boolean;
-  matrixRainEffect: boolean;
-  particlesEffect: boolean;
-  particlesColor: string;
-  hasEmbed: boolean;
-  embedUrl: string;
+  rainEffect: boolean;
+  cashEffect: boolean;
+  thunderEffect: boolean;
+  smokeEffect: boolean;
+  starsEffect: boolean;
 }
 
 interface FileUploads {
@@ -82,7 +96,7 @@ interface FileUploads {
   background: File | null;
   music: File | null;
   cursor: File | null;
-  favicon: File | null;
+  favicon: File | null; // ✅ NOVO
 }
 
 interface FileUploadProps {
@@ -94,8 +108,11 @@ interface FileUploadProps {
   onRemove: () => void;
   icon?: React.ElementType;
   helperText?: string;
-  previewType?: "image" | "audio" | "cursor" | "media" | "favicon";
+  previewType?: "image" | "audio" | "cursor" | "media" | "favicon"; // ✅ ATUALIZADO
   minHeight?: string;
+  disabled?: boolean;
+  isPremiumFeature?: boolean; // ✅ NOVO
+  userIsPremium?: boolean;     // ✅ NOVO
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -105,16 +122,16 @@ interface FileUploadProps {
 const CARD_MIN_HEIGHTS = {
   cardAppearance: "540px",
   profileInfo: "680px",
-  media: "720px",
-  effects: "420px",
+  media: "720px", // ✅ AUMENTADO para comportar favicon
+  effects: "520px",
 } as const;
 
 const FILE_UPLOAD_HEIGHTS = {
   image: "160px",
   audio: "140px",
   cursor: "120px",
-  favicon: "100px",
   media: "160px",
+  favicon: "140px", // ✅ NOVO
   empty: "120px",
 } as const;
 
@@ -164,7 +181,6 @@ const getFromLocalStorage = (): Partial<CustomizationSettings> | null => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Verifica se não está muito antigo (24 horas)
       if (parsed.lastUpdated && Date.now() - parsed.lastUpdated < 24 * 60 * 60 * 1000) {
         return parsed;
       }
@@ -177,49 +193,53 @@ const getFromLocalStorage = (): Partial<CustomizationSettings> | null => {
 };
 
 // ═══════════════════════════════════════════════════════════
-// TRANSFORMAÇÃO DE DADOS - COM OPTIONAL CHAINING E FALLBACKS
+// TRANSFORMAÇÃO DE DADOS - ATUALIZADO PARA NOVOS TYPES
 // ═══════════════════════════════════════════════════════════
 
 const profileDataToSettings = (
   profileData: NonNullable<ReturnType<typeof useProfile>['profileData']>
 ): CustomizationSettings => {
   const pageSettings = profileData?.pageSettings;
-  const cardSettings = pageSettings?.cardSettings;
-  const contentSettings = pageSettings?.contentSettings;
-  const nameEffects = pageSettings?.nameEffects;
-  const mediaUrls = pageSettings?.mediaUrls;
-  const pageEffects = pageSettings?.pageEffects;
+  const cardSettings = pageSettings?.cardSettings as CardSettings | undefined;
+  const contentSettings = pageSettings?.contentSettings as ContentSettings | undefined;
+  const nameEffects = pageSettings?.nameEffects as NameEffects | undefined;
+  const mediaUrls = pageSettings?.mediaUrls as MediaUrls | undefined;
+  const pageEffects = pageSettings?.pageEffects as PageEffects | undefined;
 
   return {
+    // Card Settings
     cardOpacity: cardSettings?.opacity ?? 80,
     cardBlur: cardSettings?.blur ?? 10,
     cardColor: cardSettings?.color ?? "#1a1a2e",
     cardPerspective: cardSettings?.perspective ?? false,
     cardHoverGrow: cardSettings?.hoverGrow ?? true,
     rgbBorder: cardSettings?.rgbBorder ?? false,
+    // Content Settings
     biography: contentSettings?.biography ?? "",
     contentCenter: contentSettings?.centerAlign ?? true,
     biographyColor: contentSettings?.biographyColor ?? "#ffffff",
+    // Name Effects
     name: nameEffects?.name ?? "",
     neonName: nameEffects?.neon ?? false,
     shinyName: nameEffects?.shiny ?? false,
     rgbName: nameEffects?.rgb ?? false,
+    // Media URLs
     backgroundUrl: mediaUrls?.backgroundUrl || "",
     profileImageUrl: mediaUrls?.profileImageUrl || "",
     musicUrl: mediaUrls?.musicUrl || "",
-    cursorUrl: mediaUrls?.cursorUrl || "",
-    faviconUrl: mediaUrls?.faviconUrl || "",
+    cursorUrl: "",
+    faviconUrl: mediaUrls?.faviconUrl || "", // 
+    // Page Effects (novos)
     snowEffect: pageEffects?.snow ?? false,
-    confettiEffect: pageEffects?.confetti ?? false,
-    matrixRainEffect: pageEffects?.matrixRain ?? false,
-    particlesEffect: pageEffects?.particles?.enabled ?? false,
-    particlesColor: pageEffects?.particles?.color ?? "#ffffff",
-    hasEmbed: pageSettings?.hasEmbed ?? false,
-    embedUrl: pageSettings?.embedUrl ?? ""
+    rainEffect: pageEffects?.rain ?? false,
+    cashEffect: pageEffects?.cash ?? false,
+    thunderEffect: pageEffects?.thunder ?? false,
+    smokeEffect: pageEffects?.smoke ?? false,
+    starsEffect: pageEffects?.stars ?? false,
   };
 };
 
-const settingsToRequest = (settings: CustomizationSettings) => ({
+const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendRequest => ({
   cardSettings: {
     opacity: settings.cardOpacity,
     blur: settings.cardBlur,
@@ -243,17 +263,15 @@ const settingsToRequest = (settings: CustomizationSettings) => ({
     backgroundUrl: settings.backgroundUrl,
     profileImageUrl: settings.profileImageUrl,
     musicUrl: settings.musicUrl,
-    cursorUrl: settings.cursorUrl,
-    faviconUrl: settings.faviconUrl,
+    faviconUrl: settings.faviconUrl, // ✅ NOVO
   },
   pageEffects: {
     snow: settings.snowEffect,
-    confetti: settings.confettiEffect,
-    matrixRain: settings.matrixRainEffect,
-    particles: {
-      enabled: settings.particlesEffect,
-      color: settings.particlesColor,
-    },
+    rain: settings.rainEffect,
+    cash: settings.cashEffect,
+    thunder: settings.thunderEffect,
+    smoke: settings.smokeEffect,
+    stars: settings.starsEffect,
   },
 });
 
@@ -412,7 +430,7 @@ const AudioPlayer = ({ src, fileName }: { src: string; fileName?: string }) => {
 };
 
 // ═══════════════════════════════════════════════════════════
-// CURSOR TEST COMPONENT - NOVO COMPONENTE ISOLADO
+// CURSOR TEST COMPONENT
 // ═══════════════════════════════════════════════════════════
 
 const CursorTestArea = ({
@@ -437,52 +455,38 @@ const CursorTestArea = ({
     setCursorLoaded(false);
     setCursorError(false);
 
-    // Pré-carrega a imagem do cursor
     const img = new window.Image();
 
     img.onload = () => {
-      console.log("✅ Cursor carregado com sucesso:", cursorUrl);
-      console.log("📐 Dimensões:", img.width, "x", img.height);
-
-      // Verifica se o tamanho é válido para cursor (max 128x128 na maioria dos browsers)
       if (img.width <= 128 && img.height <= 128) {
         setCursorLoaded(true);
       } else {
-        console.warn("⚠️ Cursor muito grande. Máximo recomendado: 128x128");
-        setCursorLoaded(true); // Ainda tenta usar
+        setCursorLoaded(true);
       }
     };
 
     img.onerror = () => {
-      console.error("❌ Erro ao carregar cursor:", cursorUrl);
       setCursorError(true);
     };
 
     img.src = cursorUrl;
   }, [cursorUrl]);
 
-  // Aplica o cursor via ref para garantir que funcione
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !cursorUrl || !cursorLoaded) return;
 
-    // Detecta extensão para determinar hotspot
     const ext = fileName?.split('.').pop()?.toLowerCase() ||
       cursorUrl.split('.').pop()?.toLowerCase()?.split('?')[0] || '';
 
     let cursorCSS: string;
 
     if (ext === 'cur' || ext === 'ani') {
-      // Formatos nativos de cursor - não precisam de hotspot
       cursorCSS = `url("${cursorUrl}"), auto`;
     } else {
-      // PNG/GIF - precisa de hotspot (centro por padrão)
-      // Hotspot 0 0 = canto superior esquerdo (como cursor de seta)
-      // Hotspot 16 16 = centro para cursor 32x32
       cursorCSS = `url("${cursorUrl}") 0 0, auto`;
     }
 
-    console.log("🎯 Aplicando cursor CSS:", cursorCSS);
     container.style.cursor = cursorCSS;
 
     return () => {
@@ -574,7 +578,7 @@ const CursorTestArea = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// FILE UPLOAD COMPONENT - VERSÃO CORRIGIDA
+// FILE UPLOAD COMPONENT - ATUALIZADO COM PREMIUM
 // ═══════════════════════════════════════════════════════════
 
 const FileUpload = ({
@@ -588,6 +592,9 @@ const FileUpload = ({
   helperText,
   previewType = "image",
   minHeight,
+  disabled = false,
+  isPremiumFeature = false,
+  userIsPremium = false,
 }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -597,16 +604,19 @@ const FileUpload = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // ✅ Verificação de Premium Lock
+  const isLocked = isPremiumFeature && !userIsPremium;
+  const finalDisabled = disabled || isLocked;
+
   const computedMinHeight = minHeight || (
     previewType === "audio" ? FILE_UPLOAD_HEIGHTS.audio :
-      previewType === "favicon" ? FILE_UPLOAD_HEIGHTS.favicon :
-        previewType === "cursor" ? FILE_UPLOAD_HEIGHTS.cursor :
-          previewType === "media" ? FILE_UPLOAD_HEIGHTS.media :
+      previewType === "cursor" ? FILE_UPLOAD_HEIGHTS.cursor :
+        previewType === "media" ? FILE_UPLOAD_HEIGHTS.media :
+          previewType === "favicon" ? FILE_UPLOAD_HEIGHTS.favicon :
             previewType === "image" ? FILE_UPLOAD_HEIGHTS.image :
               FILE_UPLOAD_HEIGHTS.empty
   );
 
-  // Atualiza preview quando file ou currentUrl mudam
   useEffect(() => {
     setImageError(false);
 
@@ -643,11 +653,6 @@ const FileUpload = ({
       return false;
     }
 
-    if (previewType === "favicon" && fileExt !== ".ico") {
-      setError("Apenas arquivos .ico são permitidos para favicon");
-      return false;
-    }
-
     if (previewType === "cursor") {
       const validCursorExts = [".cur", ".ani", ".png", ".gif"];
       if (!validCursorExts.includes(fileExt)) {
@@ -655,10 +660,24 @@ const FileUpload = ({
         return false;
       }
 
-      // Limite de tamanho para cursores
-      const maxSize = 512 * 1024; // 512KB
+      const maxSize = 512 * 1024;
       if (file.size > maxSize) {
         setError("Arquivo de cursor muito grande. Máximo: 512KB");
+        return false;
+      }
+    }
+
+    // ✅ Validação específica para favicon
+    if (previewType === "favicon") {
+      const validFaviconExts = [".ico", ".png", ".svg"];
+      if (!validFaviconExts.includes(fileExt)) {
+        setError("Use arquivos .ico, .png ou .svg para favicon");
+        return false;
+      }
+
+      const maxSize = 256 * 1024; // 256KB para favicon
+      if (file.size > maxSize) {
+        setError("Arquivo de favicon muito grande. Máximo: 256KB");
         return false;
       }
     }
@@ -667,7 +686,7 @@ const FileUpload = ({
   };
 
   const handleFileChange = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || finalDisabled) return;
     const selectedFile = files[0];
     if (validateFile(selectedFile)) {
       setImageError(false);
@@ -677,7 +696,7 @@ const FileUpload = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    if (!finalDisabled) setIsDragging(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -688,13 +707,16 @@ const FileUpload = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    handleFileChange(e.dataTransfer.files);
+    if (!finalDisabled) handleFileChange(e.dataTransfer.files);
   };
 
-  const handleClick = () => inputRef.current?.click();
+  const handleClick = () => {
+    if (!finalDisabled) inputRef.current?.click();
+  };
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (finalDisabled) return;
     setImageError(false);
     onRemove();
     setError(null);
@@ -702,14 +724,13 @@ const FileUpload = ({
   };
 
   const handleImageError = () => {
-    console.warn("Erro ao carregar imagem:", preview);
     setImageError(true);
   };
 
   const getFileIcon = () => {
     if (previewType === "audio" || mediaType === "audio") return FileAudio;
-    if (previewType === "favicon") return Globe;
     if (previewType === "cursor") return MousePointer2;
+    if (previewType === "favicon") return Globe;
     if (previewType === "image" || mediaType === "image") return FileImage;
     return File;
   };
@@ -719,10 +740,12 @@ const FileUpload = ({
   const currentMediaType = file ? getFileType(file) : currentUrl ? getFileType(currentUrl) : "unknown";
   const audioSrc = previewType === "audio" ? preview : null;
   const isCursorFile = previewType === "cursor";
+  const isFaviconFile = previewType === "favicon";
 
   const shouldShowImagePreview = (
     !isCursorFile &&
-    (previewType === "image" || previewType === "favicon" ||
+    !isFaviconFile &&
+    (previewType === "image" ||
       (previewType === "media" && currentMediaType === "image")) &&
     preview &&
     !imageError
@@ -734,18 +757,32 @@ const FileUpload = ({
     preview
   );
 
-  // Determina o accept correto para cursor
   const cursorAccept = ".cur,.ani,.png,.gif,image/png,image/gif";
+  const faviconAccept = ".ico,.png,.svg,image/x-icon,image/png,image/svg+xml";
 
   return (
     <div className="space-y-2" style={{ minHeight: `calc(${computedMinHeight} + 40px)` }}>
       {/* HEADER */}
       <div className="flex items-center justify-between h-6">
         <div className="flex items-center gap-2">
-          {Icon && <Icon size={16} className="text-[var(--color-primary)]" />}
-          <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
+          {Icon && <Icon size={16} className={finalDisabled ? "text-[var(--color-text-muted)]" : "text-[var(--color-primary)]"} />}
+          <label className={`text-sm font-medium ${finalDisabled ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}`}>
+            {label}
+          </label>
+          {/* ✅ Badge Premium */}
+          {isPremiumFeature && !userIsPremium && (
+            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white flex items-center gap-1">
+              <Crown size={10} />
+              PREMIUM
+            </span>
+          )}
+          {disabled && !isPremiumFeature && (
+            <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+              Em Breve
+            </span>
+          )}
         </div>
-        {file && (
+        {file && !finalDisabled && (
           <span className="text-xs text-[var(--color-text-muted)]">
             {(file.size / 1024).toFixed(1)} KB
           </span>
@@ -756,9 +793,10 @@ const FileUpload = ({
       <input
         ref={inputRef}
         type="file"
-        accept={previewType === "cursor" ? cursorAccept : accept}
+        accept={previewType === "cursor" ? cursorAccept : previewType === "favicon" ? faviconAccept : accept}
         onChange={(e) => handleFileChange(e.target.files)}
         className="hidden"
+        disabled={finalDisabled}
       />
 
       {/* UPLOAD AREA */}
@@ -767,18 +805,80 @@ const FileUpload = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`relative rounded-[var(--border-radius-md)] border-2 border-dashed transition-all duration-300 overflow-hidden ${isDragging
+        className={`relative rounded-[var(--border-radius-md)] border-2 border-dashed transition-all duration-300 overflow-hidden ${finalDisabled
+          ? "border-[var(--color-border)] bg-[var(--color-surface)]/50 cursor-not-allowed opacity-60"
+          : isDragging
             ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
             : hasFile
               ? "border-[var(--color-border)] bg-[var(--color-surface)]"
               : "border-[var(--color-border)] hover:border-[var(--color-primary)]/50 bg-[var(--color-surface)]"
-          } cursor-pointer`}
+          } ${finalDisabled ? "" : "cursor-pointer"}`}
         style={{ minHeight: computedMinHeight }}
-        whileHover={{ scale: 1.005 }}
-        whileTap={{ scale: 0.995 }}
+        whileHover={finalDisabled ? {} : { scale: 1.005 }}
+        whileTap={finalDisabled ? {} : { scale: 0.995 }}
       >
-        {hasFile ? (
+        {hasFile && !finalDisabled ? (
           <div className="relative h-full">
+            {/* ✅ PREVIEW DE FAVICON */}
+            {isFaviconFile && (
+              <div
+                className="relative w-full flex flex-col items-center justify-center bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-background)] p-6"
+                style={{ minHeight: computedMinHeight }}
+              >
+                <div className="relative">
+                  {preview && !imageError ? (
+                    <div className="p-4 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30 mb-4">
+                      <img
+                        src={preview}
+                        alt="Favicon Preview"
+                        className="w-16 h-16 object-contain"
+                        onError={handleImageError}
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-6 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30 mb-4">
+                      <Globe size={48} className="text-[var(--color-primary)]" />
+                    </div>
+                  )}
+
+                  <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="absolute -top-2 -right-2"
+                  >
+                    <span className="flex items-center gap-1 px-2 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-lg">
+                      <CheckCircle size={10} />
+                      OK
+                    </span>
+                  </motion.div>
+                </div>
+
+                <p className="text-sm font-medium text-[var(--color-text)] mb-1">
+                  Favicon Personalizado
+                </p>
+                <p className="text-xs text-[var(--color-text-muted)] truncate max-w-[90%]">
+                  {file?.name || "Favicon configurado"}
+                </p>
+
+                <motion.button
+                  onClick={handleRemove}
+                  className="absolute top-3 right-3 p-2 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <Trash2 size={14} />
+                </motion.button>
+
+                {file && (
+                  <div className="absolute top-3 left-3">
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/90 text-white">
+                      Novo
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* PREVIEW DE CURSOR */}
             {isCursorFile && (
               <div
@@ -828,23 +928,17 @@ const FileUpload = ({
               </div>
             )}
 
-            {/* PREVIEW DE IMAGEM (não-cursor) */}
+            {/* PREVIEW DE IMAGEM */}
             {shouldShowImagePreview && (
               <div
                 className="relative w-full"
-                style={{ minHeight: previewType === "favicon" ? "80px" : "128px" }}
+                style={{ minHeight: "128px" }}
               >
                 <img
                   src={preview!}
                   alt="Preview"
-                  className={`w-full object-cover ${previewType === "favicon"
-                      ? "object-contain bg-[var(--color-background)] p-4 h-full"
-                      : "h-32"
-                    }`}
-                  style={{
-                    minHeight: previewType === "favicon" ? "80px" : "128px",
-                    maxHeight: previewType === "favicon" ? "80px" : "160px"
-                  }}
+                  className="w-full h-32 object-cover"
+                  style={{ minHeight: "128px", maxHeight: "160px" }}
                   onError={handleImageError}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
@@ -852,12 +946,12 @@ const FileUpload = ({
             )}
 
             {/* FALLBACK QUANDO IMAGEM FALHA */}
-            {!isCursorFile && (previewType === "image" || previewType === "favicon" ||
+            {!isCursorFile && !isFaviconFile && (previewType === "image" ||
               (previewType === "media" && currentMediaType === "image")) &&
               preview && imageError && (
                 <div
                   className="relative w-full flex flex-col items-center justify-center bg-[var(--color-surface)]"
-                  style={{ minHeight: previewType === "favicon" ? "80px" : "128px" }}
+                  style={{ minHeight: "128px" }}
                 >
                   <FileImage size={32} className="text-[var(--color-text-muted)] mb-2" />
                   <p className="text-xs text-[var(--color-text-muted)]">Erro ao carregar imagem</p>
@@ -905,8 +999,8 @@ const FileUpload = ({
               </div>
             )}
 
-            {/* INFO BAR PARA NÃO-AUDIO E NÃO-CURSOR */}
-            {previewType !== "audio" && !isCursorFile && (
+            {/* INFO BAR PARA NÃO-AUDIO E NÃO-CURSOR E NÃO-FAVICON */}
+            {previewType !== "audio" && !isCursorFile && !isFaviconFile && (
               <div className={`${(shouldShowImagePreview || shouldShowVideoPreview) && !imageError
                 ? "absolute bottom-0 left-0 right-0 p-3"
                 : "px-4 py-3"
@@ -929,7 +1023,7 @@ const FileUpload = ({
             )}
 
             {/* BADGE DE NOVO ARQUIVO */}
-            {file && previewType !== "audio" && !isCursorFile && (
+            {file && previewType !== "audio" && !isCursorFile && !isFaviconFile && (
               <div className="absolute top-2 left-2 z-10">
                 <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/90 text-white">
                   Novo
@@ -943,33 +1037,44 @@ const FileUpload = ({
             className="p-6 flex flex-col items-center justify-center text-center"
             style={{ minHeight: computedMinHeight }}
           >
-            <div className={`p-3 rounded-full mb-3 transition-colors ${isDragging ? "bg-[var(--color-primary)]/20" : "bg-[var(--color-surface-elevated)]"
+            <div className={`p-3 rounded-full mb-3 transition-colors ${finalDisabled
+              ? "bg-[var(--color-surface-elevated)]"
+              : isDragging
+                ? "bg-[var(--color-primary)]/20"
+                : "bg-[var(--color-surface-elevated)]"
               }`}>
               <Upload
                 size={24}
-                className={isDragging ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"}
+                className={finalDisabled ? "text-[var(--color-text-muted)]" : isDragging ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"}
               />
             </div>
             <p className="text-sm text-[var(--color-text)]">
-              {isDragging ? "Solte o arquivo aqui" : "Clique ou arraste um arquivo"}
+              {isLocked ? "Recurso exclusivo Premium" : disabled ? "Funcionalidade em breve" : isDragging ? "Solte o arquivo aqui" : "Clique ou arraste um arquivo"}
             </p>
-            {previewType === "favicon" && (
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Apenas arquivos .ico
-              </p>
-            )}
-            {previewType === "cursor" && (
+            {previewType === "cursor" && !finalDisabled && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
                 PNG, GIF, .cur ou .ani (recomendado: 32x32px)
+              </p>
+            )}
+            {previewType === "favicon" && !finalDisabled && (
+              <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                ICO, PNG ou SVG (recomendado: 32x32px ou 16x16px)
+              </p>
+            )}
+            {/* ✅ Mensagem especial para Premium Lock */}
+            {isLocked && (
+              <p className="text-xs text-yellow-400 mt-2 flex items-center gap-1">
+                <Crown size={12} />
+                Faça upgrade para desbloquear
               </p>
             )}
           </div>
         )}
       </motion.div>
 
-      {/* ÁREA DE TESTE DO CURSOR - COMPONENTE SEPARADO */}
+      {/* ÁREA DE TESTE DO CURSOR */}
       <AnimatePresence>
-        {isCursorFile && preview && (
+        {isCursorFile && preview && !finalDisabled && (
           <CursorTestArea cursorUrl={preview} fileName={file?.name} />
         )}
       </AnimatePresence>
@@ -1001,7 +1106,7 @@ const FileUpload = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE - OTIMIZADOS PARA CLS 0
+// COMPONENTES BASE
 // ═══════════════════════════════════════════════════════════
 
 const ToggleSwitch = ({
@@ -1010,46 +1115,83 @@ const ToggleSwitch = ({
   checked,
   onChange,
   icon: Icon,
+  disabled = false,
+  isPremiumFeature = false,
+  userIsPremium = false,
 }: {
   label: string;
   description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   icon?: React.ElementType;
-}) => (
-  <motion.div
-    className="flex items-center justify-between p-3 sm:p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-all duration-300"
-    style={{ minHeight: "64px" }}
-    whileHover={{ scale: 1.005 }}
-  >
-    <div className="flex items-center gap-3 min-w-0">
-      {Icon && (
-        <div className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-primary)]/10 flex-shrink-0">
-          <Icon size={18} className="text-[var(--color-primary)]" />
-        </div>
-      )}
-      <div className="min-w-0">
-        <span className="text-sm font-medium text-[var(--color-text)] block truncate">{label}</span>
-        {description && (
-          <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">{description}</p>
-        )}
-      </div>
-    </div>
-    <motion.button
-      onClick={() => onChange(!checked)}
-      className={`relative w-12 h-6 rounded-full transition-all duration-300 cursor-pointer flex-shrink-0 ml-3 ${checked ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'
+  disabled?: boolean;
+  isPremiumFeature?: boolean;
+  userIsPremium?: boolean;
+}) => {
+  const isLocked = isPremiumFeature && !userIsPremium;
+  const finalDisabled = disabled || isLocked;
+
+  return (
+    <motion.div
+      className={`flex items-center justify-between p-3 sm:p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] transition-all duration-300 ${finalDisabled
+        ? 'opacity-50 cursor-not-allowed'
+        : 'hover:border-[var(--color-primary)]/30'
         }`}
-      whileTap={{ scale: 0.95 }}
-      aria-label={`Toggle ${label}`}
+      style={{ minHeight: "64px" }}
+      whileHover={finalDisabled ? {} : { scale: 1.005 }}
     >
-      <motion.div
-        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-md"
-        animate={{ left: checked ? '28px' : '4px' }}
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-      />
-    </motion.button>
-  </motion.div>
-);
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {Icon && (
+          <div className={`p-2 rounded-[var(--border-radius-sm)] flex-shrink-0 ${finalDisabled
+            ? 'bg-[var(--color-text-muted)]/10'
+            : 'bg-[var(--color-primary)]/10'
+            }`}>
+            <Icon
+              size={18}
+              className={finalDisabled ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-primary)]'}
+            />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-medium block truncate ${finalDisabled ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text)]'
+              }`}>
+              {label}
+            </span>
+            {isPremiumFeature && !userIsPremium && (
+              <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white flex-shrink-0 flex items-center gap-1">
+                <Crown size={10} />
+                PREMIUM
+              </span>
+            )}
+          </div>
+          {description && (
+            <p className="text-xs text-[var(--color-text-muted)] mt-0.5 truncate">{description}</p>
+          )}
+        </div>
+      </div>
+      <motion.button
+        onClick={() => !finalDisabled && onChange(!checked)}
+        disabled={finalDisabled}
+        className={`relative w-12 h-6 rounded-full transition-all duration-300 flex-shrink-0 ml-3 ${finalDisabled
+          ? 'cursor-not-allowed bg-[var(--color-border)]/50'
+          : checked
+            ? 'bg-[var(--color-primary)] cursor-pointer'
+            : 'bg-[var(--color-border)] cursor-pointer'
+          }`}
+        whileTap={finalDisabled ? {} : { scale: 0.95 }}
+        aria-label={`Toggle ${label}`}
+      >
+        <motion.div
+          className={`absolute top-1 w-4 h-4 rounded-full shadow-md ${finalDisabled ? 'bg-gray-400' : 'bg-white'
+            }`}
+          animate={{ left: checked ? '28px' : '4px' }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+      </motion.button>
+    </motion.div>
+  );
+};
 
 const Slider = ({
   label,
@@ -1307,166 +1449,27 @@ const SectionHeader = ({
 );
 
 // ═══════════════════════════════════════════════════════════
-// LIVE PREVIEW COMPONENT
-// ═══════════════════════════════════════════════════════════
-
-const LivePreview = ({
-  settings,
-  fileUploads,
-  isOpen,
-  onClose,
-}: {
-  settings: CustomizationSettings;
-  fileUploads: FileUploads;
-  isOpen: boolean;
-  onClose: () => void;
-}) => {
-  const [previews, setPreviews] = useState({
-    avatar: null as string | null,
-    background: null as string | null,
-    music: null as string | null,
-    cursor: null as string | null,
-    favicon: null as string | null,
-  });
-
-  useEffect(() => {
-    const newPreviews = {
-      avatar: fileUploads.avatar ? URL.createObjectURL(fileUploads.avatar) : null,
-      background: fileUploads.background ? URL.createObjectURL(fileUploads.background) : null,
-      music: fileUploads.music ? URL.createObjectURL(fileUploads.music) : null,
-      cursor: fileUploads.cursor ? URL.createObjectURL(fileUploads.cursor) : null,
-      favicon: fileUploads.favicon ? URL.createObjectURL(fileUploads.favicon) : null,
-    };
-    setPreviews(newPreviews);
-
-    return () => {
-      Object.values(newPreviews).forEach(url => {
-        if (url) URL.revokeObjectURL(url);
-      });
-    };
-  }, [fileUploads]);
-
-  const backgroundMedia = previews.background || settings.backgroundUrl;
-  const profileImage = previews.avatar || settings.profileImageUrl;
-
-  const backgroundType = fileUploads.background
-    ? getFileType(fileUploads.background)
-    : settings.backgroundUrl
-      ? getFileType(settings.backgroundUrl)
-      : "unknown";
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-4 sm:inset-8 z-50 rounded-[var(--border-radius-xl)] overflow-hidden border border-[var(--color-border)]"
-          >
-            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-black/50 backdrop-blur-md border-b border-white/10">
-              <div className="flex items-center gap-2 text-white">
-                <Monitor size={18} />
-                <span className="text-sm font-medium">Preview ao Vivo</span>
-              </div>
-              <motion.button
-                onClick={onClose}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <X size={18} />
-              </motion.button>
-            </div>
-
-            <div className="relative w-full h-full pt-14 overflow-auto">
-              {backgroundType === "video" && backgroundMedia ? (
-                <video
-                  src={backgroundMedia}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                />
-              ) : backgroundType === "image" && backgroundMedia ? (
-                <div
-                  className="absolute inset-0 w-full h-full"
-                  style={{
-                    backgroundImage: `url(${backgroundMedia})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                />
-              ) : (
-                <div
-                  className="absolute inset-0 w-full h-full"
-                  style={{ backgroundColor: 'var(--color-background)' }}
-                />
-              )}
-
-              <div className="relative flex items-center justify-center min-h-full p-8">
-                <motion.div
-                  className={`relative max-w-md w-full p-6 rounded-2xl ${settings.contentCenter ? 'text-center' : 'text-left'}`}
-                  style={{
-                    backgroundColor: settings.cardColor
-                      ? `${settings.cardColor}${Math.round(settings.cardOpacity * 2.55).toString(16).padStart(2, '0')}`
-                      : `rgba(0, 0, 0, ${settings.cardOpacity / 100})`,
-                    backdropFilter: `blur(${settings.cardBlur}px)`,
-                    border: settings.rgbBorder ? '2px solid transparent' : '1px solid rgba(255,255,255,0.1)',
-                    transform: settings.cardPerspective ? 'perspective(1000px) rotateY(-5deg)' : undefined,
-                  }}
-                  whileHover={settings.cardHoverGrow ? { scale: 1.05 } : {}}
-                >
-                  <div className={`${settings.contentCenter ? 'flex justify-center' : ''} mb-4`}>
-                    <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-white/20">
-                      {profileImage ? (
-                        <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500" />
-                      )}
-                    </div>
-                  </div>
-
-                  <h2
-                    className={`text-2xl font-bold mb-2 ${settings.neonName ? 'text-white drop-shadow-[0_0_10px_currentColor]' : ''
-                      } ${settings.shinyName ? 'bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-200' : ''
-                      } ${settings.rgbName ? 'animate-pulse bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-green-500 to-blue-500' : ''
-                      }`}
-                    style={{ color: !settings.shinyName && !settings.rgbName ? 'white' : undefined }}
-                  >
-                    {settings.name || "Seu Nome"}
-                  </h2>
-
-                  <p
-                    className="text-sm opacity-80"
-                    style={{ color: settings.biographyColor || 'rgba(255,255,255,0.7)' }}
-                  >
-                    {settings.biography || "Sua biografia aparecerá aqui..."}
-                  </p>
-                </motion.div>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════
-// MAIN COMPONENT - CORRIGIDO
+// MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
 
 const DashboardCustomization = () => {
+  const handleEffectToggle = (effectKey: keyof CustomizationSettings, value: boolean) => {
+    if (value) {
+      setSettings(prev => ({
+        ...prev,
+        snowEffect: false,
+        rainEffect: false,
+        cashEffect: false,
+        thunderEffect: false,
+        smokeEffect: false,
+        starsEffect: false,
+        [effectKey]: true,
+      }));
+    } else {
+      updateSetting(effectKey, false);
+    }
+  };
+
   const { profileData, isLoadingProfile, refreshProfile } = useProfile();
 
   const defaultSettings: CustomizationSettings = {
@@ -1487,14 +1490,13 @@ const DashboardCustomization = () => {
     profileImageUrl: "",
     musicUrl: "",
     cursorUrl: "",
-    faviconUrl: "",
+    faviconUrl: "", // ✅ NOVO
     snowEffect: false,
-    confettiEffect: false,
-    matrixRainEffect: false,
-    particlesEffect: false,
-    particlesColor: "#ffffff",
-    hasEmbed: false,
-    embedUrl: ""
+    rainEffect: false,
+    cashEffect: false,
+    thunderEffect: false,
+    smokeEffect: false,
+    starsEffect: false,
   };
 
   const [settings, setSettings] = useState<CustomizationSettings>(defaultSettings);
@@ -1505,45 +1507,44 @@ const DashboardCustomization = () => {
     background: null,
     music: null,
     cursor: null,
-    favicon: null,
+    favicon: null, // ✅ NOVO
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Carrega settings do profileData com fallback para localStorage
+  // ✅ Verificar se usuário é Premium
+  const userIsPremium = profileData?.isPremium ?? false;
+
+  // Carrega settings do profileData
   useEffect(() => {
     if (profileData && profileData.pageSettings) {
       const loadedSettings = profileDataToSettings(profileData);
 
-      // Fallback: Se URLs de mídia estiverem vazias, tenta recuperar do localStorage
       const backup = getFromLocalStorage();
 
       const finalSettings: CustomizationSettings = {
         ...loadedSettings,
-        // Usa o valor carregado, ou o backup, ou mantém vazio
         profileImageUrl: loadedSettings.profileImageUrl || backup?.profileImageUrl || "",
         backgroundUrl: loadedSettings.backgroundUrl || backup?.backgroundUrl || "",
         musicUrl: loadedSettings.musicUrl || backup?.musicUrl || "",
         cursorUrl: loadedSettings.cursorUrl || backup?.cursorUrl || "",
-        faviconUrl: loadedSettings.faviconUrl || backup?.faviconUrl || "",
+        faviconUrl: loadedSettings.faviconUrl || backup?.faviconUrl || "", // ✅ NOVO
       };
 
       setSettings(finalSettings);
       setOriginalSettings(finalSettings);
       setIsInitialized(true);
 
-      // Salva backup se temos dados válidos
-      if (finalSettings.profileImageUrl || finalSettings.backgroundUrl) {
+      if (finalSettings.profileImageUrl || finalSettings.backgroundUrl || finalSettings.faviconUrl) {
         saveToLocalStorage({
           profileImageUrl: finalSettings.profileImageUrl,
           backgroundUrl: finalSettings.backgroundUrl,
           musicUrl: finalSettings.musicUrl,
           cursorUrl: finalSettings.cursorUrl,
-          faviconUrl: finalSettings.faviconUrl,
+          faviconUrl: finalSettings.faviconUrl, // ✅ NOVO
         });
       }
     }
@@ -1556,15 +1557,15 @@ const DashboardCustomization = () => {
     setHasChanges(settingsChanged || filesChanged);
   }, [settings, originalSettings, fileUploads]);
 
-  // Salva no localStorage quando URLs de mídia mudam
+  // Salva no localStorage
   useEffect(() => {
-    if (isInitialized && (settings.profileImageUrl || settings.backgroundUrl)) {
+    if (isInitialized && (settings.profileImageUrl || settings.backgroundUrl || settings.faviconUrl)) {
       saveToLocalStorage({
         profileImageUrl: settings.profileImageUrl,
         backgroundUrl: settings.backgroundUrl,
         musicUrl: settings.musicUrl,
         cursorUrl: settings.cursorUrl,
-        faviconUrl: settings.faviconUrl,
+        faviconUrl: settings.faviconUrl, // ✅ NOVO
       });
     }
   }, [
@@ -1573,7 +1574,7 @@ const DashboardCustomization = () => {
     settings.backgroundUrl,
     settings.musicUrl,
     settings.cursorUrl,
-    settings.faviconUrl,
+    settings.faviconUrl, // ✅ NOVO
   ]);
 
   const handleRefresh = useCallback(async () => {
@@ -1604,7 +1605,7 @@ const DashboardCustomization = () => {
       background: 'backgroundUrl',
       music: 'musicUrl',
       cursor: 'cursorUrl',
-      favicon: 'faviconUrl',
+      favicon: 'faviconUrl', // ✅ NOVO
     };
     const urlKey = urlKeyMap[key];
     if (urlKey) {
@@ -1618,7 +1619,6 @@ const DashboardCustomization = () => {
     setUploadProgress("");
 
     try {
-      // Cria uma cópia para não mutar o estado diretamente
       let updatedSettings = { ...settings };
 
       const hasFilesToUpload = Object.values(fileUploads).some(file => file !== null);
@@ -1631,7 +1631,7 @@ const DashboardCustomization = () => {
           background: fileUploads.background,
           music: fileUploads.music,
           cursor: fileUploads.cursor,
-          favicon: fileUploads.favicon,
+          favicon: fileUploads.favicon, // ✅ NOVO
         });
 
         if (uploadResponse.urls) {
@@ -1647,6 +1647,7 @@ const DashboardCustomization = () => {
           if (uploadResponse.urls.cursorUrl) {
             updatedSettings.cursorUrl = uploadResponse.urls.cursorUrl;
           }
+          // ✅ NOVO - Favicon URL
           if (uploadResponse.urls.faviconUrl) {
             updatedSettings.faviconUrl = uploadResponse.urls.faviconUrl;
           }
@@ -1657,20 +1658,17 @@ const DashboardCustomization = () => {
       const requestData = settingsToRequest(updatedSettings);
       await customizationService.updatePageSettings(requestData);
 
-      // Atualiza o estado com os novos valores
       setSettings(updatedSettings);
       setOriginalSettings(updatedSettings);
 
-      // Salva backup no localStorage
       saveToLocalStorage({
         profileImageUrl: updatedSettings.profileImageUrl,
         backgroundUrl: updatedSettings.backgroundUrl,
         musicUrl: updatedSettings.musicUrl,
         cursorUrl: updatedSettings.cursorUrl,
-        faviconUrl: updatedSettings.faviconUrl,
+        faviconUrl: updatedSettings.faviconUrl, // ✅ NOVO
       });
 
-      // Refresh para garantir sincronização
       await refreshProfile();
 
       setFileUploads({ avatar: null, background: null, music: null, cursor: null, favicon: null });
@@ -1787,14 +1785,21 @@ const DashboardCustomization = () => {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <motion.button
-              onClick={() => setShowPreview(true)}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-medium hover:border-[var(--color-primary)]/50 transition-all duration-300"
+              onClick={() => {
+                const slug = profileData?.slug;
+                if (slug) {
+                  window.open(`https://vxo.lat/${slug}`, '_blank');
+                }
+              }}
+              disabled={!profileData?.slug}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-medium hover:border-[var(--color-primary)]/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               style={{ minHeight: "40px" }}
+              title={profileData?.slug ? `Abrir vxo.lat/${profileData.slug}` : "Slug não disponível"}
             >
               <Eye size={18} />
-              <span className="hidden sm:inline">Preview</span>
+              <span className="hidden sm:inline">Ver Perfil</span>
             </motion.button>
 
             <motion.button
@@ -1888,7 +1893,7 @@ const DashboardCustomization = () => {
               value={settings.cardBlur}
               onChange={(value) => updateSetting("cardBlur", value)}
               min={0}
-              max={50}
+              max={20}
               unit="px"
               icon={Sliders}
             />
@@ -1901,21 +1906,21 @@ const DashboardCustomization = () => {
             <div className="space-y-3 pt-2">
               <ToggleSwitch
                 label="Perspectiva 3D"
-                description="Efeito de profundidade"
+                description="Efeito de profundidade (Premium)"
                 checked={settings.cardPerspective}
                 onChange={(value) => updateSetting("cardPerspective", value)}
                 icon={Move}
               />
               <ToggleSwitch
                 label="Crescer ao Hover"
-                description="Card aumenta no hover"
+                description="Card aumenta no hover (Premium)"
                 checked={settings.cardHoverGrow}
                 onChange={(value) => updateSetting("cardHoverGrow", value)}
                 icon={Zap}
               />
               <ToggleSwitch
                 label="Borda RGB"
-                description="Borda animada colorida"
+                description="Borda animada colorida (Premium)"
                 checked={settings.rgbBorder}
                 onChange={(value) => updateSetting("rgbBorder", value)}
                 icon={Sparkles}
@@ -1945,7 +1950,7 @@ const DashboardCustomization = () => {
             <div className="space-y-3">
               <ToggleSwitch
                 label="Efeito Neon"
-                description="Brilho neon no nome"
+                description="Brilho neon no nome (Premium)"
                 checked={settings.neonName}
                 onChange={(value) => {
                   updateSetting("neonName", value);
@@ -1958,7 +1963,7 @@ const DashboardCustomization = () => {
               />
               <ToggleSwitch
                 label="Efeito Brilhante"
-                description="Gradiente dourado"
+                description="Gradiente dourado (Premium)"
                 checked={settings.shinyName}
                 onChange={(value) => {
                   updateSetting("shinyName", value);
@@ -1971,7 +1976,7 @@ const DashboardCustomization = () => {
               />
               <ToggleSwitch
                 label="Nome RGB"
-                description="Cores animadas"
+                description="Cores animadas (Premium)"
                 checked={settings.rgbName}
                 onChange={(value) => {
                   updateSetting("rgbName", value);
@@ -2008,12 +2013,11 @@ const DashboardCustomization = () => {
         </CustomizationCard>
 
         {/* MEDIA UPLOADS */}
-        {/* MEDIA UPLOADS */}
         <CustomizationCard minHeight={CARD_MIN_HEIGHTS.media}>
           <SectionHeader
             icon={Image}
             title="Mídia"
-            description="Faça upload de imagens, vídeos, música, cursor e favicon"
+            description="Faça upload de imagens, vídeos, música e cursor"
           />
           <div className="space-y-6">
             <FileUpload
@@ -2052,55 +2056,32 @@ const DashboardCustomization = () => {
               previewType="audio"
             />
 
-            {/* ════════════════════════════════════════════════════════════
-        CURSOR - DESABILITADO (EM BREVE)
-    ════════════════════════════════════════════════════════════ */}
-            <div className="space-y-2" style={{ minHeight: "160px" }}>
-              <div className="flex items-center justify-between h-6">
-                <div className="flex items-center gap-2">
-                  <MousePointer2 size={16} className="text-[var(--color-text-muted)]" />
-                  <label className="text-sm font-medium text-[var(--color-text-muted)]">
-                    Cursor Personalizado
-                  </label>
-                </div>
-                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                  Em Breve
-                </span>
-              </div>
-
-              <div
-                className="relative rounded-[var(--border-radius-md)] border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)]/50 cursor-not-allowed opacity-60"
-                style={{ minHeight: "120px" }}
-              >
-                <div className="p-6 flex flex-col items-center justify-center text-center h-full">
-                  <div className="p-3 rounded-full mb-3 bg-[var(--color-surface-elevated)]">
-                    <MousePointer2 size={24} className="text-[var(--color-text-muted)]" />
-                  </div>
-                  <p className="text-sm text-[var(--color-text-muted)] font-medium">
-                    Cursor Personalizado
-                  </p>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                    Esta funcionalidade estará disponível em breve
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-xs text-[var(--color-text-muted)] flex items-center gap-1 h-4">
-                <Info size={12} className="flex-shrink-0" />
-                Arquivos .cur ou .ani serão suportados
-              </p>
-            </div>
-
             <FileUpload
-              label="Favicon"
-              accept=".ico,image/x-icon"
+              label="Cursor Personalizado"
+              accept=".cur,.ani,.png,.gif,image/png,image/gif"
+              file={fileUploads.cursor}
+              currentUrl={settings.cursorUrl}
+              onFileSelect={(file) => updateFileUpload("cursor", file)}
+              onRemove={() => removeFile("cursor")}
+              icon={MousePointer2}
+              helperText="PNG, GIF, .cur ou .ani (recomendado: 32x32px)"
+              previewType="cursor"
+              disabled={true}
+            />
+
+            {/* ✅ FAVICON - PREMIUM ONLY */}
+            <FileUpload
+              label="Favicon da Página"
+              accept=".ico,.png,.svg,image/x-icon,image/png,image/svg+xml"
               file={fileUploads.favicon}
               currentUrl={settings.faviconUrl}
               onFileSelect={(file) => updateFileUpload("favicon", file)}
               onRemove={() => removeFile("favicon")}
               icon={Globe}
-              helperText="Apenas arquivos .ico (ícone da aba do navegador)"
+              helperText="ICO, PNG ou SVG (recomendado: 32x32px ou 16x16px)"
               previewType="favicon"
+              isPremiumFeature={true}
+              userIsPremium={userIsPremium}
             />
           </div>
         </CustomizationCard>
@@ -2110,67 +2091,127 @@ const DashboardCustomization = () => {
           <SectionHeader
             icon={Sparkles}
             title="Efeitos da Página"
-            description="Adicione efeitos visuais especiais"
+            description="Escolha UM efeito visual especial para sua página"
           />
           <div className="space-y-4">
+            {/* EFEITOS GRATUITOS */}
             <ToggleSwitch
               label="Efeito Neve"
               description="Flocos de neve caindo"
               checked={settings.snowEffect}
-              onChange={(value) => updateSetting("snowEffect", value)}
+              onChange={(value) => handleEffectToggle("snowEffect", value)}
               icon={Snowflake}
-            />
-            <ToggleSwitch
-              label="Efeito Confete"
-              description="Confetes coloridos"
-              checked={settings.confettiEffect}
-              onChange={(value) => updateSetting("confettiEffect", value)}
-              icon={PartyPopper}
-            />
-            <ToggleSwitch
-              label="Matrix Rain"
-              description="Chuva estilo Matrix"
-              checked={settings.matrixRainEffect}
-              onChange={(value) => updateSetting("matrixRainEffect", value)}
-              icon={Binary}
-            />
-            <ToggleSwitch
-              label="Partículas"
-              description="Partículas flutuantes"
-              checked={settings.particlesEffect}
-              onChange={(value) => updateSetting("particlesEffect", value)}
-              icon={Atom}
-            />
-            <AnimatePresence>
-              {settings.particlesEffect && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-4 pl-4 border-l-2 border-[var(--color-primary)]/30">
-                    <ColorPicker
-                      label="Cor das Partículas"
-                      value={settings.particlesColor}
-                      onChange={(value) => updateSetting("particlesColor", value)}
-                      icon={Palette}
-                    />
-                  </div>
-                </motion.div>
+              disabled={!settings.snowEffect && (
+                settings.rainEffect ||
+                settings.cashEffect ||
+                settings.thunderEffect ||
+                settings.smokeEffect ||
+                settings.starsEffect
               )}
-            </AnimatePresence>
+              isPremiumFeature={false}
+              userIsPremium={userIsPremium}
+            />
+
+            <ToggleSwitch
+              label="Efeito Chuva"
+              description="Gotas de chuva caindo"
+              checked={settings.rainEffect}
+              onChange={(value) => handleEffectToggle("rainEffect", value)}
+              icon={CloudRain}
+              disabled={!settings.rainEffect && (
+                settings.snowEffect ||
+                settings.cashEffect ||
+                settings.thunderEffect ||
+                settings.smokeEffect ||
+                settings.starsEffect
+              )}
+              isPremiumFeature={false}
+              userIsPremium={userIsPremium}
+            />
+
+            {/* EFEITOS PREMIUM */}
+            <ToggleSwitch
+              label="Efeito Dinheiro"
+              description="Notas de dinheiro caindo"
+              checked={settings.cashEffect}
+              onChange={(value) => handleEffectToggle("cashEffect", value)}
+              icon={DollarSign}
+              disabled={!settings.cashEffect && (
+                settings.snowEffect ||
+                settings.rainEffect ||
+                settings.thunderEffect ||
+                settings.smokeEffect ||
+                settings.starsEffect
+              )}
+              isPremiumFeature={true}
+              userIsPremium={userIsPremium}
+            />
+
+            <ToggleSwitch
+              label="Efeito Trovão"
+              description="Relâmpagos na tela"
+              checked={settings.thunderEffect}
+              onChange={(value) => handleEffectToggle("thunderEffect", value)}
+              icon={CloudLightning}
+              disabled={!settings.thunderEffect && (
+                settings.snowEffect ||
+                settings.rainEffect ||
+                settings.cashEffect ||
+                settings.smokeEffect ||
+                settings.starsEffect
+              )}
+              isPremiumFeature={true}
+              userIsPremium={userIsPremium}
+            />
+
+            <ToggleSwitch
+              label="Efeito Fumaça"
+              description="Fumaça ambiente"
+              checked={settings.smokeEffect}
+              onChange={(value) => handleEffectToggle("smokeEffect", value)}
+              icon={Cloud}
+              disabled={!settings.smokeEffect && (
+                settings.snowEffect ||
+                settings.rainEffect ||
+                settings.cashEffect ||
+                settings.thunderEffect ||
+                settings.starsEffect
+              )}
+              isPremiumFeature={true}
+              userIsPremium={userIsPremium}
+            />
+
+            <ToggleSwitch
+              label="Efeito Estrelas"
+              description="Estrelas brilhantes"
+              checked={settings.starsEffect}
+              onChange={(value) => handleEffectToggle("starsEffect", value)}
+              icon={Stars}
+              disabled={!settings.starsEffect && (
+                settings.snowEffect ||
+                settings.rainEffect ||
+                settings.cashEffect ||
+                settings.thunderEffect ||
+                settings.smokeEffect
+              )}
+              isPremiumFeature={true}
+              userIsPremium={userIsPremium}
+            />
           </div>
 
+          {/* MENSAGEM DINÂMICA */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-6 flex items-start gap-2 p-3 rounded-[var(--border-radius-sm)] bg-yellow-500/10 border border-yellow-500/30"
+            className="mt-6 flex items-start gap-2 p-3 rounded-[var(--border-radius-sm)] bg-blue-500/10 border border-blue-500/30"
             style={{ minHeight: "48px" }}
           >
-            <AlertCircle size={16} className="text-yellow-400 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-yellow-400/80">
-              Muitos efeitos simultâneos podem impactar a performance em dispositivos mais antigos.
+            <AlertCircle size={16} className="text-blue-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-400/80">
+              {userIsPremium
+                ? "Apenas 1 efeito pode estar ativo por vez. Selecione outro para substituir o atual."
+                : "Apenas 1 efeito pode estar ativo. Efeitos marcados como PREMIUM requerem assinatura Premium."
+              }
             </p>
           </motion.div>
         </CustomizationCard>
@@ -2215,14 +2256,6 @@ const DashboardCustomization = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Live Preview Modal */}
-      <LivePreview
-        settings={settings}
-        fileUploads={fileUploads}
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-      />
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { VxoLogo } from "../LogoProps";
+import { VxoLogo } from "../logo/LogoProps";
 
 const Footer = () => {
   const scrollToTop = () => {

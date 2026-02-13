@@ -9,6 +9,7 @@ function Home() {
   return (
     <div className="min-h-screen overflow-x-hidden">
       <Navbar />
+      <br />
       <HeroSection />
       <SocialProofSection />
       <FeaturesSection />

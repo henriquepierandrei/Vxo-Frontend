@@ -37,26 +37,21 @@ export interface NameEffects {
 export interface MediaUrls {
   backgroundUrl: string;
   profileImageUrl: string;
-  musicUrl: string;      // PREMIUM
-  cursorUrl: string;     // PREMIUM
+  musicUrl: string;      
+  faviconUrl: string;
 }
 
-/**
- * Configuração de partículas
- */
-export interface ParticlesConfig {
-  enabled: boolean;
-  color: string;  // hex color
-}
 
 /**
  * Efeitos de página
  */
 export interface PageEffects {
-  snow: boolean;         // PREMIUM
-  confetti: boolean;     // PREMIUM
-  matrixRain: boolean;   // PREMIUM
-  particles: ParticlesConfig;  // PREMIUM
+  snow: boolean;        
+  rain: boolean;     
+  cash: boolean; 
+  thunder: boolean; 
+  smoke: boolean; 
+  stars: boolean;
 }
 
 /**

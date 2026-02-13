@@ -40,16 +40,13 @@ interface MediaUrls {
   faviconUrl: string;
 }
 
-interface ParticlesSettings {
-  enabled: boolean;
-  color: string;
-}
-
-interface PageEffects {
-  snow: boolean;
-  confetti: boolean;
-  matrixRain: boolean;
-  particles: ParticlesSettings;
+export interface PageEffects {
+  snow: boolean;        
+  rain: boolean;     
+  cash: boolean; 
+  thunder: boolean; 
+  smoke: boolean; 
+  stars: boolean;
 }
 
 interface PageSettings {

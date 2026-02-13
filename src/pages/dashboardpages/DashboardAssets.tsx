@@ -29,6 +29,8 @@ import {
   Link as LinkIcon,
   Lock,
   Clock,
+  Globe, // ✅ Novo ícone para favicon
+  Crown, // ✅ Ícone premium
 } from "lucide-react";
 import { customizationService } from "../../services/customizationService";
 
@@ -37,7 +39,7 @@ import { customizationService } from "../../services/customizationService";
 // ═══════════════════════════════════════════════════════════
 
 interface MediaAsset {
-  type: "avatar" | "background" | "cursor" | "audio";
+  type: "avatar" | "background" | "cursor" | "audio" | "favicon"; // ✅ Adicionado favicon
   url: string;
   isActive: boolean;
 }
@@ -47,6 +49,7 @@ interface ActiveAssets {
   background: MediaAsset | null;
   cursor: MediaAsset | null;
   audio: MediaAsset | null;
+  favicon: MediaAsset | null; // ✅ Adicionado favicon
   audioVolume: number;
 }
 
@@ -78,6 +81,7 @@ const getMimeTypeFromUrl = (url: string): string => {
     ogg: 'audio/ogg',
     cur: 'image/x-icon',
     svg: 'image/svg+xml',
+    ico: 'image/x-icon', // ✅ Adicionado ico
   };
   return mimeTypes[ext || ''] || 'application/octet-stream';
 };
@@ -106,6 +110,10 @@ const profileDataToAssets = (
       : null,
     audio: mediaUrls.musicUrl
       ? { type: "audio", url: mediaUrls.musicUrl, isActive: true }
+      : null,
+    // ✅ Adicionado favicon
+    favicon: mediaUrls.faviconUrl
+      ? { type: "favicon", url: mediaUrls.faviconUrl, isActive: true }
       : null,
   };
 };
@@ -139,11 +147,13 @@ const SectionHeader = ({
   title,
   description,
   action,
+  isPremium = false,
 }: {
   icon: React.ElementType;
   title: string;
   description: string;
   action?: React.ReactNode;
+  isPremium?: boolean;
 }) => (
   <div className="flex items-start justify-between gap-4 mb-4 sm:mb-6">
     <div className="flex items-start gap-3 sm:gap-4">
@@ -151,7 +161,15 @@ const SectionHeader = ({
         <Icon size={20} className="sm:w-6 sm:h-6 text-[var(--color-primary)]" />
       </div>
       <div className="min-w-0">
-        <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">{title}</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">{title}</h2>
+          {isPremium && (
+            <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white flex items-center gap-1">
+              <Crown size={10} />
+              PREMIUM
+            </span>
+          )}
+        </div>
         <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">{description}</p>
       </div>
     </div>
@@ -195,10 +213,12 @@ const EmptyAssetState = ({
   icon: Icon,
   title,
   description,
+  isPremiumLocked = false,
 }: {
   icon: React.ElementType;
   title: string;
   description: string;
+  isPremiumLocked?: boolean;
 }) => (
   <motion.div
     initial={{ opacity: 0 }}
@@ -210,19 +230,26 @@ const EmptyAssetState = ({
     </div>
     <h3 className="text-sm font-medium text-[var(--color-text)] mb-1">{title}</h3>
     <p className="text-xs text-[var(--color-text-muted)] max-w-xs">{description}</p>
-    <motion.button
-      onClick={() => window.location.href = "/dashboard/customization"}
-      className="
-        mt-4 px-4 py-2 rounded-[var(--border-radius-md)]
-        bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20
-        text-[var(--color-primary)] text-sm font-medium
-        transition-all duration-300
-      "
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      Ir para Customização
-    </motion.button>
+    {isPremiumLocked ? (
+      <div className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-400/10 to-orange-500/10 border border-yellow-500/30">
+        <Crown size={14} className="text-yellow-400" />
+        <span className="text-xs font-medium text-yellow-400">Recurso Premium</span>
+      </div>
+    ) : (
+      <motion.button
+        onClick={() => window.location.href = "/dashboard/customization"}
+        className="
+          mt-4 px-4 py-2 rounded-[var(--border-radius-md)]
+          bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20
+          text-[var(--color-primary)] text-sm font-medium
+          transition-all duration-300
+        "
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        Ir para Customização
+      </motion.button>
+    )}
   </motion.div>
 );
 
@@ -452,6 +479,7 @@ const AssetPreviewCard = ({
   onView,
   children,
   disabled,
+  isPremiumLocked = false,
 }: {
   asset: MediaAsset | null;
   icon: React.ElementType;
@@ -460,6 +488,7 @@ const AssetPreviewCard = ({
   onView: () => void;
   children?: React.ReactNode;
   disabled: boolean;
+  isPremiumLocked?: boolean;
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -575,7 +604,12 @@ const AssetPreviewCard = ({
         <EmptyAssetState
           icon={Icon}
           title={`Nenhum ${title.toLowerCase()} ativo`}
-          description={`Configure um ${title.toLowerCase()} na página de Customização.`}
+          description={
+            isPremiumLocked
+              ? `O ${title.toLowerCase()} é um recurso exclusivo para usuários Premium.`
+              : `Configure um ${title.toLowerCase()} na página de Customização.`
+          }
+          isPremiumLocked={isPremiumLocked}
         />
       )}
     </div>
@@ -596,6 +630,9 @@ const DashboardAssets = () => {
     refreshProfile 
   } = useProfile();
 
+  // ✅ Verificar se usuário é Premium
+  const userIsPremium = profileData?.isPremium ?? false;
+
   // ═══════════════════════════════════════════════════════════
   // ESTADOS LOCAIS
   // ═══════════════════════════════════════════════════════════
@@ -604,6 +641,7 @@ const DashboardAssets = () => {
     background: null,
     cursor: null,
     audio: null,
+    favicon: null, // ✅ Adicionado favicon
     audioVolume: 50,
   });
 
@@ -614,12 +652,12 @@ const DashboardAssets = () => {
 
   const [viewModal, setViewModal] = useState<{
     isOpen: boolean;
-    type: "avatar" | "background" | "cursor" | "audio" | null;
+    type: "avatar" | "background" | "cursor" | "audio" | "favicon" | null; // ✅ Adicionado favicon
   }>({ isOpen: false, type: null });
 
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
-    type: "avatar" | "background" | "cursor" | "audio" | null;
+    type: "avatar" | "background" | "cursor" | "audio" | "favicon" | null; // ✅ Adicionado favicon
   }>({ isOpen: false, type: null });
 
   // ═══════════════════════════════════════════════════════════
@@ -653,7 +691,7 @@ const DashboardAssets = () => {
     }
   }, [refreshProfile]);
 
-  const handleRemove = async (type: "avatar" | "background" | "cursor" | "audio") => {
+  const handleRemove = async (type: "avatar" | "background" | "cursor" | "audio" | "favicon") => {
     setIsSubmitting(true);
     setError(null);
 
@@ -664,6 +702,7 @@ const DashboardAssets = () => {
         background: "backgroundUrl",
         cursor: "cursorUrl",
         audio: "musicUrl",
+        favicon: "faviconUrl", // ✅ Adicionado favicon
       };
 
       // Atualizar via PATCH, limpando apenas o campo específico
@@ -672,8 +711,8 @@ const DashboardAssets = () => {
           [fieldMap[type]]: "",
           profileImageUrl: type !== "avatar" ? assets.avatar?.url || "" : "",
           backgroundUrl: type !== "background" ? assets.background?.url || "" : "",
-          cursorUrl: type !== "cursor" ? assets.cursor?.url || "" : "",
           musicUrl: type !== "audio" ? assets.audio?.url || "" : "",
+          faviconUrl: type !== "favicon" ? assets.favicon?.url || "" : "", // ✅ Adicionado favicon
         },
       });
 
@@ -689,6 +728,8 @@ const DashboardAssets = () => {
 
       if (err.response?.status === 401) {
         setError("Sessão expirada. Faça login novamente.");
+      } else if (err.response?.status === 403) {
+        setError("Você não tem permissão para modificar este recurso.");
       } else {
         setError(err.response?.data?.message || "Erro ao remover. Tente novamente.");
       }
@@ -708,6 +749,7 @@ const DashboardAssets = () => {
       background: "Background",
       cursor: "Cursor",
       audio: "Áudio",
+      favicon: "Favicon", // ✅ Adicionado favicon
     };
     return titles[type] || type;
   };
@@ -864,17 +906,18 @@ const DashboardAssets = () => {
         )}
       </AnimatePresence>
 
-      {/* Stats Overview */}
+      {/* Stats Overview - ✅ Atualizado com Favicon */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6"
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6"
       >
         {[
-          { icon: User, label: "Avatar", active: !!assets.avatar, locked: false },
-          { icon: Image, label: "Background", active: !!assets.background, locked: false },
-          { icon: MousePointer2, label: "Cursor", active: false, locked: true },
-          { icon: Music, label: "Áudio", active: !!assets.audio, locked: false },
+          { icon: User, label: "Avatar", active: !!assets.avatar, locked: false, premium: false },
+          { icon: Image, label: "Background", active: !!assets.background, locked: false, premium: false },
+          { icon: MousePointer2, label: "Cursor", active: false, locked: true, premium: false },
+          { icon: Music, label: "Áudio", active: !!assets.audio, locked: false, premium: false },
+          { icon: Globe, label: "Favicon", active: !!assets.favicon, locked: !userIsPremium, premium: true }, // ✅ Favicon Premium
         ].map((item, index) => (
           <motion.div
             key={item.label}
@@ -893,11 +936,22 @@ const DashboardAssets = () => {
               }
             `}
           >
+            {/* Badge de Premium ou Lock */}
             {item.locked && (
               <div className="absolute top-2 right-2">
-                <Lock size={14} className="text-[var(--color-text-muted)]" />
+                {item.premium ? (
+                  <Crown size={14} className="text-yellow-400" />
+                ) : (
+                  <Lock size={14} className="text-[var(--color-text-muted)]" />
+                )}
               </div>
             )}
+            {item.premium && !item.locked && (
+              <div className="absolute top-2 right-2">
+                <Crown size={14} className="text-yellow-400" />
+              </div>
+            )}
+            
             <div className="flex items-center justify-between">
               <item.icon
                 size={20}
@@ -926,18 +980,23 @@ const DashboardAssets = () => {
                 ? "text-green-400" 
                 : "text-[var(--color-text-muted)]"
             }`}>
-              {item.locked ? "Em breve" : item.active ? "Ativo" : "Não configurado"}
+              {item.locked 
+                ? (item.premium ? "Premium" : "Em breve") 
+                : item.active 
+                ? "Ativo" 
+                : "Não configurado"
+              }
             </p>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* Content Grid */}
+      {/* Content Grid - ✅ Adicionado grid de 3 colunas para comportar favicon */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6"
+        className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6"
       >
         {/* AVATAR */}
         <motion.div variants={itemVariants}>
@@ -1128,9 +1187,117 @@ const DashboardAssets = () => {
             </AssetPreviewCard>
           </AssetsCard>
         </motion.div>
+
+        {/* ✅ FAVICON - PREMIUM ONLY */}
+        <motion.div variants={itemVariants}>
+          <AssetsCard>
+            <SectionHeader
+              icon={Globe}
+              title="Favicon"
+              description="Ícone exibido na aba do navegador"
+              isPremium={true}
+              action={
+                !userIsPremium ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-400/10 to-orange-500/10 border border-yellow-500/30">
+                    <Crown size={14} className="text-yellow-400" />
+                    <span className="text-xs font-medium text-yellow-400">Premium</span>
+                  </div>
+                ) : null
+              }
+            />
+
+            {/* Se não for premium, mostrar overlay de bloqueio */}
+            {!userIsPremium ? (
+              <div className="relative">
+                {/* Overlay de bloqueio Premium */}
+                <div className="absolute inset-0 bg-[var(--color-background)]/60 backdrop-blur-sm z-10 rounded-[var(--border-radius-md)] flex items-center justify-center">
+                  <div className="text-center p-6">
+                    <motion.div
+                      className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400/20 to-orange-500/20 flex items-center justify-center mb-4 mx-auto border border-yellow-500/30"
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      <Crown size={24} className="text-yellow-400" />
+                    </motion.div>
+                    <h3 className="text-sm font-semibold text-[var(--color-text)] mb-1">
+                      Recurso Premium
+                    </h3>
+                    <p className="text-xs text-[var(--color-text-muted)] max-w-xs mx-auto">
+                      O favicon personalizado é exclusivo para usuários Premium. Faça upgrade para desbloquear!
+                    </p>
+                    <motion.button
+                      onClick={() => window.location.href = "/dashboard/premium"}
+                      className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold shadow-lg"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Crown size={12} />
+                      Fazer Upgrade
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Card desabilitado por baixo */}
+                <div className="opacity-40 pointer-events-none">
+                  <div className="
+                    p-4 rounded-[var(--border-radius-md)]
+                    bg-[var(--color-surface)] border border-[var(--color-border)]
+                  ">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-primary)]/10">
+                          <Globe size={18} className="text-[var(--color-primary)]" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-medium text-[var(--color-text)]">Favicon</h3>
+                        </div>
+                      </div>
+                      <StatusBadge active={false} />
+                    </div>
+
+                    <div className="flex justify-center items-center py-8">
+                      <div className="
+                        w-24 h-24 rounded-[var(--border-radius-md)]
+                        bg-[var(--color-background)] border border-dashed border-[var(--color-border)]
+                        flex items-center justify-center
+                      ">
+                        <Globe size={32} className="text-[var(--color-text-muted)]" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Se for premium, mostrar o card normal */
+              <AssetPreviewCard
+                asset={assets.favicon}
+                icon={Globe}
+                title="Favicon"
+                onRemove={() => setDeleteModal({ isOpen: true, type: "favicon" })}
+                onView={() => setViewModal({ isOpen: true, type: "favicon" })}
+                disabled={isSubmitting}
+              >
+                {assets.favicon && (
+                  <div className="flex justify-center">
+                    <motion.div
+                      className="relative w-24 h-24 rounded-[var(--border-radius-md)] overflow-hidden border-2 border-[var(--color-primary)]/30 bg-[var(--color-background)] flex items-center justify-center"
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <img
+                        src={assets.favicon.url}
+                        alt="Favicon"
+                        className="w-16 h-16 object-contain"
+                      />
+                    </motion.div>
+                  </div>
+                )}
+              </AssetPreviewCard>
+            )}
+          </AssetsCard>
+        </motion.div>
       </motion.div>
 
-      {/* VIEW MODAL */}
+      {/* VIEW MODAL - ✅ Adicionado suporte para favicon */}
       <Modal
         isOpen={viewModal.isOpen}
         onClose={() => setViewModal({ isOpen: false, type: null })}
@@ -1184,6 +1351,43 @@ const DashboardAssets = () => {
             <div className="text-center">
               <p className="text-sm text-[var(--color-text)]">{getFileNameFromUrl(assets.audio.url)}</p>
               <p className="text-xs text-[var(--color-text-muted)]">{getMimeTypeFromUrl(assets.audio.url)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ Visualização de Favicon */}
+        {viewModal.type === "favicon" && assets.favicon && (
+          <div className="flex flex-col items-center gap-6">
+            {/* Preview grande */}
+            <div className="p-8 rounded-[var(--border-radius-lg)] bg-[var(--color-surface)] border border-[var(--color-border)]">
+              <img
+                src={assets.favicon.url}
+                alt="Favicon"
+                className="w-32 h-32 object-contain"
+              />
+            </div>
+            
+            {/* Preview na aba do navegador simulada */}
+            <div className="w-full max-w-md">
+              <p className="text-xs text-[var(--color-text-muted)] mb-2 text-center">
+                Preview na aba do navegador:
+              </p>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-t-lg bg-[var(--color-surface)] border border-[var(--color-border)]">
+                <img
+                  src={assets.favicon.url}
+                  alt="Favicon"
+                  className="w-4 h-4 object-contain"
+                />
+                <span className="text-xs text-[var(--color-text)] truncate">
+                  Seu Perfil - VXO
+                </span>
+                <X size={12} className="text-[var(--color-text-muted)] ml-auto" />
+              </div>
+            </div>
+
+            <div className="text-center">
+              <p className="text-sm text-[var(--color-text)]">{getFileNameFromUrl(assets.favicon.url)}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">{getMimeTypeFromUrl(assets.favicon.url)}</p>
             </div>
           </div>
         )}
