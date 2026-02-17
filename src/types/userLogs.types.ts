@@ -9,6 +9,7 @@ export type UserLogType =
   | 'COINS_REFUNDED'
   | 'ITEM_PURCHASED'
   | 'ITEM_REFUNDED'
+  | 'SLUG_CHANGED'
   | 'ITEM_REMOVED_FROM_STORE'
 
 export interface UserLogResponse {

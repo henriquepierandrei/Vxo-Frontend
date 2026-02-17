@@ -10,15 +10,6 @@ import {
   Crown,
   ChevronRight,
   Sparkles,
-  Frame,
-  BadgeCheck,
-  Verified,
-  Zap,
-  Palette,
-  Image,
-  Images,
-  Eye,
-  EyeOff,
   Fingerprint,
   Settings as SettingsIcon,
   User,
@@ -26,9 +17,12 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  Timer,
+  CalendarDays,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import { useProfile } from "../../contexts/UserContext";
-import api from "../../services/api"; // ajuste o path conforme seu projeto
+import api from "../../services/api";
 
 // ═══════════════════════════════════════════════════════════
 // ÍCONES CUSTOMIZADOS
@@ -312,39 +306,6 @@ const ConnectionCard = ({
   </motion.div>
 );
 
-const PremiumFeature = ({
-  icon: Icon,
-  title,
-  enabled,
-  locked = true,
-  onToggle,
-}: {
-  icon: React.ElementType;
-  title: string;
-  enabled: boolean;
-  locked?: boolean;
-  onToggle: () => void;
-}) => (
-  <motion.div
-    className={`flex items-center justify-between p-2.5 sm:p-3 rounded-[var(--border-radius-sm)] border transition-all duration-300 ${
-      locked
-        ? "border-[var(--color-border)] bg-[var(--color-surface)] opacity-60"
-        : enabled
-          ? "border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5"
-          : "border-[var(--color-border)] bg-[var(--color-surface)]"
-    }`}
-    whileHover={locked ? {} : { scale: 1.02 }}
-  >
-    <div className="flex items-center gap-2 sm:gap-3">
-      <Icon size={16} className={`sm:w-[18px] sm:h-[18px] ${locked ? "text-[var(--color-text-muted)]" : "text-[var(--color-primary)]"}`} />
-      <span className={`text-xs sm:text-sm font-medium ${locked ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}`}>
-        {title}
-      </span>
-    </div>
-    {locked ? <Lock size={14} className="text-[var(--color-text-muted)]" /> : <Toggle enabled={enabled} onChange={onToggle} />}
-  </motion.div>
-);
-
 const InfoBadge = ({
   icon: Icon,
   label,
@@ -394,6 +355,99 @@ const formatDate = (dateString: string | undefined | null): string => {
   }
 };
 
+// Calcula o tempo restante de premium
+const calculatePremiumTimeLeft = (expireAt: string | undefined | null): {
+  text: string;
+  days: number;
+  isExpired: boolean;
+  isLifetime: boolean;
+} => {
+  if (!expireAt) {
+    return { text: "—", days: 0, isExpired: true, isLifetime: false };
+  }
+
+  try {
+    const expireDate = new Date(expireAt);
+    const now = new Date();
+    const diffMs = expireDate.getTime() - now.getTime();
+
+    // Já expirou
+    if (diffMs <= 0) {
+      return { text: "Expirado", days: 0, isExpired: true, isLifetime: false };
+    }
+
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
+
+    // Se for mais de 10 anos, considerar "vitalício"
+    if (diffYears >= 10) {
+      return { text: "Vitalício", days: diffDays, isExpired: false, isLifetime: true };
+    }
+
+    // Formatação amigável
+    if (diffYears > 0) {
+      const remainingMonths = Math.floor((diffDays % 365) / 30);
+      if (remainingMonths > 0) {
+        return {
+          text: `${diffYears} ${diffYears === 1 ? "ano" : "anos"} e ${remainingMonths} ${remainingMonths === 1 ? "mês" : "meses"}`,
+          days: diffDays,
+          isExpired: false,
+          isLifetime: false,
+        };
+      }
+      return {
+        text: `${diffYears} ${diffYears === 1 ? "ano" : "anos"}`,
+        days: diffDays,
+        isExpired: false,
+        isLifetime: false,
+      };
+    }
+
+    if (diffMonths > 0) {
+      const remainingDays = diffDays % 30;
+      if (remainingDays > 0) {
+        return {
+          text: `${diffMonths} ${diffMonths === 1 ? "mês" : "meses"} e ${remainingDays} ${remainingDays === 1 ? "dia" : "dias"}`,
+          days: diffDays,
+          isExpired: false,
+          isLifetime: false,
+        };
+      }
+      return {
+        text: `${diffMonths} ${diffMonths === 1 ? "mês" : "meses"}`,
+        days: diffDays,
+        isExpired: false,
+        isLifetime: false,
+      };
+    }
+
+    if (diffDays > 0) {
+      return {
+        text: `${diffDays} ${diffDays === 1 ? "dia" : "dias"}`,
+        days: diffDays,
+        isExpired: false,
+        isLifetime: false,
+      };
+    }
+
+    // Menos de 1 dia
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours > 0) {
+      return {
+        text: `${diffHours} ${diffHours === 1 ? "hora" : "horas"}`,
+        days: 0,
+        isExpired: false,
+        isLifetime: false,
+      };
+    }
+
+    return { text: "Menos de 1 hora", days: 0, isExpired: false, isLifetime: false };
+  } catch {
+    return { text: "—", days: 0, isExpired: true, isLifetime: false };
+  }
+};
+
 // ═══════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════
@@ -403,8 +457,12 @@ const DashboardSettings = () => {
   const { profileData, isLoadingProfile } = useProfile();
 
   const displayName = profileData?.name || "Usuário";
-  const profileUrl = profileData?.url || "usuario";
+  const profileUrl = profileData?.slug || "usuario";
   const isPremium = profileData?.isPremium ?? false;
+  const premiumExpireAt = profileData?.premiumExpireAt;
+
+  // Calcula tempo restante
+  const premiumTimeLeft = calculatePremiumTimeLeft(premiumExpireAt);
 
   // ── Estados locais ───────────────────────────────────────
   const [acceptGifts, setAcceptGifts] = useState<boolean>(false);
@@ -439,24 +497,6 @@ const DashboardSettings = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [apiError, setApiError] = useState("");
-
-  // ── Premium features ────────────────────────────────────
-  const [premiumFeatures, setPremiumFeatures] = useState({
-    frame: false,
-    premiumTag: false,
-    verifiedTag: false,
-    neonCard: false,
-    neonColor: false,
-    favicon: false,
-    photoAlbum: false,
-    hideViews: false,
-    hideBrand: false,
-  });
-
-  const togglePremiumFeature = (feature: keyof typeof premiumFeatures) => {
-    if (!isPremium) return;
-    setPremiumFeatures((prev) => ({ ...prev, [feature]: !prev[feature] }));
-  };
 
   // ═══════════════════════════════════════════════════════════
   // HANDLER: Alterar E-mail  →  PUT /update/email
@@ -762,25 +802,33 @@ const DashboardSettings = () => {
           </SettingsCard>
         </motion.div>
 
-        {/* ── Premium Section ───────────────────────────── */}
+        {/* ── Premium Status Section ───────────────────────────── */}
         <motion.div variants={itemVariants}>
           <SettingsCard
-            className={`relative overflow-hidden ${!isPremium ? "border-[var(--color-primary)]/30" : "border-green-500/30"}`}
+            className={`relative overflow-hidden ${isPremium ? "border-green-500/30" : "border-[var(--color-primary)]/30"}`}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary)]/5 via-transparent to-[var(--color-secondary)]/5 pointer-events-none" />
 
             <div className="relative z-10">
+              {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 sm:mb-6">
                 <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="p-2 sm:p-3 rounded-[var(--border-radius-md)] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex-shrink-0">
+                  <div className={`p-2 sm:p-3 rounded-[var(--border-radius-md)] flex-shrink-0 ${
+                    isPremium 
+                      ? "bg-gradient-to-br from-green-500 to-emerald-600" 
+                      : "bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)]"
+                  }`}>
                     <Crown size={20} className="sm:w-6 sm:h-6 text-white" />
                   </div>
                   <div>
                     <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">
-                      Melhore sua experiência
+                      {isPremium ? "Seu Plano Premium" : "Seja Premium"}
                     </h2>
                     <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">
-                      Desbloqueie recursos premium e destaque seu perfil.
+                      {isPremium 
+                        ? "Aproveite todos os recursos exclusivos do Premium."
+                        : "Desbloqueie recursos exclusivos e destaque seu perfil."
+                      }
                     </p>
                   </div>
                 </div>
@@ -796,31 +844,128 @@ const DashboardSettings = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                <PremiumFeature icon={Frame} title="Moldura" enabled={premiumFeatures.frame} locked={!isPremium} onToggle={() => togglePremiumFeature("frame")} />
-                <PremiumFeature icon={BadgeCheck} title="Tag premium" enabled={premiumFeatures.premiumTag} locked={!isPremium} onToggle={() => togglePremiumFeature("premiumTag")} />
-                <PremiumFeature icon={Verified} title="Tag verificado" enabled={premiumFeatures.verifiedTag} locked={!isPremium} onToggle={() => togglePremiumFeature("verifiedTag")} />
-                <PremiumFeature icon={Zap} title="Neon no card" enabled={premiumFeatures.neonCard} locked={!isPremium} onToggle={() => togglePremiumFeature("neonCard")} />
-                <PremiumFeature icon={Palette} title="Cor do Neon" enabled={premiumFeatures.neonColor} locked={!isPremium} onToggle={() => togglePremiumFeature("neonColor")} />
-                <PremiumFeature icon={Image} title="Favicon" enabled={premiumFeatures.favicon} locked={!isPremium} onToggle={() => togglePremiumFeature("favicon")} />
-                <PremiumFeature icon={Images} title="Album de fotos" enabled={premiumFeatures.photoAlbum} locked={!isPremium} onToggle={() => togglePremiumFeature("photoAlbum")} />
-                <PremiumFeature icon={EyeOff} title="Ocultar Views" enabled={premiumFeatures.hideViews} locked={!isPremium} onToggle={() => togglePremiumFeature("hideViews")} />
-                <PremiumFeature icon={Eye} title="Ocultar Marca" enabled={premiumFeatures.hideBrand} locked={!isPremium} onToggle={() => togglePremiumFeature("hideBrand")} />
-              </div>
+              {/* Premium Status Card */}
+              {isPremium ? (
+                <div className="space-y-4">
+                  {/* Status Ativo */}
+                  <motion.div 
+                    className="p-4 sm:p-5 rounded-[var(--border-radius-md)] bg-gradient-to-r from-green-500/10 to-emerald-500/5 border border-green-500/20"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 rounded-full bg-green-500/20">
+                        <CheckCircle size={20} className="text-green-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-green-400">Status: Ativo</p>
+                        <p className="text-xs text-[var(--color-text-muted)]">Todos os recursos estão desbloqueados</p>
+                      </div>
+                    </div>
 
-              {!isPremium && (
+                    {/* Tempo Restante */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3 sm:p-4 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)]/50">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-full ${
+                          premiumTimeLeft.isLifetime 
+                            ? "bg-purple-500/20" 
+                            : premiumTimeLeft.days > 30 
+                              ? "bg-blue-500/20" 
+                              : premiumTimeLeft.days > 7 
+                                ? "bg-yellow-500/20" 
+                                : "bg-red-500/20"
+                        }`}>
+                          {premiumTimeLeft.isLifetime ? (
+                            <InfinityIcon size={18} className="text-purple-400" />
+                          ) : (
+                            <Timer size={18} className={
+                              premiumTimeLeft.days > 30 
+                                ? "text-blue-400" 
+                                : premiumTimeLeft.days > 7 
+                                  ? "text-yellow-400" 
+                                  : "text-red-400"
+                            } />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-[var(--color-text-muted)]">Tempo restante</p>
+                          <p className={`text-sm sm:text-base font-bold ${
+                            premiumTimeLeft.isLifetime 
+                              ? "text-purple-400" 
+                              : premiumTimeLeft.days > 30 
+                                ? "text-blue-400" 
+                                : premiumTimeLeft.days > 7 
+                                  ? "text-yellow-400" 
+                                  : "text-red-400"
+                          }`}>
+                            {premiumTimeLeft.text}
+                          </p>
+                        </div>
+                      </div>
+
+                      {!premiumTimeLeft.isLifetime && premiumExpireAt && (
+                        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+                          <CalendarDays size={14} />
+                          <span>Expira em {formatDate(premiumExpireAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+
+                  {/* Alerta de renovação se estiver próximo de expirar */}
+                  {!premiumTimeLeft.isLifetime && premiumTimeLeft.days <= 7 && premiumTimeLeft.days > 0 && (
+                    <motion.div 
+                      className="p-3 sm:p-4 rounded-[var(--border-radius-md)] bg-yellow-500/10 border border-yellow-500/30 flex items-start gap-3"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <AlertCircle size={18} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-400">Seu Premium está expirando!</p>
+                        <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                          Renove agora para não perder acesso aos recursos exclusivos.
+                        </p>
+                        <motion.button
+                          className="mt-3 px-4 py-1.5 rounded-[var(--border-radius-sm)] bg-yellow-500 hover:bg-yellow-400 text-black text-xs font-semibold transition-all"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          Renovar Premium
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              ) : (
+                /* Card para usuários não-premium */
                 <motion.div
-                  className="mt-4 sm:mt-6 p-3 sm:p-4 rounded-[var(--border-radius-md)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 border border-[var(--color-primary)]"
+                  className="p-4 sm:p-5 rounded-[var(--border-radius-md)] bg-gradient-to-r from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 border border-[var(--color-primary)]/30"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 }}
+                  transition={{ delay: 0.2 }}
                 >
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <Sparkles size={18} className="sm:w-5 sm:h-5 text-[var(--color-primary)] flex-shrink-0" />
-                    <p className="text-xs sm:text-sm text-[var(--color-text-muted)]">
-                      <span className="text-[var(--color-text)] font-medium">Desbloqueie todos os recursos</span>{" "}
-                      e personalize seu perfil do seu jeito!
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <Sparkles size={20} className="text-[var(--color-primary)] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-[var(--color-text)]">
+                        Desbloqueie recursos exclusivos
+                      </p>
+                      <p className="text-xs text-[var(--color-text-muted)] mt-1">
+                        Com o Premium você tem acesso a molduras exclusivas, tags especiais, 
+                        efeitos neon, album de fotos e muito mais. Personalize seu perfil do seu jeito!
+                      </p>
+                      
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {["Molduras", "Tags VIP", "Efeitos Neon", "Album de Fotos", "Favicon Customizado"].map((feature) => (
+                          <span 
+                            key={feature}
+                            className="px-2 py-1 rounded-full bg-[var(--color-surface)] text-[10px] font-medium text-[var(--color-text-muted)]"
+                          >
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}

@@ -794,7 +794,6 @@ const ItemCard = ({
 const PendingGiftCard = ({
   gift,
   onAccept,
-  onDecline,
 }: {
   gift: PendingGift;
   onAccept: () => void;
@@ -853,7 +852,7 @@ const PendingGiftCard = ({
           </h3>
           <p className="text-[9px] sm:text-[10px] lg:text-xs text-[var(--color-text-muted)] flex items-center gap-1 mt-0.5 truncate">
             <User size={10} className="sm:w-3 sm:h-3 flex-shrink-0" />
-            <span className="truncate">De {gift.fromUrlName}</span>
+            <span className="truncate">De {gift.fromSlug}</span>
           </p>
           {gift.message && (
             <p className="text-[8px] sm:text-[9px] lg:text-[10px] text-[var(--color-text-muted)] mt-1 sm:mt-1.5 italic line-clamp-1">
@@ -956,7 +955,6 @@ const ItemDetailModal = ({
   onClose,
   onEquip,
   onUnequip,
-  onGift,
   userProfileImage,
 }: {
   item: InventoryItem;
@@ -1182,7 +1180,7 @@ const GiftOpeningModal = ({
                       Toque para abrir!
                     </p>
                     <p className="mt-1 sm:mt-2 text-[10px] sm:text-xs lg:text-sm text-[var(--color-text-muted)]">
-                      De {gift.fromUrlName}
+                      De {gift.fromSlug}
                     </p>
                   </motion.div>
                 )}
@@ -1277,7 +1275,7 @@ const GiftOpeningModal = ({
                       transition={{ delay: 0.6 }}
                       className="mt-1 sm:mt-2 text-[10px] sm:text-xs lg:text-sm text-[var(--color-text-muted)]"
                     >
-                      Presente de {gift.fromUrlName}
+                      Presente de {gift.fromSlug}
                     </motion.p>
 
                     <motion.button

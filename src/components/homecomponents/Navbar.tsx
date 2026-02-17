@@ -1,8 +1,9 @@
 // components/Navbar.tsx
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useState, useEffect, useCallback, useContext } from "react";
+import { motion, AnimatePresence, useMotionValue, useSpring } from "framer-motion";
 import { useTheme } from "../../hooks/ThemeProvider";
 import { VxoLogo } from "../logo/LogoProps";
+import { AuthContext } from "../../contexts/AuthContext"; // ← IMPORTAR O CONTEXT
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -15,6 +16,25 @@ interface NavItem {
   badge?: string;
   isNew?: boolean;
 }
+
+// ═══════════════════════════════════════════════════════════
+// HOOK PARA USAR O AUTH CONTEXT
+// ═══════════════════════════════════════════════════════════
+
+const useAuth = () => {
+  const context = useContext(AuthContext);
+  
+  // Se o context não existir (navbar fora do AuthProvider), retorna valores padrão
+  if (!context) {
+    return {
+      isAuthenticated: false,
+      isLoading: true,
+      user: null
+    };
+  }
+  
+  return context;
+};
 
 // ═══════════════════════════════════════════════════════════
 // ICONS COMPONENTS
@@ -35,6 +55,12 @@ const TrophyIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 const SparklesIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+  </svg>
+);
+
+const DocumentIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
   </svg>
 );
 
@@ -60,20 +86,20 @@ const ArrowRightIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 // MAGNETIC BUTTON COMPONENT
 // ═══════════════════════════════════════════════════════════
 
-const MagneticButton = ({ 
-  children, 
-  className = "", 
+const MagneticButton = ({
+  children,
+  className = "",
   onClick,
-  strength = 0.3 
-}: { 
-  children: React.ReactNode; 
+  strength = 0.3
+}: {
+  children: React.ReactNode;
   className?: string;
   onClick?: () => void;
   strength?: number;
 }) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  
+
   const springX = useSpring(x, { stiffness: 300, damping: 20 });
   const springY = useSpring(y, { stiffness: 300, damping: 20 });
 
@@ -81,7 +107,7 @@ const MagneticButton = ({
     const rect = e.currentTarget.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
+
     x.set((e.clientX - centerX) * strength);
     y.set((e.clientY - centerY) * strength);
   };
@@ -106,38 +132,6 @@ const MagneticButton = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// GLOW EFFECT COMPONENT
-// ═══════════════════════════════════════════════════════════
-
-const GlowEffect = ({ color = "primary", size = "md" }: { color?: string; size?: "sm" | "md" | "lg" }) => {
-  const sizeClasses = {
-    sm: "w-16 h-16",
-    md: "w-24 h-24",
-    lg: "w-32 h-32"
-  };
-
-  return (
-    <motion.div
-      className={`absolute rounded-full blur-3xl opacity-30 pointer-events-none ${sizeClasses[size]}`}
-      style={{
-        background: color === "primary" 
-          ? "linear-gradient(135deg, var(--color-primary), var(--color-secondary))"
-          : color
-      }}
-      animate={{
-        scale: [1, 1.2, 1],
-        opacity: [0.2, 0.3, 0.2]
-      }}
-      transition={{
-        duration: 4,
-        repeat: Infinity,
-        ease: "easeInOut"
-      }}
-    />
-  );
-};
-
-// ═══════════════════════════════════════════════════════════
 // ANIMATED GRADIENT BORDER
 // ═══════════════════════════════════════════════════════════
 
@@ -157,15 +151,13 @@ const ThemeToggle3D = ({ isDark, onToggle }: { isDark: boolean; onToggle: () => 
     <MagneticButton
       onClick={onToggle}
       className={`
-        relative w-10 h-10 rounded-xl flex items-center justify-center
-        overflow-hidden transition-all duration-500
+        relative w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden transition-all duration-500
         ${isDark
           ? "bg-gradient-to-br from-slate-800 to-slate-900 shadow-lg shadow-purple-500/20"
           : "bg-gradient-to-br from-amber-50 to-orange-100 shadow-lg shadow-orange-300/30"
         }
       `}
     >
-      {/* Glow effect */}
       <div className={`
         absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300
         ${isDark
@@ -173,8 +165,7 @@ const ThemeToggle3D = ({ isDark, onToggle }: { isDark: boolean; onToggle: () => 
           : "bg-gradient-to-br from-yellow-300/20 to-orange-300/20"
         }
       `} />
-      
-      {/* Ring */}
+
       <div className={`
         absolute inset-0 rounded-xl ring-1 ring-inset transition-colors duration-300
         ${isDark ? "ring-white/10" : "ring-black/5"}
@@ -190,11 +181,9 @@ const ThemeToggle3D = ({ isDark, onToggle }: { isDark: boolean; onToggle: () => 
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="relative"
           >
-            {/* Moon with stars */}
             <svg className="w-5 h-5 text-purple-300" fill="currentColor" viewBox="0 0 24 24">
               <path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
             </svg>
-            {/* Stars */}
             <motion.div
               className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-yellow-300 rounded-full"
               animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
@@ -215,7 +204,6 @@ const ThemeToggle3D = ({ isDark, onToggle }: { isDark: boolean; onToggle: () => 
             transition={{ duration: 0.3, ease: "easeOut" }}
             className="relative"
           >
-            {/* Sun with rays */}
             <motion.svg
               className="w-5 h-5 text-amber-500"
               fill="currentColor"
@@ -261,33 +249,23 @@ const NavItemDesktop = ({
     >
       <motion.div
         className={`
-          relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
-          transition-all duration-300
+          relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300
           ${isActive
-            ? isDark
-              ? "text-white"
-              : "text-gray-900"
-            : isDark
-              ? "text-white/60 hover:text-white"
-              : "text-gray-500 hover:text-gray-900"
+            ? isDark ? "text-white" : "text-gray-900"
+            : isDark ? "text-white/60 hover:text-white" : "text-gray-500 hover:text-gray-900"
           }
         `}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
-        {/* Active/Hover Background */}
         <AnimatePresence>
           {(isActive || isHovered) && (
             <motion.div
               className={`
                 absolute inset-0 rounded-xl
                 ${isActive
-                  ? isDark
-                    ? "bg-white/10"
-                    : "bg-black/5"
-                  : isDark
-                    ? "bg-white/5"
-                    : "bg-black/[0.03]"
+                  ? isDark ? "bg-white/10" : "bg-black/5"
+                  : isDark ? "bg-white/5" : "bg-black/[0.03]"
                 }
               `}
               layoutId="navBackground"
@@ -299,14 +277,12 @@ const NavItemDesktop = ({
           )}
         </AnimatePresence>
 
-        {/* Icon with glow on active */}
         <span className={`relative z-10 transition-transform duration-300 ${isHovered ? 'scale-110' : ''}`}>
           {item.icon}
         </span>
         
         <span className="relative z-10">{item.label}</span>
 
-        {/* New Badge */}
         {item.isNew && (
           <motion.span
             initial={{ scale: 0 }}
@@ -317,7 +293,6 @@ const NavItemDesktop = ({
           </motion.span>
         )}
 
-        {/* Badge */}
         {item.badge && (
           <span className={`
             relative z-10 px-1.5 py-0.5 text-[10px] font-semibold rounded-full
@@ -330,7 +305,6 @@ const NavItemDesktop = ({
           </span>
         )}
 
-        {/* Active indicator dot */}
         {isActive && (
           <motion.div
             className="absolute bottom-0 left-1/2 w-1 h-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"
@@ -370,19 +344,13 @@ const MobileMenuItem = ({
     transition={{ delay: index * 0.08, duration: 0.3 }}
     onClick={onClick}
     className={`
-      group relative flex items-center gap-4 px-4 py-4 rounded-2xl
-      transition-all duration-300 overflow-hidden
+      group relative flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 overflow-hidden
       ${isActive
-        ? isDark
-          ? "bg-white/10"
-          : "bg-black/5"
-        : isDark
-          ? "hover:bg-white/5 active:bg-white/10"
-          : "hover:bg-black/[0.03] active:bg-black/5"
+        ? isDark ? "bg-white/10" : "bg-black/5"
+        : isDark ? "hover:bg-white/5 active:bg-white/10" : "hover:bg-black/[0.03] active:bg-black/5"
       }
     `}
   >
-    {/* Gradient hover effect */}
     <div className={`
       absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500
       ${isDark
@@ -391,7 +359,6 @@ const MobileMenuItem = ({
       }
     `} />
 
-    {/* Icon container */}
     <motion.div
       className={`
         relative z-10 p-2.5 rounded-xl transition-all duration-300
@@ -408,7 +375,6 @@ const MobileMenuItem = ({
       {item.icon}
     </motion.div>
 
-    {/* Label */}
     <div className="relative z-10 flex-1">
       <span className={`
         text-base font-semibold transition-colors duration-300
@@ -432,7 +398,6 @@ const MobileMenuItem = ({
       )}
     </div>
 
-    {/* Arrow */}
     <motion.div
       className={`
         relative z-10 opacity-0 group-hover:opacity-100 transition-all duration-300
@@ -444,7 +409,6 @@ const MobileMenuItem = ({
       <ArrowRightIcon className="w-4 h-4" />
     </motion.div>
 
-    {/* Active indicator */}
     {isActive && (
       <motion.div
         className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-gradient-to-b from-purple-500 to-pink-500"
@@ -472,12 +436,8 @@ const HamburgerButton = ({
   <MagneticButton
     onClick={onClick}
     className={`
-      relative w-10 h-10 rounded-xl flex items-center justify-center
-      transition-all duration-300 overflow-hidden
-      ${isDark
-        ? "bg-white/10 hover:bg-white/15"
-        : "bg-black/5 hover:bg-black/10"
-      }
+      relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 overflow-hidden
+      ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"}
     `}
     strength={0.2}
   >
@@ -515,27 +475,58 @@ const HamburgerButton = ({
 );
 
 // ═══════════════════════════════════════════════════════════
-// LOGIN BUTTON
+// AUTH BUTTON (LOGIN / PAINEL)
 // ═══════════════════════════════════════════════════════════
 
-const LoginButton = ({ isDark, isMobile = false }: { isDark: boolean; isMobile?: boolean }) => {
+const AuthButton = ({ 
+  isDark, 
+  isMobile = false,
+  isAuthenticated,
+  isLoading
+}: { 
+  isDark: boolean; 
+  isMobile?: boolean;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+}) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  const handleClick = () => {
+    if (isAuthenticated) {
+      window.location.href = "/dashboard";
+    } else {
+      window.location.href = "/login";
+    }
+  };
+
+  // Skeleton durante carregamento
+  if (isLoading) {
+    return (
+      <div className={`
+        ${isMobile ? "w-full h-14" : "w-24 h-10"}
+        rounded-xl animate-pulse
+        ${isDark ? "bg-white/10" : "bg-gray-200"}
+      `} />
+    );
+  }
 
   return (
     <motion.button
-      onClick={() => window.location.href = "/login"}
+      onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`
         relative group overflow-hidden
-        ${isMobile 
-          ? "w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl" 
+        ${isMobile
+          ? "w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl"
           : "flex items-center gap-2 px-5 py-2.5 rounded-xl"
         }
         text-sm font-semibold transition-all duration-300
-        ${isDark
-          ? "bg-white text-gray-900 hover:shadow-lg hover:shadow-white/20"
-          : "bg-gray-900 text-white hover:shadow-lg hover:shadow-black/20"
+        ${isAuthenticated
+          ? "bg-[var(--color-text)] text-[var(--color-background)]"
+          : isDark
+            ? "bg-white text-gray-900 hover:shadow-lg hover:shadow-white/20"
+            : "bg-gray-900 text-white hover:shadow-lg hover:shadow-black/20"
         }
       `}
       whileHover={{ scale: 1.02 }}
@@ -545,32 +536,32 @@ const LoginButton = ({ isDark, isMobile = false }: { isDark: boolean; isMobile?:
       <motion.div
         className="absolute inset-0 opacity-0 group-hover:opacity-100"
         style={{
-          background: isDark
-            ? "linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)"
-            : "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)"
+          background: isAuthenticated
+            ? "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)"
+            : isDark
+              ? "linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)"
+              : "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)"
         }}
         animate={isHovered ? { x: ["100%", "-100%"] } : {}}
         transition={{ duration: 0.6, ease: "easeInOut" }}
       />
 
-      {/* Gradient border on hover */}
-      <motion.div
-        className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{
-          background: "linear-gradient(135deg, rgba(168,85,247,0.5), rgba(236,72,153,0.5))",
-          padding: "1px"
-        }}
-      >
-        <div className={`
-          w-full h-full rounded-xl
-          ${isDark ? "bg-white" : "bg-gray-900"}
-        `} />
-      </motion.div>
-
-      <UserIcon className="w-4 h-4 relative z-10" />
-      <span className="relative z-10">{isMobile ? "Fazer Login" : "Login"}</span>
+      {/* Icon */}
+      {isAuthenticated ? (
+        <DashboardIcon className="w-4 h-4 relative z-10" />
+      ) : (
+        <UserIcon className="w-4 h-4 relative z-10" />
+      )}
       
-      {/* Arrow that appears on hover */}
+      {/* Label */}
+      <span className="relative z-10">
+        {isAuthenticated 
+          ? (isMobile ? "Acessar Painel" : "Painel") 
+          : (isMobile ? "Fazer Login" : "Login")
+        }
+      </span>
+      
+      {/* Arrow on hover */}
       <motion.div
         className="relative z-10"
         initial={{ opacity: 0, x: -10, width: 0 }}
@@ -592,11 +583,14 @@ const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeItem, setActiveItem] = useState("/");
   const { isDark, toggleTheme } = useTheme();
+  
+  // ✅ USANDO O AUTH CONTEXT
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  // Scroll handler with throttle
+  // Scroll handler
   useEffect(() => {
     let ticking = false;
-    
+
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
@@ -606,7 +600,7 @@ const Navbar = () => {
         ticking = true;
       }
     };
-    
+
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -639,11 +633,12 @@ const Navbar = () => {
     };
   }, [mobileMenuOpen]);
 
+  // Nav items - Termos no lugar de Dashboard
   const navItems: NavItem[] = [
     { label: "Início", href: "/", icon: <HomeIcon className="w-4 h-4" /> },
     { label: "Ranking", href: "/ranking", icon: <TrophyIcon className="w-4 h-4" />, badge: "Top 100" },
     { label: "Premium", href: "/plans", icon: <SparklesIcon className="w-4 h-4" />, isNew: true },
-    { label: "Dashboard", href: "/dashboard", icon: <DashboardIcon className="w-4 h-4" /> },
+    { label: "Termos", href: "/terms", icon: <DocumentIcon className="w-4 h-4" /> },
   ];
 
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), []);
@@ -656,7 +651,6 @@ const Navbar = () => {
         transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
         className="fixed top-0 left-0 right-0 z-50"
       >
-        {/* Floating container */}
         <div className={`
           transition-all duration-500 ease-out
           ${scrolled ? "pt-3 px-3 sm:pt-4 sm:px-4" : "pt-0 px-0"}
@@ -699,7 +693,6 @@ const Navbar = () => {
                 ${scrolled ? "rounded-2xl" : ""}
               `} />
 
-              {/* Gradient line at top (scrolled state) */}
               {scrolled && (
                 <motion.div
                   className="absolute inset-x-0 top-0 h-px"
@@ -729,7 +722,6 @@ const Navbar = () => {
                       transition={{ duration: 0.5 }}
                     >
                       <VxoLogo />
-                      {/* Logo glow */}
                       <div className="absolute inset-0 blur-xl opacity-0 group-hover:opacity-50 transition-opacity duration-500 bg-gradient-to-r from-purple-500 to-pink-500" />
                     </motion.div>
                   </motion.a>
@@ -751,8 +743,13 @@ const Navbar = () => {
                   <div className="flex items-center gap-2 sm:gap-3">
                     <ThemeToggle3D isDark={isDark} onToggle={toggleTheme} />
                     
+                    {/* ✅ AUTH BUTTON COM CONTEXT */}
                     <div className="hidden sm:block">
-                      <LoginButton isDark={isDark} />
+                      <AuthButton 
+                        isDark={isDark} 
+                        isAuthenticated={isAuthenticated}
+                        isLoading={authLoading}
+                      />
                     </div>
 
                     <div className="md:hidden">
@@ -774,7 +771,6 @@ const Navbar = () => {
       <AnimatePresence>
         {mobileMenuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -794,7 +790,6 @@ const Navbar = () => {
               />
             </motion.div>
 
-            {/* Menu Panel */}
             <motion.div
               initial={{ opacity: 0, y: -20, scale: 0.95, filter: "blur(10px)" }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
@@ -810,15 +805,12 @@ const Navbar = () => {
                 }
                 backdrop-blur-2xl backdrop-saturate-150
               `}>
-                {/* Decorative gradient */}
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
                 
-                {/* Glow effects */}
                 <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl" />
                 <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl" />
 
                 <div className="relative z-10 p-4">
-                  {/* Nav Items */}
                   <div className="space-y-1">
                     {navItems.map((item, index) => (
                       <MobileMenuItem
@@ -832,7 +824,6 @@ const Navbar = () => {
                     ))}
                   </div>
 
-                  {/* Divider */}
                   <motion.div
                     className={`my-4 h-px ${isDark ? "bg-white/10" : "bg-black/10"}`}
                     initial={{ scaleX: 0 }}
@@ -840,16 +831,21 @@ const Navbar = () => {
                     transition={{ delay: 0.3, duration: 0.3 }}
                   />
 
-                  {/* Login Button */}
+                  {/* ✅ AUTH BUTTON MOBILE COM CONTEXT */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.35 }}
                   >
-                    <LoginButton isDark={isDark} isMobile />
+                    <AuthButton 
+                      isDark={isDark} 
+                      isMobile 
+                      isAuthenticated={isAuthenticated}
+                      isLoading={authLoading}
+                    />
                   </motion.div>
 
-                  {/* Theme Toggle Row */}
+                  {/* Theme Toggle */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -868,10 +864,7 @@ const Navbar = () => {
                       `}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`
-                          p-2 rounded-xl
-                          ${isDark ? "bg-white/10" : "bg-black/5"}
-                        `}>
+                        <div className={`p-2 rounded-xl ${isDark ? "bg-white/10" : "bg-black/5"}`}>
                           {isDark ? (
                             <svg className="w-5 h-5 text-purple-300" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
@@ -887,13 +880,9 @@ const Navbar = () => {
                         </span>
                       </div>
                       
-                      {/* iOS Style Toggle */}
                       <div className={`
                         relative w-14 h-8 rounded-full p-1 transition-all duration-500
-                        ${isDark
-                          ? "bg-gradient-to-r from-purple-600 to-pink-600"
-                          : "bg-gray-300"
-                        }
+                        ${isDark ? "bg-gradient-to-r from-purple-600 to-pink-600" : "bg-gray-300"}
                       `}>
                         <motion.div
                           className="w-6 h-6 rounded-full bg-white shadow-lg flex items-center justify-center"
@@ -932,15 +921,11 @@ const Navbar = () => {
                     </button>
                   </motion.div>
 
-                  {/* Footer info */}
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.5 }}
-                    className={`
-                      mt-4 pt-4 text-center text-xs
-                      ${isDark ? "text-white/30" : "text-gray-400"}
-                    `}
+                    className={`mt-4 pt-4 text-center text-xs ${isDark ? "text-white/30" : "text-gray-400"}`}
                   >
                     <p>© 2024 VXO. Todos os direitos reservados.</p>
                   </motion.div>

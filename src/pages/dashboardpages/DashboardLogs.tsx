@@ -33,6 +33,7 @@ import {
   ArrowDown,
   Sparkles,
   Clock,
+  TicketSlash,
 } from "lucide-react";
 import { userLogsService } from "../../services/userLogsService";
 import type {
@@ -85,6 +86,13 @@ const LOG_TYPE_CONFIG: Record<UserLogType, {
     color: "text-green-400",
     bgColor: "bg-green-500/10",
     borderColor: "border-green-500/30",
+  },SLUG_CHANGED: {
+    label: "Slug Atualizado",
+    shortLabel: "Atualizado",
+    icon: TicketSlash,
+    color: "text-green-700",
+    bgColor: "bg-green-500/10",
+    borderColor: "border-green-400/30",
   },
   COINS_PURCHASED: {
     label: "Moedas Compradas",
@@ -857,7 +865,7 @@ const ErrorState = ({ onRetry }: { onRetry: () => void }) => (
     </p>
     <motion.button
       onClick={onRetry}
-      className="px-5 py-2.5 rounded-xl bg-blue-400/10 text-white text-sm font-medium flex items-center gap-2 shadow-lg"
+      className="px-5 py-2.5 rounded-xl bg-blue-400/10 text-sm font-medium flex items-center gap-2 shadow-lg"
       style={{ boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)' }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
@@ -1595,6 +1603,12 @@ const DashboardLogs = () => {
                   label="Presente Recebido"
                   description="Item recebido de outro usuário"
                   color="bg-green-500/10 text-green-400"
+                />
+                <StatusLegendItem
+                  icon={TicketSlash}
+                  label="Slug Atualizado"
+                  description="Slug atualizado pelo usuário"
+                  color="bg-green-500/10 text-green-700"
                 />
                 <StatusLegendItem
                   icon={Send}

@@ -1453,9 +1453,17 @@ const SectionHeader = ({
 // ═══════════════════════════════════════════════════════════
 
 const DashboardCustomization = () => {
-  const handleEffectToggle = (effectKey: keyof CustomizationSettings, value: boolean) => {
-    if (value) {
-      setSettings(prev => ({
+  type EffectKey =
+    | "snowEffect"
+    | "rainEffect"
+    | "cashEffect"
+    | "thunderEffect"
+    | "smokeEffect"
+    | "starsEffect";
+
+  const handleEffectToggle = (effectKey: EffectKey, value: boolean) => {
+    setSettings(prev => {
+      const newSettings = {
         ...prev,
         snowEffect: false,
         rainEffect: false,
@@ -1463,12 +1471,16 @@ const DashboardCustomization = () => {
         thunderEffect: false,
         smokeEffect: false,
         starsEffect: false,
-        [effectKey]: true,
-      }));
-    } else {
-      updateSetting(effectKey, false);
-    }
+      };
+
+      if (value) {
+        newSettings[effectKey] = true;
+      }
+
+      return newSettings;
+    });
   };
+
 
   const { profileData, isLoadingProfile, refreshProfile } = useProfile();
 

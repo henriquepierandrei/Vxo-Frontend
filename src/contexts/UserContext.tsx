@@ -62,6 +62,7 @@ interface PageSettings {
 
 interface ProfileResponse {
   slug: string;
+  premiumExpireAt:  string;
   level: string;
   name: string;
   createdAt: string;
