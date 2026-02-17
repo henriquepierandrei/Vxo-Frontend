@@ -10,6 +10,12 @@ import type{
   User 
 } from '../types/authtypes/auth.types';
 
+// Adicione estes tipos
+export interface ResetPasswordConfirmRequest {
+  token: string;
+  newPassword: string;
+}
+
 class AuthService {
   
   // ==================== LOGIN ====================
@@ -55,25 +61,44 @@ class AuthService {
     return response.data;
   }
 
+  // ==================== PASSWORD RESET ====================
+  
+  /**
+   * Solicita envio de email de recuperação de senha
+   * POST /public/reset-password?email=xxx
+   */
+  async requestPasswordReset(email: string): Promise<string> {
+    const response = await api.post<string>('/public/reset-password', null, {
+      params: { email },
+    });
+    return response.data;
+  }
+
+  /**
+   * Confirma reset de senha com token e nova senha
+   * POST /public/reset-password/confirm
+   */
+  async confirmPasswordReset(token: string, newPassword: string): Promise<string> {
+    const data: ResetPasswordConfirmRequest = { token, newPassword };
+    const response = await api.post<string>('/public/reset-password/confirm', data);
+    return response.data;
+  }
+
   // ==================== LOGOUT ====================
   async logout(): Promise<void> {
     const refreshToken = cookies.get(AUTH_COOKIES.REFRESH_TOKEN);
     
     try {
       if (refreshToken) {
-        // ✅ Envia refreshToken como query parameter
         await api.post(`/user/auth/logout?refreshToken=${encodeURIComponent(refreshToken)}`);
       }
     } catch (error) {
       console.warn('Logout API call failed:', error);
-      // Continua mesmo se falhar - limpa tokens locais de qualquer forma
     } finally {
-      // ✅ SEMPRE limpa os cookies locais
       this.clearAuth();
     }
   }
 
-  // ✅ Limpa todos os dados de autenticação
   clearAuth(): void {
     cookies.remove(AUTH_COOKIES.ACCESS_TOKEN);
     cookies.remove(AUTH_COOKIES.REFRESH_TOKEN);

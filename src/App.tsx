@@ -16,7 +16,6 @@ import RequiresPremium from "./components/guards/RequirePremium";
 // ==================== AUTH PAGES ====================
 import Login from "./pages/authpages/Login";
 import Register from "./pages/authpages/Register";
-import EmailValidation from "./pages/authpages/EmailValidation";
 
 // ==================== PUBLIC PAGES ====================
 import Home from "./pages/homepages/Home";
@@ -41,6 +40,8 @@ import DashboardSettings from "./pages/dashboardpages/DashboardSettings";
 
 // ==================== UTILITIES ====================
 import TitleManager from "./types/TitleManager";
+import ForgotPasswordPage from "./pages/authpages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/authpages/ResetPasswordPage";
 
 function App() {
   return (
@@ -56,7 +57,11 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/validate" element={<EmailValidation />} />
+
+
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                
                 <Route path="/plans" element={<PrincingSection />} />
                 <Route path="/ranking" element={<RankingPage />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
