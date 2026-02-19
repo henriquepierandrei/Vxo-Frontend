@@ -42,7 +42,6 @@ type ItemStatus = "active" | "inactive" | "expired";
 
 const PREVIEW_PROFILE_IMAGE = "https://i.pravatar.cc/300?u=preview";
 
-// ✅ TODAS as 5 raridades do backend
 const RARITY_CONFIG: Record<
   Rarity,
   {
@@ -131,7 +130,6 @@ const formatDate = (date: Date): string => {
   });
 };
 
-// ✅ SAFEGUARD: Sempre retorna uma cor válida
 const getRarityColor = (rarity: Rarity): string => {
   const colors: Record<Rarity, string> = {
     common: "#9CA3AF",
@@ -140,10 +138,9 @@ const getRarityColor = (rarity: Rarity): string => {
     epic: "#A855F7",
     legendary: "#F59E0B",
   };
-  return colors[rarity] || colors.common; // fallback para common
+  return colors[rarity] || colors.common;
 };
 
-// ✅ SAFEGUARD: Sempre retorna um glow válido
 const getRarityGlow = (rarity: Rarity): string => {
   const glows: Record<Rarity, string> = {
     common: "0 0 20px rgba(156, 163, 175, 0.5)",
@@ -152,10 +149,9 @@ const getRarityGlow = (rarity: Rarity): string => {
     epic: "0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.4)",
     legendary: "0 0 25px rgba(245, 158, 11, 0.7), 0 0 50px rgba(245, 158, 11, 0.5)",
   };
-  return glows[rarity] || glows.common; // fallback para common
+  return glows[rarity] || glows.common;
 };
 
-// ✅ SAFEGUARD: Garante que a raridade existe no config
 const getRarityConfig = (rarity: Rarity) => {
   return RARITY_CONFIG[rarity] || RARITY_CONFIG.common;
 };
@@ -441,7 +437,7 @@ const ItemMediaPreview = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE (mantidos iguais, mas com getRarityConfig)
+// COMPONENTES BASE
 // ═══════════════════════════════════════════════════════════
 
 const InventoryCard = ({
@@ -588,7 +584,6 @@ const StatCard = ({
   );
 };
 
-// ✅ ATUALIZADO: Usa getRarityConfig
 const RarityBadge = ({
   rarity,
   size = "md",
@@ -596,7 +591,7 @@ const RarityBadge = ({
   rarity: Rarity;
   size?: "sm" | "md" | "lg";
 }) => {
-  const config = getRarityConfig(rarity); // ✅ Safeguard
+  const config = getRarityConfig(rarity);
   const sizes = {
     sm: "text-[7px] sm:text-[8px] px-1 sm:px-1.5 py-0.5",
     md: "text-[8px] sm:text-[9px] lg:text-[10px] px-1.5 sm:px-2 py-0.5",
@@ -673,7 +668,7 @@ const FilterTab = ({
   </motion.button>
 );
 
-// ✅ ATUALIZADO: Usa getRarityConfig
+// ✅ CORRIGIDO: ItemCard completo
 const ItemCard = ({
   item,
   onClick,
@@ -683,7 +678,7 @@ const ItemCard = ({
   onClick: () => void;
   userProfileImage?: string;
 }) => {
-  const rarityConfig = getRarityConfig(item.rarity); // ✅ Safeguard
+  const rarityConfig = getRarityConfig(item.rarity);
   const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
 
@@ -706,7 +701,22 @@ const ItemCard = ({
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${rarityConfig.gradient} opacity-50`} />
 
-      {item.isNew && (
+      {/* Badge Premium */}
+      {item.isPremium && (
+        <div className="absolute top-1 sm:top-1.5 lg:top-2 right-1 sm:right-1.5 lg:right-2 z-20">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="p-0.5 sm:p-1 rounded-full bg-gradient-to-r from-amber-500/30 to-orange-500/30 border border-amber-500/50"
+            title="Item Premium"
+          >
+            <Sparkles size={8} className="sm:w-[10px] sm:h-[10px] text-amber-400" />
+          </motion.div>
+        </div>
+      )}
+
+      {/* Badge Novo (só aparece se não for premium) */}
+      {item.isNew && !item.isPremium && (
         <div className="absolute top-1 sm:top-1.5 lg:top-2 right-1 sm:right-1.5 lg:right-2 z-20">
           <motion.div
             initial={{ scale: 0 }}
@@ -720,6 +730,7 @@ const ItemCard = ({
         </div>
       )}
 
+      {/* Badge Equipado */}
       {item.isEquipped && (
         <div className="absolute top-1 sm:top-1.5 lg:top-2 left-1 sm:left-1.5 lg:left-2 z-20">
           <div className="p-0.5 sm:px-1.5 sm:py-0.5 rounded-full bg-green-500/20 text-green-400 text-[6px] sm:text-[8px] lg:text-[10px] font-bold flex items-center gap-0.5 border border-green-500/30">
@@ -790,7 +801,6 @@ const ItemCard = ({
   );
 };
 
-// ✅ ATUALIZADO: Usa getRarityConfig
 const PendingGiftCard = ({
   gift,
   onAccept,
@@ -799,7 +809,7 @@ const PendingGiftCard = ({
   onAccept: () => void;
   onDecline: () => void;
 }) => {
-  const rarityConfig = getRarityConfig(gift.rarity); // ✅ Safeguard
+  const rarityConfig = getRarityConfig(gift.rarity);
 
   return (
     <motion.div
@@ -871,7 +881,6 @@ const PendingGiftCard = ({
             <Check size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" />
             <span>Marcar como visto</span>
           </motion.button>
-          
         </div>
       </div>
     </motion.div>
@@ -949,13 +958,13 @@ const Modal = ({
   );
 };
 
-// ✅ ATUALIZADO: Usa getRarityConfig
 const ItemDetailModal = ({
   item,
   onClose,
   onEquip,
   onUnequip,
   userProfileImage,
+  isEquipping = false,
 }: {
   item: InventoryItem;
   onClose: () => void;
@@ -963,12 +972,16 @@ const ItemDetailModal = ({
   onUnequip: () => void;
   onGift: () => void;
   userProfileImage?: string;
+  isEquipping?: boolean;
 }) => {
-  const rarityConfig = getRarityConfig(item.rarity); // ✅ Safeguard
+  const rarityConfig = getRarityConfig(item.rarity);
   const typeConfig = ITEM_TYPE_CONFIG[item.type];
   const TypeIcon = typeConfig.icon;
   const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
+  
+  // ✅ Verificar se pode equipar (não pode se for premium)
+  const canEquip = !item.isPremium;
 
   return (
     <div className="relative overflow-hidden">
@@ -994,7 +1007,7 @@ const ItemDetailModal = ({
           userProfileImage={userProfileImage}
         />
 
-        <div className="absolute top-2 sm:top-3 lg:top-4 left-2 sm:left-3 lg:left-4">
+        <div className="absolute top-2 sm:top-3 lg:top-4 left-2 sm:left-3 lg:left-4 flex flex-wrap gap-1.5">
           <span
             className={`
               px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full text-[8px] sm:text-[10px] lg:text-xs font-bold
@@ -1004,6 +1017,14 @@ const ItemDetailModal = ({
           >
             {rarityConfig.label}
           </span>
+          
+          {/* Badge Premium */}
+          {item.isPremium && (
+            <span className="px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 text-[8px] sm:text-[10px] lg:text-xs font-bold border border-amber-500/30 flex items-center gap-1">
+              <Sparkles size={8} className="sm:w-[10px] sm:h-[10px] lg:w-3 lg:h-3" />
+              <span className="hidden sm:inline">Premium</span>
+            </span>
+          )}
         </div>
 
         {item.isEquipped && (
@@ -1058,30 +1079,92 @@ const ItemDetailModal = ({
           )}
         </div>
 
+        {/* Aviso para itens Premium */}
+        {item.isPremium && !isExpired && (
+          <motion.div
+            className="p-2.5 sm:p-3 lg:p-4 rounded-[var(--border-radius-md)] bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 mb-3 sm:mb-4 lg:mb-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-full bg-amber-500/20 flex-shrink-0">
+                <Sparkles size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-amber-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] sm:text-xs lg:text-sm font-semibold text-amber-400">
+                  Item Premium Exclusivo
+                </p>
+                <p className="text-[9px] sm:text-[10px] lg:text-xs text-[var(--color-text-muted)] mt-0.5">
+                  Este item é decorativo e não pode ser equipado. Itens premium são exclusivos para colecionadores.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {!isExpired && (
           <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 lg:gap-3">
             {item.isEquipped ? (
               <motion.button
                 onClick={onUnequip}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] text-[10px] sm:text-xs lg:text-sm font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={isEquipping}
+                className={`
+                  flex-1 px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-[var(--border-radius-md)]
+                  bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]
+                  text-[var(--color-text)] text-[10px] sm:text-xs lg:text-sm font-medium
+                  transition-all flex items-center justify-center gap-1.5 sm:gap-2
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                `}
+                whileHover={!isEquipping ? { scale: 1.02 } : {}}
+                whileTap={!isEquipping ? { scale: 0.98 } : {}}
               >
-                <Eye size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
-                Desequipar
+                {isEquipping ? (
+                  <>
+                    <Loader2 size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 animate-spin" />
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
+                    <span>Desequipar</span>
+                  </>
+                )}
               </motion.button>
             ) : (
               <motion.button
                 onClick={onEquip}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-[10px] sm:text-xs lg:text-sm font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={isEquipping || !canEquip}
+                className={`
+                  flex-1 px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-[var(--border-radius-md)]
+                  ${canEquip 
+                    ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]" 
+                    : "bg-gray-500/50 cursor-not-allowed"
+                  }
+                  text-white text-[10px] sm:text-xs lg:text-sm font-medium
+                  transition-all flex items-center justify-center gap-1.5 sm:gap-2
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                `}
+                whileHover={!isEquipping && canEquip ? { scale: 1.02 } : {}}
+                whileTap={!isEquipping && canEquip ? { scale: 0.98 } : {}}
               >
-                <Check size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
-                Equipar
+                {isEquipping ? (
+                  <>
+                    <Loader2 size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 animate-spin" />
+                    <span>Equipando...</span>
+                  </>
+                ) : !canEquip ? (
+                  <>
+                    <Sparkles size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
+                    <span>Item Premium</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
+                    <span>Equipar</span>
+                  </>
+                )}
               </motion.button>
             )}
-            
           </div>
         )}
 
@@ -1107,7 +1190,6 @@ const ItemDetailModal = ({
   );
 };
 
-// ✅ ATUALIZADO: Usa getRarityConfig
 const GiftOpeningModal = ({
   isOpen,
   gift,
@@ -1131,7 +1213,7 @@ const GiftOpeningModal = ({
 
   if (!gift) return null;
 
-  const rarityConfig = getRarityConfig(gift.rarity); // ✅ Safeguard
+  const rarityConfig = getRarityConfig(gift.rarity);
 
   return (
     <AnimatePresence>
@@ -1362,6 +1444,7 @@ const DashboardInventory = () => {
     refreshInventory,
     markGiftAsViewed,
     markAllGiftsAsViewed,
+    toggleEquipItem,
   } = useInventory();
 
   const { profileData } = useProfile();
@@ -1371,6 +1454,7 @@ const DashboardInventory = () => {
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [giftToOpen, setGiftToOpen] = useState<PendingGift | null>(null);
   const [showGiftOpening, setShowGiftOpening] = useState(false);
+  const [isEquipping, setIsEquipping] = useState(false);
 
   const userProfileImage = profileData?.pageSettings?.mediaUrls?.profileImageUrl;
 
@@ -1444,6 +1528,38 @@ const DashboardInventory = () => {
     }
     setShowGiftOpening(false);
     setGiftToOpen(null);
+  };
+
+  // ✅ CORRIGIDO: Handler para equipar/desequipar
+  const handleEquipItem = async (itemId: string) => {
+    // Busca o item para validação
+    const item = items.find(i => i.id === itemId);
+    
+    // Validação: Não permite equipar itens premium
+    if (item?.isPremium && !item?.isEquipped) {
+      console.warn("[Inventory] Tentativa de equipar item premium bloqueada");
+      return;
+    }
+    
+    try {
+      setIsEquipping(true);
+      await toggleEquipItem(itemId);
+      
+      // Atualiza o item selecionado se ainda estiver aberto
+      if (selectedItem && selectedItem.id === itemId) {
+        // Aguarda um tick para pegar o estado atualizado
+        setTimeout(() => {
+          const updatedItem = items.find(i => i.id === itemId);
+          if (updatedItem) {
+            setSelectedItem({ ...updatedItem, isEquipped: !updatedItem.isEquipped });
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error("Erro ao equipar item:", error);
+    } finally {
+      setIsEquipping(false);
+    }
   };
 
   if (isLoadingInventory && items.length === 0) {
@@ -1646,6 +1762,7 @@ const DashboardInventory = () => {
         </div>
       </InventoryCard>
 
+      {/* Modal de Detalhes do Item */}
       <Modal
         isOpen={selectedItem !== null}
         onClose={() => setSelectedItem(null)}
@@ -1655,19 +1772,14 @@ const DashboardInventory = () => {
           <ItemDetailModal
             item={selectedItem}
             onClose={() => setSelectedItem(null)}
-            onEquip={() => {
-              console.log("Equipar", selectedItem.id);
-              setSelectedItem(null);
-            }}
-            onUnequip={() => {
-              console.log("Desequipar", selectedItem.id);
-              setSelectedItem(null);
-            }}
+            onEquip={() => handleEquipItem(selectedItem.id)}
+            onUnequip={() => handleEquipItem(selectedItem.id)}
             onGift={() => {
               console.log("Presentear", selectedItem.id);
               setSelectedItem(null);
             }}
             userProfileImage={userProfileImage}
+            isEquipping={isEquipping}
           />
         )}
       </Modal>

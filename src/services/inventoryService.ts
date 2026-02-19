@@ -58,6 +58,21 @@ export interface UserInventoryResponse {
   unviewedGiftsCount: number;
 }
 
+
+
+export interface ItemEquippedResponse {
+  id: string;
+  name: string;
+  type: string;
+  isPremium: boolean,
+  equipped: boolean;
+}
+
+export interface EquipInventoryResponse {
+  equipped: ItemEquippedResponse[];
+  unequipped: ItemEquippedResponse[];
+}
+
 // ═══════════════════════════════════════════════════════════
 // SERVICE
 // ═══════════════════════════════════════════════════════════
@@ -82,6 +97,34 @@ class InventoryService {
       `/user/inventory/gifts/${giftId}/mark-viewed`
     );
     return response.data;
+  }
+  
+  async equipItem(itemId: string): Promise<EquipInventoryResponse> {
+    try {
+      const response = await api.post<EquipInventoryResponse>(
+        "/user/inventory/equip",
+        { itemId }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("[InventoryService] Erro ao equipar item:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca itens equipados e não equipados
+   */
+  async getEquippedItems(): Promise<EquipInventoryResponse> {
+    try {
+      const response = await api.get<EquipInventoryResponse>(
+        "/user/inventory/equipped"
+      );
+      return response.data;
+    } catch (error) {
+      console.error("[InventoryService] Erro ao buscar itens equipados:", error);
+      throw error;
+    }
   }
 
   // ✅ Marcar todos os presentes como visualizados

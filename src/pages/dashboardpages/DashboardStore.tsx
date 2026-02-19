@@ -1,6 +1,8 @@
 // pages/dashboard/DashboardStore.tsx
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useProfile } from "../../contexts/UserContext";
+import { useNavigate } from "react-router-dom";
+
 import {
   useStore,
   type StoreItem,
@@ -1675,7 +1677,7 @@ const StoreItemCard = ({
                   {item.isEquipped ? (
                     <><X size={14} />Desequipar</>
                   ) : (
-                    <><Check size={14} />Equipar</>
+                    <><Check size={14} />Ver no Inventário</>
                   )}
                 </motion.button>
               </div>
@@ -2042,6 +2044,9 @@ const DashboardStore = () => {
     setIsPurchaseModalOpen(true);
   };
 
+  const navigate = useNavigate();
+
+
   const handlePurchase = async () => {
     if (!selectedItem) return;
 
@@ -2074,25 +2079,25 @@ const DashboardStore = () => {
   };
 
   const handleEquip = async (item: StoreItem) => {
-    setIsSubmitting(true);
-    setLocalError(null);
+  setIsSubmitting(true);
+  setLocalError(null);
 
-    try {
-      if (item.isEquipped) {
-        await unequipItem(item.id);
-        setSuccessMessage(`${item.name} desequipado!`);
-      } else {
-        await equipItem(item.id);
-        setSuccessMessage(`${item.name} equipado com sucesso!`);
-      }
-      setTimeout(() => setSuccessMessage(""), 3000);
-    } catch (err: any) {
-      console.error("Erro ao equipar/desequipar item:", err);
-      setLocalError(err.response?.data?.message || "Erro ao equipar item. Tente novamente.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  try {
+    
+    // Pequeno delay pra UX não parecer bugado
+    setTimeout(() => {
+      navigate("/dashboard/inventory");
+    }, 1000);
+
+  } catch (err: any) {
+
+    setLocalError(
+      err.response?.data?.message || "Erro ao ir para o inventário."
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const handleFavorite = (item: StoreItem) => {
     toggleFavorite(item.id);

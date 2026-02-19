@@ -47,13 +47,13 @@ class AuthService {
   async register(
     name: string, 
     email: string, 
-    url: string, 
+    slug: string, 
     password: string
   ): Promise<DefaultResponse> {
     const registerData: RegisterRequest = {
       name,
       email,
-      url,
+      slug,
       hashPassword: password,
     };
 

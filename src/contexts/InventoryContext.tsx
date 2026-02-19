@@ -77,6 +77,8 @@ interface InventoryContextData {
   refreshInventory: () => Promise<void>;
   markGiftAsViewed: (giftId: string) => Promise<void>;
   markAllGiftsAsViewed: () => Promise<void>;
+  toggleEquipItem: (itemId: string) => Promise<void>;
+
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -131,11 +133,13 @@ function deriveRarityFromFlags(isPremium: boolean, isLimited: boolean): Rarity {
 /**
  * ✅ ATUALIZADO: Mapeia item do backend para o frontend
  */
-function mapToInventoryItem(raw: InventoryItemResponse): InventoryItem {
+function mapToInventoryItem(
+  raw: InventoryItemResponse,
+  equippedItemIds: Set<string> = new Set()
+): InventoryItem {
   const obtainedAt = new Date(raw.acquiredAt);
-  const isNew = Date.now() - obtainedAt.getTime() < 7 * 24 * 60 * 60 * 1000; // 7 dias
+  const isNew = Date.now() - obtainedAt.getTime() < 7 * 24 * 60 * 60 * 1000;
 
-  // ✅ Prioriza itemRarity do backend, mas tem fallback
   const rarity = raw.itemRarity 
     ? normalizeRarity(raw.itemRarity)
     : deriveRarityFromFlags(raw.isPremium, raw.isLimited);
@@ -146,13 +150,13 @@ function mapToInventoryItem(raw: InventoryItemResponse): InventoryItem {
     description: raw.itemDescription,
     imageUrl: raw.itemUrl,
     type: mapItemType(raw.itemType),
-    rarity, // ✅ Agora vem do backend
-    status: "active", // TODO: Adicionar lógica de expiração se necessário
+    rarity,
+    status: "active",
     isLimited: raw.isLimited,
     isPremium: raw.isPremium,
     obtainedAt,
     isNew,
-    isEquipped: false, // TODO: Adicionar endpoint para isso ou derivar
+    isEquipped: equippedItemIds.has(raw.itemId), // ✅ AGORA FUNCIONAL
   };
 }
 
@@ -202,13 +206,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const location = useLocation();
 
-  
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [pendingGifts, setPendingGifts] = useState<PendingGift[]>([]);
   const [unviewedGiftsCount, setUnviewedGiftsCount] = useState(0);
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
+  
+  // ✅ NOVO: Estado para controlar IDs equipados
+  const [equippedItemIds, setEquippedItemIds] = useState<Set<string>>(new Set());
 
-  // ✅ Controle de fetch
   const hasFetchedRef = useRef(false);
   const isFetchingRef = useRef(false);
   const lastUserIdRef = useRef<string | null>(null);
@@ -230,32 +235,81 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
       setIsLoadingInventory(true);
 
       console.log("[InventoryContext] Buscando inventário...");
-      const data = await inventoryService.getUserInventory();
+      
+      // ✅ Busca inventário e itens equipados em paralelo
+      const [inventoryData, equippedData] = await Promise.all([
+        inventoryService.getUserInventory(),
+        inventoryService.getEquippedItems(),
+      ]);
 
-      // ✅ Mapeia os items com a nova lógica de raridade
-      const mappedItems = data.items.map(mapToInventoryItem);
-      const mappedGifts = data.unviewedGifts.map(mapToPendingGift);
+      // ✅ Cria Set com IDs dos itens equipados
+      const equipped = new Set(equippedData.equipped.map(item => item.id));
+      setEquippedItemIds(equipped);
+
+      // ✅ Mapeia os items COM informação de equipados
+      const mappedItems = inventoryData.items.map(item => 
+        mapToInventoryItem(item, equipped)
+      );
+      const mappedGifts = inventoryData.unviewedGifts.map(mapToPendingGift);
 
       setItems(mappedItems);
       setPendingGifts(mappedGifts);
-      setUnviewedGiftsCount(data.unviewedGiftsCount);
+      setUnviewedGiftsCount(inventoryData.unviewedGiftsCount);
       hasFetchedRef.current = true;
 
       console.log("[InventoryContext] Inventário carregado:", {
         items: mappedItems.length,
         gifts: mappedGifts.length,
-        itemsWithRarity: mappedItems.map(i => ({ name: i.name, rarity: i.rarity })),
+        equipped: equipped.size,
       });
     } catch (error) {
       console.error("[InventoryContext] Erro ao carregar inventário:", error);
       setItems([]);
       setPendingGifts([]);
       setUnviewedGiftsCount(0);
+      setEquippedItemIds(new Set());
     } finally {
       setIsLoadingInventory(false);
       isFetchingRef.current = false;
     }
   }, []);
+
+  // ✅ NOVO: Toggle equipar/desequipar item
+ // ✅ Toggle equipar/desequipar item com validação
+const toggleEquipItem = useCallback(async (itemId: string) => {
+  // ✅ Busca o item atual para validação
+  const currentItem = items.find(i => i.id === itemId);
+  
+  // ✅ Se for premium e não estiver equipado, bloqueia
+  if (currentItem?.isPremium && !currentItem?.isEquipped) {
+    console.warn("[InventoryContext] Bloqueado: Itens premium não podem ser equipados");
+    throw new Error("Itens premium não podem ser equipados");
+  }
+  
+  try {
+    console.log("[InventoryContext] Equipando/Desequipando item:", itemId);
+    
+    // Chama o backend
+    const response = await inventoryService.equipItem(itemId);
+
+    // ✅ Atualiza o Set de equipados baseado na resposta
+    const newEquippedIds = new Set(response.equipped.map(item => item.id));
+    setEquippedItemIds(newEquippedIds);
+
+    // ✅ Atualiza o estado local dos items
+    setItems(prevItems =>
+      prevItems.map(item => ({
+        ...item,
+        isEquipped: newEquippedIds.has(item.id),
+      }))
+    );
+
+    console.log("[InventoryContext] Item atualizado. Equipados:", newEquippedIds.size);
+  } catch (error) {
+    console.error("[InventoryContext] Erro ao equipar item:", error);
+    throw error;
+  }
+}, [items]);
 
   // ── Refresh forçado ──────────────────────────────────────
   const refreshInventory = useCallback(async () => {
@@ -316,7 +370,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id, location.pathname, fetchInventory]);
 
-  return (
+   return (
     <InventoryContext.Provider
       value={{
         items,
@@ -326,6 +380,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         refreshInventory,
         markGiftAsViewed,
         markAllGiftsAsViewed,
+        toggleEquipItem, // ✅ NOVO
       }}
     >
       {children}

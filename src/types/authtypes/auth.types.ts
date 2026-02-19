@@ -7,7 +7,7 @@ export interface LoginRequest {
 
 export interface RegisterRequest {
   name: string;
-  url: string;
+  slug: string;
   email: string;
   hashPassword: string;
 }

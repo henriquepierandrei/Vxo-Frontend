@@ -14,7 +14,7 @@ import type { User, AuthState, DefaultResponse } from '../types/authtypes/auth.t
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
-  register: (name: string, email: string, url: string, password: string) => Promise<DefaultResponse>;
+  register: (name: string, email: string, slug: string, password: string) => Promise<DefaultResponse>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -107,10 +107,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = useCallback(async (
     name: string,
     email: string,
-    url: string,
+    slug: string,
     password: string
   ): Promise<DefaultResponse> => {
-    const response = await authService.register(name, email, url, password);
+    const response = await authService.register(name, email, slug, password);
     return response;
   }, []);
 
