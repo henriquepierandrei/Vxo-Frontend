@@ -30,7 +30,7 @@ import {
   ChevronDown,
   User,
   Loader2,
-  Gift, 
+  Gift,
 } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════
@@ -121,14 +121,14 @@ const SpinWheelIcon = memo(({ size = 20, className = "" }: { size?: number; clas
       >
         {/* Círculo externo */}
         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
-        
+
         {/* Segmentos da roleta */}
         <path d="M12 2 L12 12 L20.5 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         <path d="M12 12 L20.5 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         <path d="M12 12 L12 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         <path d="M12 12 L3.5 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         <path d="M12 12 L3.5 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        
+
         {/* Centro */}
         <circle cx="12" cy="12" r="3" fill="currentColor" />
       </svg>
@@ -207,9 +207,8 @@ const NavItemComponent = memo(({
         {!isCollapsed && (
           <div className="ml-auto flex items-center gap-2 relative z-10">
             {item.badge && !isBlocked && (
-              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full text-white ${
-                isHighlight ? "bg-gradient-to-r from-amber-500 to-orange-500 animate-pulse" : "bg-[var(--color-primary)]"
-              }`}>
+              <span className={`px-2 py-0.5 text-xs font-semibold rounded-full text-white ${isHighlight ? "bg-gradient-to-r from-amber-500 to-orange-500 animate-pulse" : "bg-[var(--color-primary)]"
+                }`}>
                 {item.badge}
               </span>
             )}
@@ -241,9 +240,8 @@ const NavItemComponent = memo(({
               {item.label}
             </span>
             {item.badge && !isBlocked && (
-              <span className={`px-1.5 py-0.5 text-xs rounded-full text-white ${
-                isHighlight ? "bg-gradient-to-r from-amber-500 to-orange-500" : "bg-[var(--color-primary)]"
-              }`}>
+              <span className={`px-1.5 py-0.5 text-xs rounded-full text-white ${isHighlight ? "bg-gradient-to-r from-amber-500 to-orange-500" : "bg-[var(--color-primary)]"
+                }`}>
                 {item.badge}
               </span>
             )}
@@ -327,7 +325,7 @@ const Sidebar = () => {
           badge: "🎁",
           highlight: true, // EM BREVE
           isBlock: true,
-          blockReason:  "Breve"
+          blockReason: "Breve"
         },
       ],
     },
@@ -491,6 +489,23 @@ const Sidebar = () => {
                 <span className="text-sm font-medium">
                   {isDark ? "Modo Claro" : "Modo Escuro"}
                 </span>
+              </button>
+              <button
+                onClick={() => navigate("/")}
+                className={`
+              w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
+              bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]
+              text-[var(--color-text-muted)] hover:text-[var(--color-text)]
+              transition-all duration-300 z-0 my-2
+              ${isCollapsed ? "justify-center" : ""}
+            `}
+              >
+                {<Home />}
+                {!isCollapsed && (
+                  <span className="text-sm font-medium">
+                    Voltar para Home
+                  </span>
+                )}
               </button>
 
               {/* Mobile User Card */}
@@ -660,6 +675,23 @@ const Sidebar = () => {
             {!isCollapsed && (
               <span className="text-sm font-medium">
                 {isDark ? "Modo Claro" : "Modo Escuro"}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => navigate("/")}
+            className={`
+              w-full flex items-center gap-3 px-3 py-2.5 rounded-[var(--border-radius-sm)]
+              bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)]
+              text-[var(--color-text-muted)] hover:text-[var(--color-text)]
+              transition-all duration-300 z-0 my-2
+              ${isCollapsed ? "justify-center" : ""}
+            `}
+          >
+            {<Home />}
+            {!isCollapsed && (
+              <span className="text-sm font-medium">
+                Voltar para Home
               </span>
             )}
           </button>

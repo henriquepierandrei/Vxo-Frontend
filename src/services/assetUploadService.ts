@@ -1,5 +1,5 @@
 // services/assetUploadService.ts
-import api from './api'; // seu axios instance
+import api from './api';
 
 export interface AssetUploadResponse {
   success: boolean;
@@ -14,9 +14,6 @@ export interface AssetUploadResponse {
 }
 
 export const assetUploadService = {
-  /**
-   * Upload de todos os assets de uma vez
-   */
   uploadAssets: async (files: {
     avatar?: File | null;
     cursor?: File | null;
@@ -38,16 +35,35 @@ export const assetUploadService = {
     if (files.music) {
       formData.append('music', files.music);
     }
-     if (files.favicon) {
+    if (files.favicon) {
       formData.append('favicon', files.favicon);
     }
 
-    const response = await api.post('/user/assets/all-upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    try {
+      const response = await api.post('/user/assets/all-upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-    return response.data;
+      // ✅ Mapeia a resposta do backend para o formato esperado
+      const data = response.data;
+      
+      return {
+        success: data.success ?? true,
+        message: data.message ?? 'Upload realizado',
+        urls: data.urls ?? undefined,
+      };
+    } catch (error: unknown) {
+      const axiosError = error as { 
+        response?: { data?: { message?: string } } 
+      };
+      
+      return {
+        success: false,
+        message: axiosError.response?.data?.message || 'Erro no upload',
+        urls: undefined,
+      };
+    }
   },
 };

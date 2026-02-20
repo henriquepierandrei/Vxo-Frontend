@@ -645,10 +645,9 @@ const FilterTab = ({
     className={`
       relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-[var(--border-radius-md)]
       text-[9px] sm:text-[10px] lg:text-xs font-medium transition-all duration-300 whitespace-nowrap flex-shrink-0
-      ${
-        active
-          ? "bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/25"
-          : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+      ${active
+        ? "bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/25"
+        : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
       }
     `}
     whileHover={{ scale: 1.02 }}
@@ -733,7 +732,7 @@ const ItemCard = ({
       {/* Badge Equipado */}
       {item.isEquipped && (
         <div className="absolute top-1 sm:top-1.5 lg:top-2 left-1 sm:left-1.5 lg:left-2 z-20">
-          <div className="p-0.5 sm:px-1.5 sm:py-0.5 rounded-full bg-green-500/20 text-green-400 text-[6px] sm:text-[8px] lg:text-[10px] font-bold flex items-center gap-0.5 border border-green-500/30">
+          <div className="p-0.5 sm:px-1.5 sm:py-0.5 rounded-full bg-green-900/20 text-green-700 text-[6px] sm:text-[8px] lg:text-[10px] font-bold flex items-center gap-0.5 border border-green-500/30">
             <Check size={8} className="sm:w-[10px] sm:h-[10px]" />
             <span className="hidden lg:inline">EQUIPADO</span>
           </div>
@@ -856,7 +855,7 @@ const PendingGiftCard = ({
             </span>
           </div>
           <h3 className="text-[10px] sm:text-xs lg:text-sm font-semibold text-[var(--color-text)] truncate">
-            {gift.hasCoinOffered && gift.amountCoinsOffered 
+            {gift.hasCoinOffered && gift.amountCoinsOffered
               ? `${gift.amountCoinsOffered} Vcoins`
               : gift.itemName || "Presente"}
           </h3>
@@ -979,10 +978,13 @@ const ItemDetailModal = ({
   const TypeIcon = typeConfig.icon;
   const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
-  
-  // ✅ Verificar se pode equipar (não pode se for premium)
-  const canEquip = !item.isPremium;
 
+  // ✅ Verificar se pode equipar (não pode se for premium)
+
+  const { profileData } = useProfile();
+
+
+  const canEquip = !item.isPremium || profileData?.isPremium;
   return (
     <div className="relative overflow-hidden">
       <motion.button
@@ -1017,7 +1019,7 @@ const ItemDetailModal = ({
           >
             {rarityConfig.label}
           </span>
-          
+
           {/* Badge Premium */}
           {item.isPremium && (
             <span className="px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 text-[8px] sm:text-[10px] lg:text-xs font-bold border border-amber-500/30 flex items-center gap-1">
@@ -1069,17 +1071,14 @@ const ItemDetailModal = ({
             <div className="p-2 sm:p-2.5 lg:p-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)]">
               <p className="text-[8px] sm:text-[9px] lg:text-[10px] text-[var(--color-text-muted)] mb-0.5">Expira em</p>
               <p
-                className={`text-[10px] sm:text-xs lg:text-sm font-medium ${
-                  daysRemaining <= 7 ? "text-red-400" : "text-[var(--color-text)]"
-                }`}
+                className={`text-[10px] sm:text-xs lg:text-sm font-medium ${daysRemaining <= 7 ? "text-red-400" : "text-[var(--color-text)]"
+                  }`}
               >
                 {daysRemaining <= 0 ? "Expirado" : `${daysRemaining} dias`}
               </p>
             </div>
           )}
         </div>
-
-        {/* Aviso para itens Premium */}
         {item.isPremium && !isExpired && (
           <motion.div
             className="p-2.5 sm:p-3 lg:p-4 rounded-[var(--border-radius-md)] bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 mb-3 sm:mb-4 lg:mb-6"
@@ -1136,8 +1135,8 @@ const ItemDetailModal = ({
                 disabled={isEquipping || !canEquip}
                 className={`
                   flex-1 px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-[var(--border-radius-md)]
-                  ${canEquip 
-                    ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]" 
+                  ${canEquip
+                    ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]"
                     : "bg-gray-500/50 cursor-not-allowed"
                   }
                   text-white text-[10px] sm:text-xs lg:text-sm font-medium
@@ -1346,7 +1345,7 @@ const GiftOpeningModal = ({
                       transition={{ delay: 0.5 }}
                       className="mt-2 sm:mt-3 lg:mt-4 text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-[var(--color-text)] px-4"
                     >
-                      {gift.hasCoinOffered && gift.amountCoinsOffered 
+                      {gift.hasCoinOffered && gift.amountCoinsOffered
                         ? `${gift.amountCoinsOffered} Vcoins`
                         : gift.itemName || "Presente Especial"}
                     </motion.h2>
@@ -1457,19 +1456,20 @@ const DashboardInventory = () => {
   const [isEquipping, setIsEquipping] = useState(false);
 
   const userProfileImage = profileData?.pageSettings?.mediaUrls?.profileImageUrl;
+  const userIsPremium = profileData?.isPremium;
 
   const filters: {
     key: "all" | ItemType | "expired";
     label: string;
     icon?: React.ElementType;
   }[] = [
-    { key: "all", label: "Todos" },
-    { key: "frame", label: "Molduras", icon: Frame },
-    { key: "badge", label: "Insígnias", icon: BadgeCheck },
-    { key: "effect", label: "Efeitos", icon: Zap },
-    { key: "gift", label: "Presentes", icon: Gift },
-    { key: "expired", label: "Expirados", icon: Clock },
-  ];
+      { key: "all", label: "Todos" },
+      { key: "frame", label: "Molduras", icon: Frame },
+      { key: "badge", label: "Insígnias", icon: BadgeCheck },
+      { key: "effect", label: "Efeitos", icon: Zap },
+      { key: "gift", label: "Presentes", icon: Gift },
+      { key: "expired", label: "Expirados", icon: Clock },
+    ];
 
   const filteredItems = useMemo(() => {
     let result = [...items];
@@ -1530,31 +1530,20 @@ const DashboardInventory = () => {
     setGiftToOpen(null);
   };
 
-  // ✅ CORRIGIDO: Handler para equipar/desequipar
+  // handleEquipItem — remova a validação errada
   const handleEquipItem = async (itemId: string) => {
-    // Busca o item para validação
     const item = items.find(i => i.id === itemId);
-    
-    // Validação: Não permite equipar itens premium
-    if (item?.isPremium && !item?.isEquipped) {
+
+    // ✅ Bloqueia só se item é premium E user NÃO é premium
+    if (item?.isPremium && !item?.isEquipped && !userIsPremium) {
       console.warn("[Inventory] Tentativa de equipar item premium bloqueada");
       return;
     }
-    
+
     try {
       setIsEquipping(true);
       await toggleEquipItem(itemId);
-      
-      // Atualiza o item selecionado se ainda estiver aberto
-      if (selectedItem && selectedItem.id === itemId) {
-        // Aguarda um tick para pegar o estado atualizado
-        setTimeout(() => {
-          const updatedItem = items.find(i => i.id === itemId);
-          if (updatedItem) {
-            setSelectedItem({ ...updatedItem, isEquipped: !updatedItem.isEquipped });
-          }
-        }, 100);
-      }
+      // ...resto igual
     } catch (error) {
       console.error("Erro ao equipar item:", error);
     } finally {
@@ -1604,9 +1593,9 @@ const DashboardInventory = () => {
             whileTap={{ scale: 0.95 }}
             title="Atualizar inventário"
           >
-            <RefreshCw 
-              size={14} 
-              className={`sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[var(--color-text-muted)] ${isLoadingInventory ? 'animate-spin' : ''}`} 
+            <RefreshCw
+              size={14}
+              className={`sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-[var(--color-text-muted)] ${isLoadingInventory ? 'animate-spin' : ''}`}
             />
           </motion.button>
         </motion.div>
@@ -1728,15 +1717,15 @@ const DashboardInventory = () => {
             ))}
           </div>
         </div>
-
+        <p className="p-3 opacity-[0.5] text-xs flex gap-1 bg-[red] bg-opacity-[0.2] rounded-4xl "><AlertTriangle size={16} /> Caso seu Premium tenha <strong>expirado,</strong> os itens premium serão desabilitados para uso, porém, <strong>serão  permanecidos na conta</strong>. </p>
         <div className="p-2.5 sm:p-3 lg:p-4 xl:p-6">
           {filteredItems.length > 0 ? (
             <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 xl:gap-4">
               <AnimatePresence mode="popLayout">
                 {filteredItems.map((item) => (
-                  <ItemCard 
-                    key={item.id} 
-                    item={item} 
+                  <ItemCard
+                    key={item.id}
+                    item={item}
                     onClick={() => setSelectedItem(item)}
                     userProfileImage={userProfileImage}
                   />

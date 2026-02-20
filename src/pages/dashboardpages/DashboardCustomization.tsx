@@ -38,8 +38,9 @@ import {
   Volume2,
   VolumeX,
   Info,
-  Globe, // ✅ Novo ícone para favicon
-  Crown,  // ✅ Ícone premium
+  Globe,
+  Crown,
+  PaintBucket,
 } from "lucide-react";
 import { customizationService } from "../../services/customizationService";
 import { assetUploadService } from "../../services/assetUploadService";
@@ -54,10 +55,17 @@ import type {
 } from "../../types/customization.types";
 
 // ═══════════════════════════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════════════════════════
+
+const DEFAULT_PROFILE_IMAGE = "https://vxo.lat/default-profile.png";
+
+// ═══════════════════════════════════════════════════════════
 // TIPOS LOCAIS
 // ═══════════════════════════════════════════════════════════
 
 type MediaType = "image" | "video" | "audio" | "unknown";
+type BackgroundType = "media" | "color";
 
 interface CustomizationSettings {
   // Card Settings
@@ -81,7 +89,10 @@ interface CustomizationSettings {
   profileImageUrl: string;
   musicUrl: string;
   cursorUrl: string;
-  faviconUrl: string; // ✅ NOVO
+  faviconUrl: string;
+  // Background Type
+  backgroundType: BackgroundType;
+  staticBackgroundColor: string;
   // Page Effects
   snowEffect: boolean;
   rainEffect: boolean;
@@ -96,7 +107,7 @@ interface FileUploads {
   background: File | null;
   music: File | null;
   cursor: File | null;
-  favicon: File | null; // ✅ NOVO
+  favicon: File | null;
 }
 
 interface FileUploadProps {
@@ -108,11 +119,11 @@ interface FileUploadProps {
   onRemove: () => void;
   icon?: React.ElementType;
   helperText?: string;
-  previewType?: "image" | "audio" | "cursor" | "media" | "favicon"; // ✅ ATUALIZADO
+  previewType?: "image" | "audio" | "cursor" | "media" | "favicon";
   minHeight?: string;
   disabled?: boolean;
-  isPremiumFeature?: boolean; // ✅ NOVO
-  userIsPremium?: boolean;     // ✅ NOVO
+  isPremiumFeature?: boolean;
+  userIsPremium?: boolean;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -122,7 +133,7 @@ interface FileUploadProps {
 const CARD_MIN_HEIGHTS = {
   cardAppearance: "540px",
   profileInfo: "680px",
-  media: "720px", // ✅ AUMENTADO para comportar favicon
+  media: "880px",
   effects: "520px",
 } as const;
 
@@ -131,7 +142,7 @@ const FILE_UPLOAD_HEIGHTS = {
   audio: "140px",
   cursor: "120px",
   media: "160px",
-  favicon: "140px", // ✅ NOVO
+  favicon: "140px",
   empty: "120px",
 } as const;
 
@@ -164,7 +175,6 @@ const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Funções para backup local
 const saveToLocalStorage = (settings: Partial<CustomizationSettings>) => {
   try {
     const existing = localStorage.getItem(STORAGE_KEY);
@@ -193,7 +203,7 @@ const getFromLocalStorage = (): Partial<CustomizationSettings> | null => {
 };
 
 // ═══════════════════════════════════════════════════════════
-// TRANSFORMAÇÃO DE DADOS - ATUALIZADO PARA NOVOS TYPES
+// TRANSFORMAÇÃO DE DADOS
 // ═══════════════════════════════════════════════════════════
 
 const profileDataToSettings = (
@@ -205,6 +215,20 @@ const profileDataToSettings = (
   const nameEffects = pageSettings?.nameEffects as NameEffects | undefined;
   const mediaUrls = pageSettings?.mediaUrls as MediaUrls | undefined;
   const pageEffects = pageSettings?.pageEffects as PageEffects | undefined;
+
+  // ✅ CORRIGIDO - Ler "staticBackgroundColor" (nome correto do backend)
+  const staticColor = (pageSettings as { staticBackgroundColor?: string })?.staticBackgroundColor || "";
+  const backgroundUrl = mediaUrls?.backgroundUrl || "";
+
+  // ✅ CORRIGIDO - Detectar tipo de background
+  // Se tem cor estática definida, prioriza cor sólida
+  let backgroundType: BackgroundType = "media";
+
+  if (staticColor && staticColor.trim() !== "") {
+    backgroundType = "color";
+  } else if (backgroundUrl && backgroundUrl.trim() !== "") {
+    backgroundType = "media";
+  }
 
   return {
     // Card Settings
@@ -224,12 +248,15 @@ const profileDataToSettings = (
     shinyName: nameEffects?.shiny ?? false,
     rgbName: nameEffects?.rgb ?? false,
     // Media URLs
-    backgroundUrl: mediaUrls?.backgroundUrl || "",
-    profileImageUrl: mediaUrls?.profileImageUrl || "",
+    backgroundUrl: backgroundUrl,
+    profileImageUrl: mediaUrls?.profileImageUrl || DEFAULT_PROFILE_IMAGE,
     musicUrl: mediaUrls?.musicUrl || "",
     cursorUrl: "",
-    faviconUrl: mediaUrls?.faviconUrl || "", // 
-    // Page Effects (novos)
+    faviconUrl: mediaUrls?.faviconUrl || "",
+    // ✅ Background Type
+    backgroundType: backgroundType,
+    staticBackgroundColor: staticColor || "#0a0a0f",
+    // Page Effects
     snowEffect: pageEffects?.snow ?? false,
     rainEffect: pageEffects?.rain ?? false,
     cashEffect: pageEffects?.cash ?? false,
@@ -239,41 +266,45 @@ const profileDataToSettings = (
   };
 };
 
-const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendRequest => ({
-  cardSettings: {
-    opacity: settings.cardOpacity,
-    blur: settings.cardBlur,
-    color: settings.cardColor,
-    perspective: settings.cardPerspective,
-    hoverGrow: settings.cardHoverGrow,
-    rgbBorder: settings.rgbBorder,
-  },
-  contentSettings: {
-    biography: settings.biography,
-    biographyColor: settings.biographyColor,
-    centerAlign: settings.contentCenter,
-  },
-  nameEffects: {
-    name: settings.name,
-    neon: settings.neonName,
-    shiny: settings.shinyName,
-    rgb: settings.rgbName,
-  },
-  mediaUrls: {
-    backgroundUrl: settings.backgroundUrl,
-    profileImageUrl: settings.profileImageUrl,
-    musicUrl: settings.musicUrl,
-    faviconUrl: settings.faviconUrl, // ✅ NOVO
-  },
-  pageEffects: {
-    snow: settings.snowEffect,
-    rain: settings.rainEffect,
-    cash: settings.cashEffect,
-    thunder: settings.thunderEffect,
-    smoke: settings.smokeEffect,
-    stars: settings.starsEffect,
-  },
-});
+const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendRequest => {
+  return {
+    cardSettings: {
+      opacity: settings.cardOpacity,
+      blur: settings.cardBlur,
+      color: settings.cardColor,
+      perspective: settings.cardPerspective,
+      hoverGrow: settings.cardHoverGrow,
+      rgbBorder: settings.rgbBorder,
+    },
+    contentSettings: {
+      biography: settings.biography,
+      biographyColor: settings.biographyColor,
+      centerAlign: settings.contentCenter,
+    },
+    nameEffects: {
+      name: settings.name,
+      neon: settings.neonName,
+      shiny: settings.shinyName,
+      rgb: settings.rgbName,
+    },
+    mediaUrls: {
+      backgroundUrl: settings.backgroundType === "media" ? settings.backgroundUrl : "",
+      // ✅ Envia a URL do settings, se estiver vazia manda a default
+      profileImageUrl: settings.profileImageUrl || DEFAULT_PROFILE_IMAGE,
+      musicUrl: settings.musicUrl,
+      faviconUrl: settings.faviconUrl,
+    },
+    pageEffects: {
+      snow: settings.snowEffect,
+      rain: settings.rainEffect,
+      cash: settings.cashEffect,
+      thunder: settings.thunderEffect,
+      smoke: settings.smokeEffect,
+      stars: settings.starsEffect,
+    },
+    staticBackgroundColor: settings.backgroundType === "color" ? settings.staticBackgroundColor : "",
+  };
+};
 
 // ═══════════════════════════════════════════════════════════
 // SKELETON LOADER COMPONENT
@@ -458,11 +489,7 @@ const CursorTestArea = ({
     const img = new window.Image();
 
     img.onload = () => {
-      if (img.width <= 128 && img.height <= 128) {
-        setCursorLoaded(true);
-      } else {
-        setCursorLoaded(true);
-      }
+      setCursorLoaded(true);
     };
 
     img.onerror = () => {
@@ -578,7 +605,76 @@ const CursorTestArea = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// FILE UPLOAD COMPONENT - ATUALIZADO COM PREMIUM
+// BACKGROUND TYPE SELECTOR COMPONENT (sem gradiente)
+// ═══════════════════════════════════════════════════════════
+
+const BackgroundTypeSelector = ({
+  value,
+  onChange,
+}: {
+  value: BackgroundType;
+  onChange: (type: BackgroundType) => void;
+}) => {
+  return (
+    <div className="space-y-2" style={{ minHeight: "80px" }}>
+      <div className="flex items-center gap-2 h-6">
+        <Image size={16} className="text-[var(--color-primary)]" />
+        <label className="text-sm font-medium text-[var(--color-text)]">
+          Tipo de Fundo
+        </label>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {/* Mídia */}
+        <motion.button
+          onClick={() => onChange("media")}
+          className={`
+            flex flex-col items-center justify-center gap-1.5 p-3 rounded-[var(--border-radius-md)]
+            border-2 transition-all duration-300
+            ${value === "media"
+              ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/50"
+            }
+          `}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className={`p-2 rounded-full ${value === "media" ? "bg-[var(--color-primary)]/20" : "bg-[var(--color-border)]"}`}>
+            <Image size={16} className={value === "media" ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"} />
+          </div>
+          <p className={`text-xs font-medium ${value === "media" ? "text-[var(--color-primary)]" : "text-[var(--color-text)]"}`}>
+            Mídia
+          </p>
+        </motion.button>
+
+        {/* Cor Sólida */}
+        <motion.button
+          onClick={() => onChange("color")}
+          className={`
+            flex flex-col items-center justify-center gap-1.5 p-3 rounded-[var(--border-radius-md)]
+            border-2 transition-all duration-300
+            ${value === "color"
+              ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
+              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/50"
+            }
+          `}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className={`p-2 rounded-full ${value === "color" ? "bg-[var(--color-primary)]/20" : "bg-[var(--color-border)]"}`}>
+            <PaintBucket size={16} className={value === "color" ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"} />
+          </div>
+          <p className={`text-xs font-medium ${value === "color" ? "text-[var(--color-primary)]" : "text-[var(--color-text)]"}`}>
+            Cor Sólida
+          </p>
+        </motion.button>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// FILE UPLOAD COMPONENT
 // ═══════════════════════════════════════════════════════════
 
 const FileUpload = ({
@@ -604,7 +700,6 @@ const FileUpload = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // ✅ Verificação de Premium Lock
   const isLocked = isPremiumFeature && !userIsPremium;
   const finalDisabled = disabled || isLocked;
 
@@ -626,7 +721,7 @@ const FileUpload = ({
       const url = URL.createObjectURL(file);
       setPreview(url);
       return () => URL.revokeObjectURL(url);
-    } else if (currentUrl) {
+    } else if (currentUrl && currentUrl !== DEFAULT_PROFILE_IMAGE) {
       const urlType = getFileType(currentUrl);
       setMediaType(urlType);
       setPreview(currentUrl);
@@ -659,7 +754,6 @@ const FileUpload = ({
         setError("Use arquivos .cur, .ani, .png ou .gif para cursor");
         return false;
       }
-
       const maxSize = 512 * 1024;
       if (file.size > maxSize) {
         setError("Arquivo de cursor muito grande. Máximo: 512KB");
@@ -667,15 +761,13 @@ const FileUpload = ({
       }
     }
 
-    // ✅ Validação específica para favicon
     if (previewType === "favicon") {
       const validFaviconExts = [".ico", ".png", ".svg"];
       if (!validFaviconExts.includes(fileExt)) {
         setError("Use arquivos .ico, .png ou .svg para favicon");
         return false;
       }
-
-      const maxSize = 256 * 1024; // 256KB para favicon
+      const maxSize = 256 * 1024;
       if (file.size > maxSize) {
         setError("Arquivo de favicon muito grande. Máximo: 256KB");
         return false;
@@ -736,7 +828,7 @@ const FileUpload = ({
   };
 
   const FileIcon = getFileIcon();
-  const hasFile = file || currentUrl;
+  const hasFile = file || (currentUrl && currentUrl !== DEFAULT_PROFILE_IMAGE);
   const currentMediaType = file ? getFileType(file) : currentUrl ? getFileType(currentUrl) : "unknown";
   const audioSrc = previewType === "audio" ? preview : null;
   const isCursorFile = previewType === "cursor";
@@ -769,7 +861,6 @@ const FileUpload = ({
           <label className={`text-sm font-medium ${finalDisabled ? "text-[var(--color-text-muted)]" : "text-[var(--color-text)]"}`}>
             {label}
           </label>
-          {/* ✅ Badge Premium */}
           {isPremiumFeature && !userIsPremium && (
             <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white flex items-center gap-1">
               <Crown size={10} />
@@ -819,7 +910,7 @@ const FileUpload = ({
       >
         {hasFile && !finalDisabled ? (
           <div className="relative h-full">
-            {/* ✅ PREVIEW DE FAVICON */}
+            {/* PREVIEW DE FAVICON */}
             {isFaviconFile && (
               <div
                 className="relative w-full flex flex-col items-center justify-center bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-background)] p-6"
@@ -840,7 +931,6 @@ const FileUpload = ({
                       <Globe size={48} className="text-[var(--color-primary)]" />
                     </div>
                   )}
-
                   <motion.div
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -852,14 +942,12 @@ const FileUpload = ({
                     </span>
                   </motion.div>
                 </div>
-
                 <p className="text-sm font-medium text-[var(--color-text)] mb-1">
                   Favicon Personalizado
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)] truncate max-w-[90%]">
                   {file?.name || "Favicon configurado"}
                 </p>
-
                 <motion.button
                   onClick={handleRemove}
                   className="absolute top-3 right-3 p-2 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
@@ -868,7 +956,6 @@ const FileUpload = ({
                 >
                   <Trash2 size={14} />
                 </motion.button>
-
                 {file && (
                   <div className="absolute top-3 left-3">
                     <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/90 text-white">
@@ -889,7 +976,6 @@ const FileUpload = ({
                   <div className="p-6 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30 mb-4">
                     <MousePointer2 size={48} className="text-[var(--color-primary)]" />
                   </div>
-
                   <motion.div
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -901,14 +987,12 @@ const FileUpload = ({
                     </span>
                   </motion.div>
                 </div>
-
                 <p className="text-sm font-medium text-[var(--color-text)] mb-1">
                   Cursor Personalizado
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)] truncate max-w-[90%]">
                   {file?.name || "Cursor configurado"}
                 </p>
-
                 <motion.button
                   onClick={handleRemove}
                   className="absolute top-3 right-3 p-2 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
@@ -917,7 +1001,6 @@ const FileUpload = ({
                 >
                   <Trash2 size={14} />
                 </motion.button>
-
                 {file && (
                   <div className="absolute top-3 left-3">
                     <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-500/90 text-white">
@@ -930,10 +1013,7 @@ const FileUpload = ({
 
             {/* PREVIEW DE IMAGEM */}
             {shouldShowImagePreview && (
-              <div
-                className="relative w-full"
-                style={{ minHeight: "128px" }}
-              >
+              <div className="relative w-full" style={{ minHeight: "128px" }}>
                 <img
                   src={preview!}
                   alt="Preview"
@@ -999,7 +1079,7 @@ const FileUpload = ({
               </div>
             )}
 
-            {/* INFO BAR PARA NÃO-AUDIO E NÃO-CURSOR E NÃO-FAVICON */}
+            {/* INFO BAR */}
             {previewType !== "audio" && !isCursorFile && !isFaviconFile && (
               <div className={`${(shouldShowImagePreview || shouldShowVideoPreview) && !imageError
                 ? "absolute bottom-0 left-0 right-0 p-3"
@@ -1032,7 +1112,6 @@ const FileUpload = ({
             )}
           </div>
         ) : (
-          // ESTADO VAZIO
           <div
             className="p-6 flex flex-col items-center justify-center text-center"
             style={{ minHeight: computedMinHeight }}
@@ -1061,7 +1140,6 @@ const FileUpload = ({
                 ICO (recomendado: 32x32px ou 16x16px)
               </p>
             )}
-            {/* ✅ Mensagem especial para Premium Lock */}
             {isLocked && (
               <p className="text-xs text-yellow-400 mt-2 flex items-center gap-1">
                 <Crown size={12} />
@@ -1472,15 +1550,12 @@ const DashboardCustomization = () => {
         smokeEffect: false,
         starsEffect: false,
       };
-
       if (value) {
         newSettings[effectKey] = true;
       }
-
       return newSettings;
     });
   };
-
 
   const { profileData, isLoadingProfile, refreshProfile } = useProfile();
 
@@ -1499,10 +1574,12 @@ const DashboardCustomization = () => {
     shinyName: false,
     rgbName: false,
     backgroundUrl: "",
-    profileImageUrl: "",
+    profileImageUrl: DEFAULT_PROFILE_IMAGE,
     musicUrl: "",
     cursorUrl: "",
-    faviconUrl: "", // ✅ NOVO
+    faviconUrl: "",
+    backgroundType: "media",
+    staticBackgroundColor: "#0a0a0f",
     snowEffect: false,
     rainEffect: false,
     cashEffect: false,
@@ -1519,7 +1596,7 @@ const DashboardCustomization = () => {
     background: null,
     music: null,
     cursor: null,
-    favicon: null, // ✅ NOVO
+    favicon: null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string>("");
@@ -1527,7 +1604,6 @@ const DashboardCustomization = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // ✅ Verificar se usuário é Premium
   const userIsPremium = profileData?.isPremium ?? false;
 
   // Carrega settings do profileData
@@ -1539,11 +1615,13 @@ const DashboardCustomization = () => {
 
       const finalSettings: CustomizationSettings = {
         ...loadedSettings,
-        profileImageUrl: loadedSettings.profileImageUrl || backup?.profileImageUrl || "",
+        profileImageUrl: loadedSettings.profileImageUrl || backup?.profileImageUrl || DEFAULT_PROFILE_IMAGE,
         backgroundUrl: loadedSettings.backgroundUrl || backup?.backgroundUrl || "",
         musicUrl: loadedSettings.musicUrl || backup?.musicUrl || "",
         cursorUrl: loadedSettings.cursorUrl || backup?.cursorUrl || "",
-        faviconUrl: loadedSettings.faviconUrl || backup?.faviconUrl || "", // ✅ NOVO
+        faviconUrl: loadedSettings.faviconUrl || backup?.faviconUrl || "",
+        staticBackgroundColor: loadedSettings.staticBackgroundColor || backup?.staticBackgroundColor || "#0a0a0f",
+        backgroundType: loadedSettings.backgroundType || backup?.backgroundType || "media",
       };
 
       setSettings(finalSettings);
@@ -1556,7 +1634,9 @@ const DashboardCustomization = () => {
           backgroundUrl: finalSettings.backgroundUrl,
           musicUrl: finalSettings.musicUrl,
           cursorUrl: finalSettings.cursorUrl,
-          faviconUrl: finalSettings.faviconUrl, // ✅ NOVO
+          faviconUrl: finalSettings.faviconUrl,
+          staticBackgroundColor: finalSettings.staticBackgroundColor,
+          backgroundType: finalSettings.backgroundType,
         });
       }
     }
@@ -1571,13 +1651,15 @@ const DashboardCustomization = () => {
 
   // Salva no localStorage
   useEffect(() => {
-    if (isInitialized && (settings.profileImageUrl || settings.backgroundUrl || settings.faviconUrl)) {
+    if (isInitialized && (settings.profileImageUrl || settings.backgroundUrl || settings.faviconUrl || settings.staticBackgroundColor)) {
       saveToLocalStorage({
         profileImageUrl: settings.profileImageUrl,
         backgroundUrl: settings.backgroundUrl,
         musicUrl: settings.musicUrl,
         cursorUrl: settings.cursorUrl,
-        faviconUrl: settings.faviconUrl, // ✅ NOVO
+        faviconUrl: settings.faviconUrl,
+        staticBackgroundColor: settings.staticBackgroundColor,
+        backgroundType: settings.backgroundType,
       });
     }
   }, [
@@ -1586,7 +1668,9 @@ const DashboardCustomization = () => {
     settings.backgroundUrl,
     settings.musicUrl,
     settings.cursorUrl,
-    settings.faviconUrl, // ✅ NOVO
+    settings.faviconUrl,
+    settings.staticBackgroundColor,
+    settings.backgroundType,
   ]);
 
   const handleRefresh = useCallback(async () => {
@@ -1610,101 +1694,150 @@ const DashboardCustomization = () => {
     setFileUploads(prev => ({ ...prev, [key]: file }));
   };
 
+  // ✅ Remove file - avatar usa URL padrão
   const removeFile = (key: keyof FileUploads) => {
     setFileUploads(prev => ({ ...prev, [key]: null }));
+
     const urlKeyMap: Record<keyof FileUploads, keyof CustomizationSettings> = {
       avatar: 'profileImageUrl',
       background: 'backgroundUrl',
       music: 'musicUrl',
       cursor: 'cursorUrl',
-      favicon: 'faviconUrl', // ✅ NOVO
+      favicon: 'faviconUrl',
     };
+
     const urlKey = urlKeyMap[key];
+
     if (urlKey) {
-      updateSetting(urlKey, "" as never);
+      if (key === 'avatar') {
+        // ✅ Ao remover avatar, substituir pela URL padrão da plataforma
+        updateSetting('profileImageUrl', DEFAULT_PROFILE_IMAGE);
+      } else {
+        updateSetting(urlKey, "" as never);
+      }
     }
   };
-
   const handleSave = async () => {
-    setIsSubmitting(true);
-    setError(null);
-    setUploadProgress("");
+  setIsSubmitting(true);
+  setError(null);
+  setUploadProgress("");
 
-    try {
-      let updatedSettings = { ...settings };
+  try {
+    let updatedSettings = { ...settings };
 
-      const hasFilesToUpload = Object.values(fileUploads).some(file => file !== null);
+    const hasFilesToUpload = Object.values(fileUploads).some(file => file !== null);
 
-      if (hasFilesToUpload) {
-        setUploadProgress("Fazendo upload dos arquivos...");
+    if (hasFilesToUpload) {
+      setUploadProgress("Fazendo upload dos arquivos...");
 
-        const uploadResponse = await assetUploadService.uploadAssets({
-          avatar: fileUploads.avatar,
-          background: fileUploads.background,
-          music: fileUploads.music,
-          cursor: fileUploads.cursor,
-          favicon: fileUploads.favicon, // ✅ NOVO
-        });
-
-        if (uploadResponse.urls) {
-          if (uploadResponse.urls.avatarUrl) {
-            updatedSettings.profileImageUrl = uploadResponse.urls.avatarUrl;
-          }
-          if (uploadResponse.urls.backgroundUrl) {
-            updatedSettings.backgroundUrl = uploadResponse.urls.backgroundUrl;
-          }
-          if (uploadResponse.urls.musicUrl) {
-            updatedSettings.musicUrl = uploadResponse.urls.musicUrl;
-          }
-          if (uploadResponse.urls.cursorUrl) {
-            updatedSettings.cursorUrl = uploadResponse.urls.cursorUrl;
-          }
-          // ✅ NOVO - Favicon URL
-          if (uploadResponse.urls.faviconUrl) {
-            updatedSettings.faviconUrl = uploadResponse.urls.faviconUrl;
-          }
-        }
-      }
-
-      setUploadProgress("Salvando configurações...");
-      const requestData = settingsToRequest(updatedSettings);
-      await customizationService.updatePageSettings(requestData);
-
-      setSettings(updatedSettings);
-      setOriginalSettings(updatedSettings);
-
-      saveToLocalStorage({
-        profileImageUrl: updatedSettings.profileImageUrl,
-        backgroundUrl: updatedSettings.backgroundUrl,
-        musicUrl: updatedSettings.musicUrl,
-        cursorUrl: updatedSettings.cursorUrl,
-        faviconUrl: updatedSettings.faviconUrl, // ✅ NOVO
+      const uploadResponse = await assetUploadService.uploadAssets({
+        avatar: fileUploads.avatar,
+        background: fileUploads.background,
+        music: fileUploads.music,
+        cursor: fileUploads.cursor,
+        favicon: fileUploads.favicon,
       });
 
-      await refreshProfile();
+      console.log("📦 Upload response:", uploadResponse);
 
-      setFileUploads({ avatar: null, background: null, music: null, cursor: null, favicon: null });
-      setSuccessMessage("Configurações salvas com sucesso!");
-      setTimeout(() => setSuccessMessage(""), 3000);
-
-    } catch (err: unknown) {
-      console.error("Erro ao salvar:", err);
-      const axiosError = err as { response?: { status?: number; data?: { message?: string } } };
-
-      if (axiosError.response?.status === 403) {
-        setError(axiosError.response.data?.message || "Você não tem permissão para usar este recurso.");
-      } else if (axiosError.response?.status === 401) {
-        setError("Sessão expirada. Faça login novamente.");
-      } else if (axiosError.response?.status === 413) {
-        setError("Arquivo muito grande. Reduza o tamanho e tente novamente.");
-      } else {
-        setError(axiosError.response?.data?.message || "Erro ao salvar configurações. Tente novamente.");
+      // ✅ Atualiza as URLs com as retornadas do backend
+      if (uploadResponse.success && uploadResponse.urls) {
+        if (uploadResponse.urls.avatarUrl) {
+          console.log("✅ Nova avatarUrl:", uploadResponse.urls.avatarUrl);
+          updatedSettings.profileImageUrl = uploadResponse.urls.avatarUrl;
+        }
+        if (uploadResponse.urls.backgroundUrl) {
+          console.log("✅ Nova backgroundUrl:", uploadResponse.urls.backgroundUrl);
+          updatedSettings.backgroundUrl = uploadResponse.urls.backgroundUrl;
+        }
+        if (uploadResponse.urls.musicUrl) {
+          console.log("✅ Nova musicUrl:", uploadResponse.urls.musicUrl);
+          updatedSettings.musicUrl = uploadResponse.urls.musicUrl;
+        }
+        if (uploadResponse.urls.cursorUrl) {
+          console.log("✅ Nova cursorUrl:", uploadResponse.urls.cursorUrl);
+          updatedSettings.cursorUrl = uploadResponse.urls.cursorUrl;
+        }
+        if (uploadResponse.urls.faviconUrl) {
+          console.log("✅ Nova faviconUrl:", uploadResponse.urls.faviconUrl);
+          updatedSettings.faviconUrl = uploadResponse.urls.faviconUrl;
+        }
+      } else if (!uploadResponse.success) {
+        // Se o upload falhou, mostra erro mas continua tentando salvar as outras configs
+        console.warn("⚠️ Upload falhou:", uploadResponse.message);
       }
-    } finally {
-      setIsSubmitting(false);
-      setUploadProgress("");
     }
-  };
+
+    setUploadProgress("Salvando configurações...");
+
+    // ✅ Agora updatedSettings tem as URLs corretas!
+    const requestData = settingsToRequest(updatedSettings);
+    console.log("📤 Enviando para updatePageSettings:", requestData);
+
+    await customizationService.updatePageSettings(requestData);
+
+    // ✅ Atualiza o estado local com as novas configurações
+    setSettings(updatedSettings);
+    setOriginalSettings(updatedSettings);
+
+    // ✅ Salva no localStorage como backup
+    saveToLocalStorage({
+      profileImageUrl: updatedSettings.profileImageUrl,
+      backgroundUrl: updatedSettings.backgroundUrl,
+      musicUrl: updatedSettings.musicUrl,
+      cursorUrl: updatedSettings.cursorUrl,
+      faviconUrl: updatedSettings.faviconUrl,
+      staticBackgroundColor: updatedSettings.staticBackgroundColor,
+      backgroundType: updatedSettings.backgroundType,
+    });
+
+    // ✅ Atualiza o contexto do perfil
+    await refreshProfile();
+
+    // ✅ Limpa os arquivos selecionados
+    setFileUploads({ 
+      avatar: null, 
+      background: null, 
+      music: null, 
+      cursor: null, 
+      favicon: null 
+    });
+
+    // ✅ Mostra mensagem de sucesso
+    setSuccessMessage("Configurações salvas com sucesso!");
+    setTimeout(() => setSuccessMessage(""), 3000);
+
+  } catch (err: unknown) {
+    console.error("❌ Erro ao salvar:", err);
+    
+    const axiosError = err as { 
+      response?: { 
+        status?: number; 
+        data?: { message?: string } 
+      };
+      message?: string;
+    };
+
+    if (axiosError.response?.status === 403) {
+      setError(axiosError.response.data?.message || "Você não tem permissão para usar este recurso.");
+    } else if (axiosError.response?.status === 401) {
+      setError("Sessão expirada. Faça login novamente.");
+    } else if (axiosError.response?.status === 413) {
+      setError("Arquivo muito grande. Reduza o tamanho e tente novamente.");
+    } else if (axiosError.response?.status === 400) {
+      setError(axiosError.response.data?.message || "Dados inválidos. Verifique os campos e tente novamente.");
+    } else {
+      setError(
+        axiosError.response?.data?.message || 
+        axiosError.message || 
+        "Erro ao salvar configurações. Tente novamente."
+      );
+    }
+  } finally {
+    setIsSubmitting(false);
+    setUploadProgress("");
+  }
+};
 
   const handleReset = () => {
     setSettings(originalSettings);
@@ -2036,23 +2169,80 @@ const DashboardCustomization = () => {
             description="Faça upload de imagens, vídeos, música e cursor"
           />
           <div className="space-y-6">
-            <FileUpload
-              label="Imagem/Vídeo de Fundo"
-              accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/ogg"
-              file={fileUploads.background}
-              currentUrl={settings.backgroundUrl}
-              onFileSelect={(file) => updateFileUpload("background", file)}
-              onRemove={() => removeFile("background")}
-              icon={Image}
-              helperText="Imagens (JPG, PNG, GIF, WebP) ou Vídeos (MP4, WebM, OGG)"
-              previewType="media"
+            {/* SELETOR DE TIPO DE FUNDO (sem gradiente) */}
+            <BackgroundTypeSelector
+              value={settings.backgroundType}
+              onChange={(type) => {
+                updateSetting("backgroundType", type);
+                if (type === "color") {
+                  setFileUploads(prev => ({ ...prev, background: null }));
+                  updateSetting("backgroundUrl", "");
+                }
+              }}
             />
+
+            {/* CONDICIONAL - Mostra FileUpload ou ColorPicker */}
+            <AnimatePresence mode="wait">
+              {settings.backgroundType === "media" && (
+                <motion.div
+                  key="media-upload"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <FileUpload
+                    label="Imagem/Vídeo de Fundo"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/ogg"
+                    file={fileUploads.background}
+                    currentUrl={settings.backgroundUrl}
+                    onFileSelect={(file) => updateFileUpload("background", file)}
+                    onRemove={() => removeFile("background")}
+                    icon={Image}
+                    helperText="Imagens (JPG, PNG, GIF, WebP) ou Vídeos (MP4, WebM, OGG)"
+                    previewType="media"
+                  />
+                </motion.div>
+              )}
+
+              {settings.backgroundType === "color" && (
+                <motion.div
+                  key="color-picker"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ColorPicker
+                    label="Cor de Fundo"
+                    value={settings.staticBackgroundColor}
+                    onChange={(value) => updateSetting("staticBackgroundColor", value)}
+                    icon={PaintBucket}
+                    presetColors={[
+                      "#0a0a0f", "#1a1a2e", "#16213e", "#0f3460",
+                      "#1e1e1e", "#2d2d2d", "#1a1a1a", "#0d0d0d",
+                      "#1b1b2f", "#162447", "#1f4068", "#1b262c",
+                      "#222831", "#393e46", "#30475e", "#2c3e50"
+                    ]}
+                  />
+
+                  {/* Preview da cor */}
+                  <div className="mt-4 p-4 rounded-[var(--border-radius-md)] border border-[var(--color-border)]">
+                    <p className="text-xs text-[var(--color-text-muted)] mb-2">Preview do fundo:</p>
+                    <div
+                      className="w-full h-24 rounded-[var(--border-radius-sm)] border border-[var(--color-border)]"
+                      style={{ backgroundColor: settings.staticBackgroundColor }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <FileUpload
               label="Foto de Perfil"
               accept="image/jpeg,image/png,image/gif,image/webp"
               file={fileUploads.avatar}
-              currentUrl={settings.profileImageUrl}
+              currentUrl={settings.profileImageUrl !== DEFAULT_PROFILE_IMAGE ? settings.profileImageUrl : undefined}
               onFileSelect={(file) => updateFileUpload("avatar", file)}
               onRemove={() => removeFile("avatar")}
               icon={Upload}
@@ -2085,7 +2275,6 @@ const DashboardCustomization = () => {
               disabled={true}
             />
 
-            {/* ✅ FAVICON - PREMIUM ONLY */}
             <FileUpload
               label="Favicon da Página"
               accept=".ico,.png,.svg,image/x-icon,image/png,image/svg+xml"
@@ -2110,7 +2299,6 @@ const DashboardCustomization = () => {
             description="Escolha UM efeito visual especial para sua página"
           />
           <div className="space-y-4">
-            {/* EFEITOS GRATUITOS */}
             <ToggleSwitch
               label="Efeito Neve"
               description="Flocos de neve caindo"
@@ -2145,7 +2333,6 @@ const DashboardCustomization = () => {
               userIsPremium={userIsPremium}
             />
 
-            {/* EFEITOS PREMIUM */}
             <ToggleSwitch
               label="Efeito Dinheiro"
               description="Notas de dinheiro caindo"
@@ -2215,7 +2402,6 @@ const DashboardCustomization = () => {
             />
           </div>
 
-          {/* MENSAGEM DINÂMICA */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -2233,7 +2419,7 @@ const DashboardCustomization = () => {
         </CustomizationCard>
       </div>
 
-      {/* SAVE BUTTON - Fixed at bottom */}
+      {/* SAVE BUTTON */}
       <AnimatePresence>
         {hasChanges && (
           <motion.div
@@ -2252,20 +2438,24 @@ const DashboardCustomization = () => {
             <motion.button
               onClick={handleSave}
               disabled={isSubmitting}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium text-sm transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-center break-words"
               whileHover={isSubmitting ? {} : { scale: 1.02 }}
               whileTap={isSubmitting ? {} : { scale: 0.98 }}
-              style={{ minHeight: "44px", minWidth: "160px" }}
+              style={{ minHeight: "44px" }}
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
-                  {uploadProgress ? "Enviando..." : "Salvando..."}
+                  <Loader2 size={18} className="animate-spin shrink-0" />
+                  <span className="truncate">
+                    {uploadProgress ? "Enviando..." : "Salvando..."}
+                  </span>
                 </>
               ) : (
                 <>
-                  <Save size={18} />
-                  Salvar Alterações
+                  <Save size={18} className="shrink-0" />
+                  <span className="truncate">
+                    Salvar Alterações
+                  </span>
                 </>
               )}
             </motion.button>

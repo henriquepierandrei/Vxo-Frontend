@@ -133,7 +133,15 @@ const LOG_TYPE_CONFIG: Record<UserLogType, {
     color: "text-red-400",
     bgColor: "bg-red-500/10",
     borderColor: "border-red-500/30",
-  }
+  },
+  PLAN_PURCHASED: {
+  label: "Plano Comprado",
+  shortLabel: "Plano",
+  icon: Sparkles,
+  color: "text-amber-400",
+  bgColor: "bg-amber-500/10",
+  borderColor: "border-amber-500/30",
+}
 };
 
 const CATEGORY_CONFIG: Record<LogCategory, {

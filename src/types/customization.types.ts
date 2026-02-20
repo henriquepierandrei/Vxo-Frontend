@@ -63,6 +63,7 @@ export interface UserPageFrontendRequest {
   nameEffects?: NameEffects;
   mediaUrls?: MediaUrls;
   pageEffects?: PageEffects;
+  staticBackgroundColor: string;
 }
 
 /**
@@ -77,4 +78,5 @@ export interface UserPageFrontendResponse {
   nameEffects: NameEffects;
   mediaUrls: MediaUrls;
   pageEffects: PageEffects;
+  staticBackgroundColor: string;
 }

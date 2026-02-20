@@ -5,6 +5,7 @@ export type UserLogType =
   | 'GIFT_RECEIVED'
   | 'COINS_SENT'
   | 'COINS_RECEIVED'
+  | 'PLAN_PURCHASED'
   | 'COINS_PURCHASED'
   | 'COINS_REFUNDED'
   | 'ITEM_PURCHASED'
