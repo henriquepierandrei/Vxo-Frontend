@@ -1058,7 +1058,7 @@ const FileUpload = ({
             )}
             {previewType === "favicon" && !finalDisabled && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                ICO, PNG ou SVG (recomendado: 32x32px ou 16x16px)
+                ICO (recomendado: 32x32px ou 16x16px)
               </p>
             )}
             {/* ✅ Mensagem especial para Premium Lock */}
@@ -1962,7 +1962,7 @@ const DashboardCustomization = () => {
             <div className="space-y-3">
               <ToggleSwitch
                 label="Efeito Neon"
-                description="Brilho neon no nome (Premium)"
+                description="Brilho neon no nome"
                 checked={settings.neonName}
                 onChange={(value) => {
                   updateSetting("neonName", value);
@@ -1972,10 +1972,12 @@ const DashboardCustomization = () => {
                   }
                 }}
                 icon={Zap}
+                isPremiumFeature={true}
+                userIsPremium={userIsPremium}
               />
               <ToggleSwitch
                 label="Efeito Brilhante"
-                description="Gradiente dourado (Premium)"
+                description="Gradiente dourado"
                 checked={settings.shinyName}
                 onChange={(value) => {
                   updateSetting("shinyName", value);
@@ -1988,7 +1990,7 @@ const DashboardCustomization = () => {
               />
               <ToggleSwitch
                 label="Nome RGB"
-                description="Cores animadas (Premium)"
+                description="Cores animadas"
                 checked={settings.rgbName}
                 onChange={(value) => {
                   updateSetting("rgbName", value);
@@ -1998,6 +2000,8 @@ const DashboardCustomization = () => {
                   }
                 }}
                 icon={Palette}
+                isPremiumFeature={true}
+                userIsPremium={userIsPremium}
               />
             </div>
             <Textarea
@@ -2090,7 +2094,7 @@ const DashboardCustomization = () => {
               onFileSelect={(file) => updateFileUpload("favicon", file)}
               onRemove={() => removeFile("favicon")}
               icon={Globe}
-              helperText="ICO, PNG ou SVG (recomendado: 32x32px ou 16x16px)"
+              helperText="ICO (recomendado: 32x32px ou 16x16px)"
               previewType="favicon"
               isPremiumFeature={true}
               userIsPremium={userIsPremium}

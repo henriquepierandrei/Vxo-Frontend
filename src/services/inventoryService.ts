@@ -62,7 +62,7 @@ export interface UserInventoryResponse {
 
 export interface ItemEquippedResponse {
   id: string;
-  name: string;
+  url: string;
   type: string;
   isPremium: boolean,
   equipped: boolean;

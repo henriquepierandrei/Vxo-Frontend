@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./hooks/ThemeProvider";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProfileProvider } from "./contexts/UserContext";
@@ -42,6 +42,7 @@ import DashboardSettings from "./pages/dashboardpages/DashboardSettings";
 import TitleManager from "./types/TitleManager";
 import ForgotPasswordPage from "./pages/authpages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/authpages/ResetPasswordPage";
+import UserPublicPage from "./pages/UserPublicPage";
 
 function App() {
   return (
@@ -57,6 +58,8 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/:slug" element={<UserPublicPage />} />
+
 
 
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />

@@ -1112,7 +1112,7 @@ const PremiumSection = ({ isPremium }: { isPremium: boolean }) => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("/dashboard/premium")}
+            onClick={() => navigate("/plans")}
             className="flex items-center justify-center gap-2 px-6 py-3 rounded-[var(--border-radius-md)] bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-sm font-semibold transition-all shadow-lg shadow-amber-500/25"
           >
             <Sparkles size={18} />
@@ -1121,7 +1121,7 @@ const PremiumSection = ({ isPremium }: { isPremium: boolean }) => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("/dashboard/premium")}
+            onClick={() => navigate("/plans")}
             className="flex items-center justify-center gap-2 px-6 py-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] text-sm font-medium border border-[var(--color-border)] transition-colors"
           >
             Ver benefícios

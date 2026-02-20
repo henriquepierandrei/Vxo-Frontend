@@ -1,8 +1,14 @@
-// src/components/authcomponents/RequestPasswordReset.tsx
 import React, { useState } from 'react';
 import { authService } from '../../services/authService';
-import { passwordResetService } from '../../services/passwordResetService';
 import { AxiosError } from 'axios';
+
+interface ApiErrorResponse {
+  status: number;
+  error: string;
+  message: string;
+  path: string;
+  timestamp: string;
+}
 
 interface RequestPasswordResetProps {
   onCancel?: () => void;
@@ -24,6 +30,20 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
     return undefined;
   };
 
+  const extractErrorMessage = (error: unknown): string => {
+    const axiosError = error as AxiosError<ApiErrorResponse>;
+    if (axiosError.response?.data?.message) {
+      return axiosError.response.data.message;
+    }
+    if (typeof axiosError.response?.data === 'string') {
+      return axiosError.response.data;
+    }
+    if (axiosError.message) {
+      return axiosError.message;
+    }
+    return 'Ocorreu um erro inesperado. Tente novamente.';
+  };
+
   const handleSendReset = async () => {
     const error = validateEmail(email);
     setEmailError(error);
@@ -38,16 +58,16 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
       await authService.requestPasswordReset(email);
       setStep('success');
     } catch (err) {
-      const axiosError = err as AxiosError<string>;
+      const axiosError = err as AxiosError<ApiErrorResponse>;
+      const status = axiosError.response?.status;
       
-      if (axiosError.response?.status === 429) {
-        // Rate limit - sua RateLimitException
-        setApiError(axiosError.response.data || 'Muitas tentativas. Aguarde antes de tentar novamente.');
-      } else if (axiosError.response?.status === 400) {
-        // BusinessException - ex: "Você só pode solicitar novamente após 24h"
-        setApiError(axiosError.response.data);
+      if (status === 429) {
+        setApiError(extractErrorMessage(err));
+      } else if (status === 400) {
+        setApiError(extractErrorMessage(err));
+      } else if (status === 404) {
+        setStep('success');
       } else {
-        // Para qualquer outro erro, ainda mostra sucesso (anti-enumeração)
         setStep('success');
       }
     } finally {
@@ -126,13 +146,24 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
 
             {/* API Error */}
             {apiError && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 animate-fade-in">
-                <p className="text-red-500 text-sm text-center flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {apiError}
-                </p>
+              <div className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 animate-fade-in">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-5 h-5 mt-0.5">
+                    <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-red-500 text-sm font-medium">
+                      {apiError}
+                    </p>
+                    {apiError.includes('24h') && (
+                      <p className="text-red-400/70 text-xs mt-1">
+                        Por segurança, limitamos a frequência de solicitações.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -281,9 +312,10 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
           </div>
         )}
 
-        {/* Step: Success */}
+        {/* ✅ TELA DE SUCESSO COMPLETA */}
         {step === 'success' && (
           <div className="animate-fade-in text-center">
+            {/* Ícone de Email */}
             <div className="relative w-20 h-20 mx-auto mb-6">
               <div
                 className="absolute inset-0 rounded-full opacity-30 blur-xl animate-pulse"
@@ -291,38 +323,57 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
               />
               <div 
                 className="relative w-full h-full rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(var(--color-primary-rgb), 0.2)' }}
+                style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)' }}
               >
                 <div 
                   className="w-14 h-14 rounded-full flex items-center justify-center animate-scale-in"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
+                  style={{ backgroundColor: '#22c55e' }}
                 >
-                  <svg className="w-8 h-8" style={{ color: 'var(--color-accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               </div>
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>
-              Verifique seu email
+            {/* Título */}
+            <h1 className="text-2xl md:text-3xl font-bold mb-3" style={{ color: 'var(--color-text)' }}>
+              Solicitação Enviada!
             </h1>
+
+            {/* Mensagem Principal */}
             <p style={{ color: 'var(--color-text-muted)' }} className="text-sm mb-2">
-              Se o email existir em nossa base, você receberá um link para redefinir sua senha.
-            </p>
-            <p style={{ color: 'var(--color-primary)' }} className="text-sm font-medium mb-6">
-              {email}
+              Se o email <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>{email}</span> existir em nossa base, você receberá as instruções para redefinir sua senha.
             </p>
 
-            <div className="p-4 rounded-lg mb-6" style={{ backgroundColor: 'var(--color-surface)' }}>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                ⏱️ O link expira em <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>15 minutos</span>
-              </p>
-              <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
-                📧 Verifique também a pasta de spam
-              </p>
+            {/* Info Box */}
+            <div 
+              className="p-4 rounded-lg mb-6 mt-6"
+              style={{ backgroundColor: 'var(--color-surface)' }}
+            >
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-left">
+                  <span className="text-lg">⏱️</span>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    O link expira em <span className="font-semibold" style={{ color: 'var(--color-primary)' }}>15 minutos</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-left">
+                  <span className="text-lg">📧</span>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    Verifique também a pasta de <span className="font-semibold">spam</span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 text-left">
+                  <span className="text-lg">🔒</span>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    Por segurança, não revelamos se o email existe
+                  </p>
+                </div>
+              </div>
             </div>
 
+            {/* Botão Voltar ao Login */}
             <button
               onClick={() => window.location.href = '/login'}
               className="relative w-full py-4 font-semibold text-base overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-[var(--color-primary)]/25 hover:-translate-y-0.5 active:translate-y-0"
@@ -341,6 +392,20 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </span>
+            </button>
+
+            {/* Link para tentar novamente */}
+            <button
+              onClick={() => {
+                setStep('email');
+                setEmail('');
+                setEmailTouched(false);
+                setApiError(undefined);
+              }}
+              className="w-full py-3 text-sm font-medium transition-colors duration-300 hover:opacity-80 mt-3"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              Tentar com outro email
             </button>
           </div>
         )}
