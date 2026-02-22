@@ -28,8 +28,6 @@ export interface InventoryItem {
   description: string;
   imageUrl: string;
   type: "frame" | "badge" | "effect" | "gift";
-  
-  // Agora vem do backend
   rarity: Rarity;
   status: ItemStatus;
   isLimited: boolean;
@@ -45,18 +43,13 @@ export interface PendingGift {
   fromUserId: string;
   fromSlug: string;
   fromUserProfilePicture: string;
-  
-  // Item
   itemId?: string;
   itemName?: string;
   itemDescription?: string;
   itemUrl?: string;
   itemType?: "frame" | "badge" | "effect" | "gift";
-  
-  // Coins
   hasCoinOffered: boolean;
   amountCoinsOffered?: number;
-  
   isLimited?: boolean;
   isPremium?: boolean;
   rarity: Rarity;
@@ -77,17 +70,14 @@ interface InventoryContextData {
   refreshInventory: () => Promise<void>;
   markGiftAsViewed: (giftId: string) => Promise<void>;
   markAllGiftsAsViewed: () => Promise<void>;
-  toggleEquipItem: (itemId: string) => Promise<void>;
-
+  // ✅ ALTERADO: Agora recebe userIsPremium como parâmetro
+  toggleEquipItem: (itemId: string, userIsPremium?: boolean) => Promise<void>;
 }
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Mapeia o tipo de item do backend para o frontend
- */
 function mapItemType(backendType: ItemType): "frame" | "badge" | "effect" | "gift" {
   const mapping: Record<ItemType, "frame" | "badge" | "effect" | "gift"> = {
     [ItemType.FRAME]: "frame",
@@ -98,31 +88,20 @@ function mapItemType(backendType: ItemType): "frame" | "badge" | "effect" | "gif
   return mapping[backendType];
 }
 
-/**
- * ✅ NOVO: Normaliza a raridade que vem do backend
- * Garante que sempre retorna um valor válido do tipo Rarity
- */
 function normalizeRarity(backendRarity?: string): Rarity {
   if (!backendRarity) return "common";
   
   const normalized = backendRarity.toLowerCase().trim();
-  
-  // Valida se é uma raridade válida
   const validRarities: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
   
   if (validRarities.includes(normalized as Rarity)) {
     return normalized as Rarity;
   }
   
-  // Fallback para common se o valor for inválido
-  console.warn(`[InventoryContext] Raridade inválida recebida: "${backendRarity}". Usando "common" como fallback.`);
+  console.warn(`[InventoryContext] Raridade inválida: "${backendRarity}". Usando "common".`);
   return "common";
 }
 
-/**
- * ✅ ATUALIZADO: Derivar raridade baseado em flags (fallback)
- * Usado apenas quando itemRarity não vem do backend
- */
 function deriveRarityFromFlags(isPremium: boolean, isLimited: boolean): Rarity {
   if (isPremium && isLimited) return "legendary";
   if (isPremium) return "epic";
@@ -130,9 +109,6 @@ function deriveRarityFromFlags(isPremium: boolean, isLimited: boolean): Rarity {
   return "common";
 }
 
-/**
- * ✅ ATUALIZADO: Mapeia item do backend para o frontend
- */
 function mapToInventoryItem(
   raw: InventoryItemResponse,
   equippedItemIds: Set<string> = new Set()
@@ -156,16 +132,11 @@ function mapToInventoryItem(
     isPremium: raw.isPremium,
     obtainedAt,
     isNew,
-    isEquipped: equippedItemIds.has(raw.itemId), // ✅ AGORA FUNCIONAL
+    isEquipped: equippedItemIds.has(raw.itemId),
   };
 }
 
-/**
- * ✅ ATUALIZADO: Mapeia presente do backend para o frontend
- */
 function mapToPendingGift(raw: GiftResponse): PendingGift {
-  // ✅ Para presentes, usa fallback de raridade baseado em flags
-  // porque nem sempre terá itemRarity (pode ser só moedas)
   const rarity = deriveRarityFromFlags(
     raw.isPremium || false, 
     raw.isLimited || false
@@ -176,21 +147,18 @@ function mapToPendingGift(raw: GiftResponse): PendingGift {
     fromUserId: raw.fromUserId,
     fromSlug: raw.fromSlug,
     fromUserProfilePicture: raw.fromUserProfilePicture,
-    
     itemId: raw.itemId,
     itemName: raw.itemName,
     itemDescription: raw.itemDescription,
     itemUrl: raw.itemUrl,
     itemType: raw.itemType ? mapItemType(raw.itemType) : undefined,
-    
     hasCoinOffered: raw.hasCoinOffered,
     amountCoinsOffered: raw.amountCoinsOffered,
-    
     isLimited: raw.isLimited,
     isPremium: raw.isPremium,
-    rarity, // ✅ Derivado das flags
+    rarity,
     sentAt: new Date(raw.createdAt),
-    message: undefined, // Backend não tem esse campo ainda
+    message: undefined,
   };
 }
 
@@ -210,8 +178,6 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [pendingGifts, setPendingGifts] = useState<PendingGift[]>([]);
   const [unviewedGiftsCount, setUnviewedGiftsCount] = useState(0);
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
-  
-  // ✅ NOVO: Estado para controlar IDs equipados
   const [equippedItemIds, setEquippedItemIds] = useState<Set<string>>(new Set());
 
   const hasFetchedRef = useRef(false);
@@ -236,17 +202,14 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
 
       console.log("[InventoryContext] Buscando inventário...");
       
-      // ✅ Busca inventário e itens equipados em paralelo
       const [inventoryData, equippedData] = await Promise.all([
         inventoryService.getUserInventory(),
         inventoryService.getEquippedItems(),
       ]);
 
-      // ✅ Cria Set com IDs dos itens equipados
       const equipped = new Set(equippedData.equipped.map(item => item.id));
       setEquippedItemIds(equipped);
 
-      // ✅ Mapeia os items COM informação de equipados
       const mappedItems = inventoryData.items.map(item => 
         mapToInventoryItem(item, equipped)
       );
@@ -274,58 +237,60 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // ✅ NOVO: Toggle equipar/desequipar item
- // ✅ Toggle equipar/desequipar item com validação
-const toggleEquipItem = useCallback(async (itemId: string) => {
-  // ✅ Busca o item atual para validação
-  const currentItem = items.find(i => i.id === itemId);
-  
-  // ✅ Se for premium e não estiver equipado, bloqueia
-  if (currentItem?.isPremium && !currentItem?.isEquipped) {
-    console.warn("[InventoryContext] Bloqueado: Itens premium não podem ser equipados");
-    throw new Error("Itens premium não podem ser equipados");
-  }
-  
-  try {
-    console.log("[InventoryContext] Equipando/Desequipando item:", itemId);
+  // ✅ CORRIGIDO: Toggle equipar/desequipar item
+  const toggleEquipItem = useCallback(async (itemId: string, userIsPremium?: boolean) => {
+    const currentItem = items.find(i => i.id === itemId);
     
-    // Chama o backend
-    const response = await inventoryService.equipItem(itemId);
+    if (!currentItem) {
+      console.error("[InventoryContext] Item não encontrado:", itemId);
+      throw new Error("Item não encontrado");
+    }
 
-    // ✅ Atualiza o Set de equipados baseado na resposta
-    const newEquippedIds = new Set(response.equipped.map(item => item.id));
-    setEquippedItemIds(newEquippedIds);
+    // ✅ CORRIGIDO: Verifica se o usuário tem permissão
+    // Bloqueia apenas se:
+    // 1. Item é premium
+    // 2. Item NÃO está equipado (permite desequipar)
+    // 3. Usuário NÃO é premium
+    if (currentItem.isPremium && !currentItem.isEquipped && userIsPremium !== true) {
+      console.warn("[InventoryContext] Bloqueado: Usuário não é premium");
+      throw new Error("Requer assinatura Premium para equipar este item");
+    }
+    
+    try {
+      console.log("[InventoryContext] Equipando/Desequipando item:", itemId, {
+        isPremium: currentItem.isPremium,
+        isEquipped: currentItem.isEquipped,
+        userIsPremium,
+      });
+      
+      const response = await inventoryService.equipItem(itemId);
 
-    // ✅ Atualiza o estado local dos items
-    setItems(prevItems =>
-      prevItems.map(item => ({
-        ...item,
-        isEquipped: newEquippedIds.has(item.id),
-      }))
-    );
+      const newEquippedIds = new Set(response.equipped.map(item => item.id));
+      setEquippedItemIds(newEquippedIds);
 
-    console.log("[InventoryContext] Item atualizado. Equipados:", newEquippedIds.size);
-  } catch (error) {
-    console.error("[InventoryContext] Erro ao equipar item:", error);
-    throw error;
-  }
-}, [items]);
+      setItems(prevItems =>
+        prevItems.map(item => ({
+          ...item,
+          isEquipped: newEquippedIds.has(item.id),
+        }))
+      );
 
-  // ── Refresh forçado ──────────────────────────────────────
+      console.log("[InventoryContext] Item atualizado. Equipados:", newEquippedIds.size);
+    } catch (error) {
+      console.error("[InventoryContext] Erro ao equipar item:", error);
+      throw error;
+    }
+  }, [items]);
+
   const refreshInventory = useCallback(async () => {
     await fetchInventory(true);
   }, [fetchInventory]);
 
-  // ── Marcar presente como visto ───────────────────────────
   const markGiftAsViewed = useCallback(async (giftId: string) => {
     try {
       await inventoryService.markGiftAsViewed(giftId);
-
-      // Remove da lista local
       setPendingGifts((prev) => prev.filter((g) => g.id !== giftId));
       setUnviewedGiftsCount((prev) => Math.max(0, prev - 1));
-      
-      // Recarrega items para incluir o novo item
       await fetchInventory(true);
     } catch (error) {
       console.error("[InventoryContext] Erro ao marcar presente:", error);
@@ -333,15 +298,11 @@ const toggleEquipItem = useCallback(async (itemId: string) => {
     }
   }, [fetchInventory]);
 
-  // ── Marcar todos como vistos ─────────────────────────────
   const markAllGiftsAsViewed = useCallback(async () => {
     try {
       await inventoryService.markAllGiftsAsViewed();
-
       setPendingGifts([]);
       setUnviewedGiftsCount(0);
-      
-      // Recarrega items
       await fetchInventory(true);
     } catch (error) {
       console.error("[InventoryContext] Erro ao marcar todos:", error);
@@ -349,13 +310,11 @@ const toggleEquipItem = useCallback(async (itemId: string) => {
     }
   }, [fetchInventory]);
 
-  // ── Carregar quando user mudar ──────────────────────────
   useEffect(() => {
     const currentUserId = user?.id || null;
     const isInventoryPage = location.pathname === "/dashboard/inventory" 
       || location.pathname.startsWith("/dashboard/inventory/");
 
-    // ✅ Só faz fetch se estiver na página de inventário
     if (!isInventoryPage) {
       return;
     }
@@ -370,7 +329,7 @@ const toggleEquipItem = useCallback(async (itemId: string) => {
     }
   }, [user?.id, location.pathname, fetchInventory]);
 
-   return (
+  return (
     <InventoryContext.Provider
       value={{
         items,
@@ -380,7 +339,7 @@ const toggleEquipItem = useCallback(async (itemId: string) => {
         refreshInventory,
         markGiftAsViewed,
         markAllGiftsAsViewed,
-        toggleEquipItem, // ✅ NOVO
+        toggleEquipItem,
       }}
     >
       {children}

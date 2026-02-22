@@ -25,6 +25,8 @@ import {
   Loader2,
   Award,
   Video,
+  Crown,
+  Info,
 } from "lucide-react";
 import { useInventory, type InventoryItem, type PendingGift, type Rarity } from "../../contexts/InventoryContext";
 import { useProfile } from "../../contexts/UserContext";
@@ -154,6 +156,92 @@ const getRarityGlow = (rarity: Rarity): string => {
 
 const getRarityConfig = (rarity: Rarity) => {
   return RARITY_CONFIG[rarity] || RARITY_CONFIG.common;
+};
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENTE: Aviso Premium Expirado (NOVO - CORRIGIDO)
+// ═══════════════════════════════════════════════════════════
+
+const PremiumExpiryNotice = ({
+  userIsPremium,
+  hasPremiumItems
+}: {
+  userIsPremium?: boolean;
+  hasPremiumItems: boolean;
+}) => {
+  // Só mostra se:
+  // 1. Usuário NÃO é premium
+  // 2. E tem itens premium no inventário
+  if (userIsPremium || !hasPremiumItems) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative overflow-hidden"
+    >
+      {/* Background com gradiente sutil */}
+      <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-amber-500/5" />
+
+      <div className="relative p-3 sm:p-4 lg:p-5 border-b border-amber-500/20">
+        <div className="flex items-start gap-3 sm:gap-4">
+          {/* Ícone */}
+          <div className="flex-shrink-0">
+            <div className="relative">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30">
+                <Crown size={16} className="sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-amber-400" />
+              </div>
+              {/* Pulse animation */}
+              <motion.div
+                className="absolute inset-0 rounded-xl bg-amber-500/20"
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
+          </div>
+
+          {/* Conteúdo */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
+              <h4 className="text-xs sm:text-sm lg:text-base font-semibold text-amber-400">
+                Itens Premium Bloqueados
+              </h4>
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] sm:text-[10px] text-amber-400/80">
+                <Info size={10} />
+                Informação
+              </span>
+            </div>
+
+            <p className="text-[10px] sm:text-xs lg:text-sm text-[var(--color-text-muted)] leading-relaxed">
+              <span className="hidden sm:inline">
+                Seu plano Premium expirou. Os itens premium estão
+                <span className="text-amber-400 font-medium"> temporariamente desabilitados</span>,
+                mas <span className="text-green-400 font-medium">permanecerão salvos na sua conta</span>.
+                Renove o Premium para voltar a usá-los!
+              </span>
+              <span className="sm:hidden">
+                Premium expirado. Itens bloqueados, mas
+                <span className="text-green-400 font-medium"> salvos na conta</span>.
+                Renove para usar!
+              </span>
+            </p>
+
+            {/* CTA Mobile */}
+            <motion.button
+              className="mt-2 sm:mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] sm:text-xs font-medium shadow-lg shadow-amber-500/25"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => console.log("Ir para Premium")}
+            >
+              <Sparkles size={12} className="sm:w-3.5 sm:h-3.5" />
+              <span>Renovar Premium</span>
+              <ArrowRight size={12} className="sm:w-3.5 sm:h-3.5" />
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -667,19 +755,24 @@ const FilterTab = ({
   </motion.button>
 );
 
-// ✅ CORRIGIDO: ItemCard completo
+// ✅ ItemCard
 const ItemCard = ({
   item,
   onClick,
   userProfileImage,
+  userIsPremium,
 }: {
   item: InventoryItem;
   onClick: () => void;
   userProfileImage?: string;
+  userIsPremium?: boolean;
 }) => {
   const rarityConfig = getRarityConfig(item.rarity);
   const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
+
+  // ✅ Item premium está bloqueado se: item é premium E usuário NÃO é premium
+  const isPremiumLocked = item.isPremium && !userIsPremium;
 
   return (
     <motion.div
@@ -690,15 +783,24 @@ const ItemCard = ({
       onClick={onClick}
       className={`
         relative overflow-hidden rounded-[var(--border-radius-md)] sm:rounded-[var(--border-radius-lg)]
-        border ${isExpired ? "border-red-500/30 opacity-60" : rarityConfig.borderColor}
+        border ${isExpired ? "border-red-500/30 opacity-60" : isPremiumLocked ? "border-amber-500/30 opacity-70" : rarityConfig.borderColor}
         bg-[var(--card-background-glass)] backdrop-blur-[var(--blur-amount)]
         cursor-pointer group transition-all duration-300
-        hover:shadow-lg ${!isExpired ? rarityConfig.glowColor : ""}
+        hover:shadow-lg ${!isExpired && !isPremiumLocked ? rarityConfig.glowColor : ""}
       `}
       whileHover={{ scale: 1.02, y: -4 }}
       whileTap={{ scale: 0.98 }}
     >
       <div className={`absolute inset-0 bg-gradient-to-br ${rarityConfig.gradient} opacity-50`} />
+
+      {/* Badge Premium Bloqueado */}
+      {isPremiumLocked && (
+        <div className="absolute inset-0 z-30 bg-black/30 flex items-center justify-center pointer-events-none">
+          <div className="p-2 rounded-full bg-amber-500/20 border border-amber-500/40">
+            <Crown size={16} className="text-amber-400" />
+          </div>
+        </div>
+      )}
 
       {/* Badge Premium */}
       {item.isPremium && (
@@ -706,8 +808,8 @@ const ItemCard = ({
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="p-0.5 sm:p-1 rounded-full bg-gradient-to-r from-amber-500/30 to-orange-500/30 border border-amber-500/50"
-            title="Item Premium"
+            className={`p-0.5 sm:p-1 rounded-full bg-gradient-to-r from-amber-500/30 to-orange-500/30 border ${isPremiumLocked ? 'border-amber-500/70' : 'border-amber-500/50'}`}
+            title={isPremiumLocked ? "Premium Necessário" : "Item Premium"}
           >
             <Sparkles size={8} className="sm:w-[10px] sm:h-[10px] text-amber-400" />
           </motion.div>
@@ -748,6 +850,7 @@ const ItemCard = ({
             border ${rarityConfig.borderColor}
             group-hover:scale-105 transition-transform duration-300
             overflow-hidden
+            ${isPremiumLocked ? 'grayscale-[30%]' : ''}
           `}
         >
           <ItemMediaPreview
@@ -764,6 +867,11 @@ const ItemCard = ({
             {isExpired && (
               <span className="text-[7px] sm:text-[8px] lg:text-[10px] text-red-400 flex items-center gap-0.5 flex-shrink-0">
                 <AlertTriangle size={8} className="sm:w-[10px] sm:h-[10px]" />
+              </span>
+            )}
+            {isPremiumLocked && !isExpired && (
+              <span className="text-[7px] sm:text-[8px] lg:text-[10px] text-amber-400 flex items-center gap-0.5 flex-shrink-0">
+                <Crown size={8} className="sm:w-[10px] sm:h-[10px]" />
               </span>
             )}
           </div>
@@ -957,12 +1065,14 @@ const Modal = ({
   );
 };
 
+// ✅ ItemDetailModal CORRIGIDO
 const ItemDetailModal = ({
   item,
   onClose,
   onEquip,
   onUnequip,
   userProfileImage,
+  userIsPremium,
   isEquipping = false,
 }: {
   item: InventoryItem;
@@ -971,6 +1081,7 @@ const ItemDetailModal = ({
   onUnequip: () => void;
   onGift: () => void;
   userProfileImage?: string;
+  userIsPremium?: boolean;
   isEquipping?: boolean;
 }) => {
   const rarityConfig = getRarityConfig(item.rarity);
@@ -979,12 +1090,14 @@ const ItemDetailModal = ({
   const daysRemaining = getDaysRemaining(item.expiresAt);
   const isExpired = item.status === "expired";
 
-  // ✅ Verificar se pode equipar (não pode se for premium)
+  // ✅ CORRIGIDO: Pode equipar se:
+  // - Item NÃO é premium, OU
+  // - Item é premium E usuário É premium
+  const canEquip = !item.isPremium || userIsPremium === true;
 
-  const { profileData } = useProfile();
+  // ✅ Item premium está bloqueado se: item é premium E usuário NÃO é premium
+  const isPremiumLocked = item.isPremium && !userIsPremium;
 
-
-  const canEquip = !item.isPremium || profileData?.isPremium;
   return (
     <div className="relative overflow-hidden">
       <motion.button
@@ -1000,8 +1113,19 @@ const ItemDetailModal = ({
         className={`
           relative h-40 sm:h-48 lg:h-64 xl:h-80 bg-gradient-to-br ${rarityConfig.gradient}
           flex items-center justify-center overflow-hidden
+          ${isPremiumLocked ? 'grayscale-[30%]' : ''}
         `}
       >
+        {/* Overlay de bloqueio premium */}
+        {isPremiumLocked && (
+          <div className="absolute inset-0 z-30 bg-black/20 flex items-center justify-center">
+            <div className="p-3 sm:p-4 rounded-2xl bg-black/50 backdrop-blur-sm border border-amber-500/30 text-center">
+              <Crown size={24} className="sm:w-8 sm:h-8 text-amber-400 mx-auto mb-2" />
+              <p className="text-[10px] sm:text-xs text-amber-400 font-medium">Premium Necessário</p>
+            </div>
+          </div>
+        )}
+
         <ItemMediaPreview
           item={item}
           size="large"
@@ -1022,7 +1146,7 @@ const ItemDetailModal = ({
 
           {/* Badge Premium */}
           {item.isPremium && (
-            <span className="px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 text-[8px] sm:text-[10px] lg:text-xs font-bold border border-amber-500/30 flex items-center gap-1">
+            <span className={`px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 lg:py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 text-[8px] sm:text-[10px] lg:text-xs font-bold border ${isPremiumLocked ? 'border-amber-500/60' : 'border-amber-500/30'} flex items-center gap-1`}>
               <Sparkles size={8} className="sm:w-[10px] sm:h-[10px] lg:w-3 lg:h-3" />
               <span className="hidden sm:inline">Premium</span>
             </span>
@@ -1079,22 +1203,58 @@ const ItemDetailModal = ({
             </div>
           )}
         </div>
-        {item.isPremium && !isExpired && (
+
+        {/* ✅ Aviso de Premium Bloqueado - MELHORADO */}
+        {isPremiumLocked && !isExpired && (
           <motion.div
-            className="p-2.5 sm:p-3 lg:p-4 rounded-[var(--border-radius-md)] bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 mb-3 sm:mb-4 lg:mb-6"
+            className="p-3 sm:p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 mb-3 sm:mb-4 lg:mb-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/20 flex-shrink-0">
+                <Crown size={16} className="sm:w-5 sm:h-5 text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-semibold text-amber-400 mb-1">
+                  Item Premium Bloqueado
+                </p>
+                <p className="text-[10px] sm:text-xs text-[var(--color-text-muted)] leading-relaxed mb-2 sm:mb-3">
+                  Este item requer uma assinatura Premium ativa para ser equipado.
+                  O item permanece salvo na sua conta.
+                </p>
+                <motion.button
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] sm:text-xs font-medium shadow-lg shadow-amber-500/25"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => console.log("Ir para Premium")}
+                >
+                  <Sparkles size={12} />
+                  <span>Obter Premium</span>
+                  <ArrowRight size={12} />
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Aviso para itens premium quando usuário É premium */}
+        {item.isPremium && !isPremiumLocked && !isExpired && (
+          <motion.div
+            className="p-2.5 sm:p-3 lg:p-4 rounded-[var(--border-radius-md)] bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 mb-3 sm:mb-4 lg:mb-6"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
           >
             <div className="flex items-start gap-2 sm:gap-3">
-              <div className="p-1.5 sm:p-2 rounded-full bg-amber-500/20 flex-shrink-0">
-                <Sparkles size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-amber-400" />
+              <div className="p-1.5 sm:p-2 rounded-full bg-green-500/20 flex-shrink-0">
+                <Check size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-green-400" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] sm:text-xs lg:text-sm font-semibold text-amber-400">
-                  Item Premium Exclusivo
+                <p className="text-[10px] sm:text-xs lg:text-sm font-semibold text-green-400">
+                  Item Premium Desbloqueado
                 </p>
                 <p className="text-[9px] sm:text-[10px] lg:text-xs text-[var(--color-text-muted)] mt-0.5">
-                  Este item é decorativo e não pode ser equipado. Itens premium são exclusivos para colecionadores.
+                  Você pode equipar este item exclusivo com sua assinatura Premium ativa.
                 </p>
               </div>
             </div>
@@ -1153,8 +1313,8 @@ const ItemDetailModal = ({
                   </>
                 ) : !canEquip ? (
                   <>
-                    <Sparkles size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
-                    <span>Item Premium</span>
+                    <Crown size={12} className="sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
+                    <span>Premium Necessário</span>
                   </>
                 ) : (
                   <>
@@ -1456,7 +1616,10 @@ const DashboardInventory = () => {
   const [isEquipping, setIsEquipping] = useState(false);
 
   const userProfileImage = profileData?.pageSettings?.mediaUrls?.profileImageUrl;
-  const userIsPremium = profileData?.isPremium;
+  const userIsPremium = profileData?.isPremium === true;
+
+  // Verifica se tem itens premium no inventário
+  const hasPremiumItems = useMemo(() => items.some(item => item.isPremium), [items]);
 
   const filters: {
     key: "all" | ItemType | "expired";
@@ -1530,22 +1693,52 @@ const DashboardInventory = () => {
     setGiftToOpen(null);
   };
 
-  // handleEquipItem — remova a validação errada
   const handleEquipItem = async (itemId: string) => {
     const item = items.find(i => i.id === itemId);
 
-    // ✅ Bloqueia só se item é premium E user NÃO é premium
-    if (item?.isPremium && !item?.isEquipped && !userIsPremium) {
-      console.warn("[Inventory] Tentativa de equipar item premium bloqueada");
+    if (!item) {
+      console.error("[Inventory] Item não encontrado:", itemId);
+      return;
+    }
+
+    // Log para debug
+    console.log("[Inventory] Tentando equipar:", {
+      itemId,
+      itemName: item.name,
+      isPremium: item.isPremium,
+      isEquipped: item.isEquipped,
+      userIsPremium,
+    });
+
+    // Validação local (para evitar chamada desnecessária ao servidor)
+    if (item.isPremium && !item.isEquipped && !userIsPremium) {
+      console.warn("[Inventory] Bloqueado: Item premium requer assinatura Premium");
+      // Aqui você pode adicionar um toast/notificação para o usuário
       return;
     }
 
     try {
       setIsEquipping(true);
-      await toggleEquipItem(itemId);
-      // ...resto igual
+
+      // ✅ Passa userIsPremium para o contexto
+      await toggleEquipItem(itemId, userIsPremium);
+
+      // Atualiza o item selecionado se estiver aberto no modal
+      if (selectedItem?.id === itemId) {
+        // Busca o item atualizado após o toggle
+        const updatedItems = items.find(i => i.id === itemId);
+        if (updatedItems) {
+          setSelectedItem({
+            ...updatedItems,
+            isEquipped: !updatedItems.isEquipped
+          });
+        }
+      }
+
+      console.log("[Inventory] Item equipado/desequipado com sucesso");
     } catch (error) {
-      console.error("Erro ao equipar item:", error);
+      console.error("[Inventory] Erro ao equipar item:", error);
+      // Aqui você pode adicionar um toast de erro
     } finally {
       setIsEquipping(false);
     }
@@ -1717,7 +1910,13 @@ const DashboardInventory = () => {
             ))}
           </div>
         </div>
-        <p className="p-3 opacity-[0.5] text-xs flex gap-1 bg-[red] bg-opacity-[0.2] rounded-4xl "><AlertTriangle size={16} /> Caso seu Premium tenha <strong>expirado,</strong> os itens premium serão desabilitados para uso, porém, <strong>serão  permanecidos na conta</strong>. </p>
+
+        {/* ✅ AVISO PREMIUM CORRIGIDO - Agora usa o novo componente */}
+        <PremiumExpiryNotice
+          userIsPremium={userIsPremium}
+          hasPremiumItems={hasPremiumItems}
+        />
+
         <div className="p-2.5 sm:p-3 lg:p-4 xl:p-6">
           {filteredItems.length > 0 ? (
             <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 xl:gap-4">
@@ -1728,6 +1927,7 @@ const DashboardInventory = () => {
                     item={item}
                     onClick={() => setSelectedItem(item)}
                     userProfileImage={userProfileImage}
+                    userIsPremium={userIsPremium}
                   />
                 ))}
               </AnimatePresence>
@@ -1768,6 +1968,7 @@ const DashboardInventory = () => {
               setSelectedItem(null);
             }}
             userProfileImage={userProfileImage}
+            userIsPremium={userIsPremium}
             isEquipping={isEquipping}
           />
         )}

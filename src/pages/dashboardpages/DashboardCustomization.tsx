@@ -155,7 +155,7 @@ const STORAGE_KEY = "customization_backup";
 const getFileType = (file: File | string): MediaType => {
   if (typeof file === "string") {
     const ext = file.split('.').pop()?.toLowerCase().split('?')[0] || '';
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico'].includes(ext)) return "image";
+    if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'ico'].includes(ext)) return "image";
     if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return "video";
     if (['mp3', 'wav', 'ogg', 'oga'].includes(ext)) return "audio";
     return "unknown";
@@ -175,16 +175,7 @@ const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-const saveToLocalStorage = (settings: Partial<CustomizationSettings>) => {
-  try {
-    const existing = localStorage.getItem(STORAGE_KEY);
-    const parsed = existing ? JSON.parse(existing) : {};
-    const updated = { ...parsed, ...settings, lastUpdated: Date.now() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  } catch (e) {
-    console.warn("Erro ao salvar no localStorage:", e);
-  }
-};
+
 
 const getFromLocalStorage = (): Partial<CustomizationSettings> | null => {
   try {
@@ -1629,15 +1620,7 @@ const DashboardCustomization = () => {
       setIsInitialized(true);
 
       if (finalSettings.profileImageUrl || finalSettings.backgroundUrl || finalSettings.faviconUrl) {
-        saveToLocalStorage({
-          profileImageUrl: finalSettings.profileImageUrl,
-          backgroundUrl: finalSettings.backgroundUrl,
-          musicUrl: finalSettings.musicUrl,
-          cursorUrl: finalSettings.cursorUrl,
-          faviconUrl: finalSettings.faviconUrl,
-          staticBackgroundColor: finalSettings.staticBackgroundColor,
-          backgroundType: finalSettings.backgroundType,
-        });
+        
       }
     }
   }, [profileData]);
@@ -1652,15 +1635,7 @@ const DashboardCustomization = () => {
   // Salva no localStorage
   useEffect(() => {
     if (isInitialized && (settings.profileImageUrl || settings.backgroundUrl || settings.faviconUrl || settings.staticBackgroundColor)) {
-      saveToLocalStorage({
-        profileImageUrl: settings.profileImageUrl,
-        backgroundUrl: settings.backgroundUrl,
-        musicUrl: settings.musicUrl,
-        cursorUrl: settings.cursorUrl,
-        faviconUrl: settings.faviconUrl,
-        staticBackgroundColor: settings.staticBackgroundColor,
-        backgroundType: settings.backgroundType,
-      });
+      
     }
   }, [
     isInitialized,
@@ -1780,16 +1755,7 @@ const DashboardCustomization = () => {
     setSettings(updatedSettings);
     setOriginalSettings(updatedSettings);
 
-    // ✅ Salva no localStorage como backup
-    saveToLocalStorage({
-      profileImageUrl: updatedSettings.profileImageUrl,
-      backgroundUrl: updatedSettings.backgroundUrl,
-      musicUrl: updatedSettings.musicUrl,
-      cursorUrl: updatedSettings.cursorUrl,
-      faviconUrl: updatedSettings.faviconUrl,
-      staticBackgroundColor: updatedSettings.staticBackgroundColor,
-      backgroundType: updatedSettings.backgroundType,
-    });
+    
 
     // ✅ Atualiza o contexto do perfil
     await refreshProfile();
@@ -2193,13 +2159,13 @@ const DashboardCustomization = () => {
                 >
                   <FileUpload
                     label="Imagem/Vídeo de Fundo"
-                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/ogg"
+                    accept="image/jpeg,image/png,image/gif,image/mp4,video/webm,video/ogg"
                     file={fileUploads.background}
                     currentUrl={settings.backgroundUrl}
                     onFileSelect={(file) => updateFileUpload("background", file)}
                     onRemove={() => removeFile("background")}
                     icon={Image}
-                    helperText="Imagens (JPG, PNG, GIF, WebP) ou Vídeos (MP4, WebM, OGG)"
+                    helperText="Imagens (JPG, PNG, GIF) ou Vídeos (MP4, WebM, OGG)"
                     previewType="media"
                   />
                 </motion.div>
@@ -2240,13 +2206,13 @@ const DashboardCustomization = () => {
 
             <FileUpload
               label="Foto de Perfil"
-              accept="image/jpeg,image/png,image/gif,image/webp"
+              accept="image/jpeg,image/png,image/gif"
               file={fileUploads.avatar}
               currentUrl={settings.profileImageUrl !== DEFAULT_PROFILE_IMAGE ? settings.profileImageUrl : undefined}
               onFileSelect={(file) => updateFileUpload("avatar", file)}
               onRemove={() => removeFile("avatar")}
               icon={Upload}
-              helperText="JPG, PNG, GIF ou WebP"
+              helperText="JPG, PNG, GIF"
               previewType="image"
             />
 

@@ -1,6 +1,7 @@
-// Ranking.tsx
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useInView } from 'framer-motion';
+// src/pages/Ranking.tsx
+
+import React, { useState, useMemo, useRef } from 'react';
+import { motion } from 'framer-motion';
 import {
   Eye,
   Coins,
@@ -8,1266 +9,763 @@ import {
   Trophy,
   Medal,
   Award,
-  Sparkles,
   Crown,
   Search,
-  ChevronDown,
-  Star,
-  ArrowUp,
-  Users,
-  Calendar,
-  Hash,
-  ExternalLink,
-  RefreshCw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  RefreshCw,
+  AlertCircle,
+  ExternalLink,
+  Star,
+  X,
 } from 'lucide-react';
+import { useRanking } from '../../hooks/useRanking';
+import type {
+  RankingType,
+  UserViewsRanking,
+  UserCoinsRanking,
+  UserVeteranRanking,
+} from '../../types/ranking.types';
 
 // ═══════════════════════════════════════════════════════════
-// TYPES
+// CONSTANTS
 // ═══════════════════════════════════════════════════════════
 
-interface User {
-  id: string;
-  username: string;
-  avatar: string;
-  views: number;
-  coins: number;
-  joinedDate: Date;
-  badge?: 'verified' | 'premium' | 'og';
-  isOnline?: boolean;
-}
+const PAGE_SIZE = 20;
+const DEFAULT_AVATAR = 'https://api.dicebear.com/7.x/avataaars/svg?seed=default';
 
-type FilterType = 'views' | 'coins' | 'oldest';
+const FILTERS: { id: RankingType; label: string; icon: React.ReactNode }[] = [
+  { id: 'views', label: 'Views', icon: <Eye className="w-4 h-4" /> },
+  { id: 'coins', label: 'Moedas', icon: <Coins className="w-4 h-4" /> },
+  { id: 'veterans', label: 'Veteranos', icon: <Clock className="w-4 h-4" /> },
+];
 
-interface FilterOption {
-  id: FilterType;
-  label: string;
-  icon: React.ReactNode;
-  description: string;
-}
+const PODIUM = {
+  1: { gradient: 'from-amber-300 to-orange-500', rgb: '251, 191, 36', Icon: Crown },
+  2: { gradient: 'from-slate-300 to-slate-500', rgb: '148, 163, 184', Icon: Medal },
+  3: { gradient: 'from-amber-600 to-amber-800', rgb: '217, 119, 6', Icon: Award },
+} as const;
+
+type PodiumPos = keyof typeof PODIUM;
 
 // ═══════════════════════════════════════════════════════════
-// ANIMATED COUNTER COMPONENT
+// HELPERS
 // ═══════════════════════════════════════════════════════════
 
-const AnimatedCounter = ({
-  value,
-  duration = 1.5,
-  className = ""
-}: {
-  value: number;
-  duration?: number;
-  className?: string;
-}) => {
-  const [displayValue, setDisplayValue] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true });
+const fmt = (n: number) => {
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return n.toLocaleString('pt-BR');
+};
 
-  useEffect(() => {
-    if (!isInView) return;
+const fmtDate = (d: string) =>
+  new Intl.DateTimeFormat('pt-BR', { year: 'numeric', month: 'short' }).format(new Date(d));
 
-    let startTime: number;
-    let animationFrame: number;
+type AnyUser = UserViewsRanking | UserCoinsRanking | UserVeteranRanking;
 
-    const animate = (currentTime: number) => {
-      if (!startTime) startTime = currentTime;
-      const progress = Math.min((currentTime - startTime) / (duration * 1000), 1);
+const statValue = (u: AnyUser, t: RankingType) => {
+  if (t === 'views' && 'views' in u) return fmt(u.views);
+  if (t === 'coins' && 'coins' in u) return fmt(u.coins);
+  if (t === 'veterans' && 'createdAt' in u) return fmtDate(u.createdAt);
+  return '-';
+};
 
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-      setDisplayValue(Math.floor(easeOutQuart * value));
+const statLabel = (t: RankingType) =>
+  t === 'views' ? 'views' : t === 'coins' ? 'vcoins' : 'desde';
 
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate);
-      }
+const badgeStyle = (pos: number): React.CSSProperties => {
+  if (pos === 1)
+    return {
+      color: 'rgb(251,191,36)',
+      backgroundColor: 'rgba(251,191,36,0.12)',
+      borderColor: 'rgba(251,191,36,0.35)',
     };
-
-    animationFrame = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [value, duration, isInView]);
-
-  return <span ref={ref} className={className}>{displayValue.toLocaleString()}</span>;
+  if (pos === 2)
+    return {
+      color: 'rgb(148,163,184)',
+      backgroundColor: 'rgba(148,163,184,0.12)',
+      borderColor: 'rgba(148,163,184,0.35)',
+    };
+  if (pos === 3)
+    return {
+      color: 'rgb(217,119,6)',
+      backgroundColor: 'rgba(217,119,6,0.12)',
+      borderColor: 'rgba(217,119,6,0.35)',
+    };
+  return {
+    color: 'var(--color-text-muted)',
+    backgroundColor: 'transparent',
+    borderColor: 'var(--color-border)',
+  };
 };
 
 // ═══════════════════════════════════════════════════════════
-// SKELETON LOADER
+// SKELETONS
 // ═══════════════════════════════════════════════════════════
 
-const SkeletonCard = ({ index }: { index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.05 }}
-    className="relative p-4 sm:p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+const Shimmer = ({ className = '' }: { className?: string }) => (
+  <div className={`animate-pulse rounded ${className}`} style={{ backgroundColor: 'var(--color-border)' }} />
+);
+
+const SkeletonPodium = () => (
+  <div className="flex justify-center items-end gap-3 sm:gap-6 py-8 mb-4">
+    {[
+      { mt: 'mt-8', sz: 'w-14 h-14 sm:w-16 sm:h-16', bar: 48 },
+      { mt: 'mt-0', sz: 'w-16 h-16 sm:w-20 sm:h-20', bar: 72 },
+      { mt: 'mt-10', sz: 'w-14 h-14 sm:w-16 sm:h-16', bar: 36 },
+    ].map((it, i) => (
+      <div key={i} className={`flex flex-col items-center gap-2.5 w-24 sm:w-28 ${it.mt}`}>
+        <Shimmer className="w-14 h-6 !rounded-full" />
+        <Shimmer className={`${it.sz} !rounded-full`} />
+        <Shimmer className="w-16 h-3.5" />
+        <Shimmer className="w-12 h-3" />
+        <Shimmer className="w-full !rounded-t-lg mt-1" />
+      </div>
+    ))}
+  </div>
+);
+
+const SkeletonRow = ({ i }: { i: number }) => (
+  <div
+    className="flex items-center gap-3 p-3 rounded-xl border"
+    style={{
+      borderColor: 'var(--color-border)',
+      backgroundColor: 'var(--color-surface)',
+      animationDelay: `${i * 40}ms`,
+    }}
   >
-    <div className="flex items-center gap-4">
-      <div className="w-12 h-12 rounded-xl bg-[var(--color-border)] animate-pulse" />
-      <div className="w-14 h-14 rounded-full bg-[var(--color-border)] animate-pulse" />
-      <div className="flex-1 space-y-2">
-        <div className="h-5 w-32 rounded-lg bg-[var(--color-border)] animate-pulse" />
-        <div className="h-4 w-24 rounded-lg bg-[var(--color-border)] animate-pulse" />
-      </div>
-      <div className="text-right space-y-2">
-        <div className="h-6 w-20 rounded-lg bg-[var(--color-border)] animate-pulse ml-auto" />
-        <div className="h-4 w-16 rounded-lg bg-[var(--color-border)] animate-pulse ml-auto" />
-      </div>
-    </div>
-  </motion.div>
+    <Shimmer className="w-8 h-8 !rounded-lg flex-shrink-0" />
+    <Shimmer className="w-10 h-10 !rounded-full flex-shrink-0" />
+    <Shimmer className="h-4 flex-1 max-w-[10rem]" />
+    <Shimmer className="h-4 w-16 ml-auto flex-shrink-0" />
+  </div>
+);
+
+const SkeletonList = ({ count, podium }: { count: number; podium: boolean }) => (
+  <div className="space-y-2">
+    {podium && <SkeletonPodium />}
+    {Array.from({ length: count }, (_, i) => (
+      <SkeletonRow key={i} i={i} />
+    ))}
+  </div>
 );
 
 // ═══════════════════════════════════════════════════════════
-// FILTER PILL COMPONENT
+// FILTER TABS
 // ═══════════════════════════════════════════════════════════
 
-const FilterPill = ({
-  filter,
-  isActive,
-  onClick
+const FilterTabs = ({
+  active,
+  onChange,
 }: {
-  filter: FilterOption;
-  isActive: boolean;
-  onClick: () => void;
-}) => {
-  return (
-    <motion.button
-      onClick={onClick}
-      className="relative group"
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <motion.div
-        className={`
-          relative flex items-center gap-2.5 px-5 sm:px-6 py-3 sm:py-3.5 rounded-2xl
-          font-semibold text-sm sm:text-base transition-all duration-300
-          ${isActive
-            ? 'text-white'
-            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          }
-        `}
-        style={{
-          backgroundColor: isActive ? 'transparent' : 'var(--color-surface)',
-          border: `2px solid ${isActive ? 'transparent' : 'var(--color-border)'}`,
-        }}
-      >
-        {/* Active Background Gradient */}
-        {isActive && (
-          <motion.div
-            layoutId="activeFilterBg"
-            className="absolute inset-0 rounded-2xl"
-            style={{
-              background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-            }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          />
-        )}
-
-        {/* Glow Effect */}
-        {isActive && (
-          <div
-            className="absolute inset-0 rounded-2xl blur-xl opacity-50"
-            style={{
-              background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-            }}
-          />
-        )}
-
-        {/* Content */}
-        <span className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
-          {filter.icon}
-        </span>
-        <span className="relative z-10 whitespace-nowrap">{filter.label}</span>
-      </motion.div>
-
-      {/* Tooltip */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50">
-        <div className="px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] shadow-xl">
-          <p className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
-            {filter.description}
-          </p>
-        </div>
-        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 rotate-45 bg-[var(--color-background)] border-r border-b border-[var(--color-border)]" />
-      </div>
-    </motion.button>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════
-// PODIUM CARD COMPONENT - CORRIGIDO
-// ═══════════════════════════════════════════════════════════
-
-const PodiumCard = ({
-  user,
-  position,
-  filter,
-  formatNumber,
-  formatDate
-}: {
-  user: User;
-  position: 1 | 2 | 3;
-  filter: FilterType;
-  formatNumber: (n: number) => string;
-  formatDate: (d: Date) => string;
-}) => {
-  const colors = {
-    1: {
-      gradient: 'from-amber-400 via-yellow-500 to-orange-500',
-      glow: 'rgba(251, 191, 36, 0.4)',
-      bg: 'bg-gradient-to-br from-amber-500/20 to-orange-500/10',
-      text: 'text-amber-400',
-      icon: <Crown className="w-5 h-5" />,
-    },
-    2: {
-      gradient: 'from-slate-300 via-gray-400 to-slate-500',
-      glow: 'rgba(148, 163, 184, 0.4)',
-      bg: 'bg-gradient-to-br from-slate-400/20 to-gray-500/10',
-      text: 'text-slate-300',
-      icon: <Medal className="w-5 h-5" />,
-    },
-    3: {
-      gradient: 'from-amber-600 via-orange-700 to-amber-800',
-      glow: 'rgba(180, 83, 9, 0.4)',
-      bg: 'bg-gradient-to-br from-amber-600/20 to-orange-700/10',
-      text: 'text-amber-600',
-      icon: <Award className="w-5 h-5" />,
-    },
-  };
-
-  const style = colors[position];
-
-  // Margin top para criar efeito de pódio (2º e 3º lugar mais baixos)
-  const marginTop = { 1: 'mt-0', 2: 'mt-12', 3: 'mt-16' };
-
-  const getStatValue = () => {
-    switch (filter) {
-      case 'views': return formatNumber(user.views);
-      case 'coins': return formatNumber(user.coins);
-      case 'oldest': return formatDate(user.joinedDate);
-    }
-  };
-
-  const getStatLabel = () => {
-    switch (filter) {
-      case 'views': return 'views';
-      case 'coins': return 'vcoins';
-      case 'oldest': return 'membro desde';
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.9 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: 0.6,
-        delay: position === 1 ? 0.2 : position === 2 ? 0 : 0.4,
-        type: "spring",
-        stiffness: 100
-      }}
-      className={`relative ${marginTop[position]} ${position === 1 ? 'z-20' : 'z-10'}`}
-    >
-      <motion.div
-        className={`
-          relative rounded-3xl p-6
-          border border-[var(--color-border)]
-          ${style.bg}
-          transition-all duration-500 cursor-pointer group
-        `}
-        whileHover={{
-          scale: 1.03,
-          y: -8,
-          boxShadow: `0 20px 60px ${style.glow}`
-        }}
-        style={{
-          boxShadow: `0 10px 40px ${style.glow}`,
-        }}
-      >
-        {/* Animated Border Gradient */}
-        <div className="absolute inset-0 rounded-3xl p-[1px] overflow-hidden pointer-events-none">
-          <motion.div
-            className={`absolute inset-[-200%] bg-gradient-to-r ${style.gradient}`}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-            style={{ opacity: 0.5 }}
-          />
-          <div className="absolute inset-[1px] rounded-3xl bg-[var(--color-background)]" />
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10 flex flex-col items-center">
-          {/* Position Badge - Agora dentro do card, não absoluto */}
-          <motion.div
-            className={`
-              flex items-center gap-2 px-4 py-2 rounded-full mb-4
-              bg-gradient-to-r ${style.gradient}
-              shadow-lg
-            `}
-            animate={{
-              y: [0, -4, 0],
-              boxShadow: [
-                `0 4px 20px ${style.glow}`,
-                `0 8px 30px ${style.glow}`,
-                `0 4px 20px ${style.glow}`,
-              ]
-            }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            {style.icon}
-            <span className="font-bold text-white text-sm">#{position}</span>
-          </motion.div>
-
-          {/* Avatar */}
-          <motion.div
-            className="relative mb-4"
-            whileHover={{ scale: 1.1, rotate: 5 }}
-          >
-            {/* Avatar Glow */}
-            <div
-              className={`absolute inset-0 rounded-full blur-xl opacity-60 bg-gradient-to-r ${style.gradient}`}
-              style={{ transform: 'scale(1.3)' }}
-            />
-
-            {/* Avatar Ring */}
-            <div className={`
-              relative w-20 h-20 sm:w-24 sm:h-24 rounded-full p-1
-              bg-gradient-to-r ${style.gradient}
-            `}>
-              <div className="w-full h-full rounded-full overflow-hidden bg-[var(--color-background)]">
-                <img
-                  src={user.avatar}
-                  alt={user.username}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-
-            {/* Online Indicator */}
-            {user.isOnline && (
-              <motion.div
-                className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full border-4 border-[var(--color-background)]"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
-
-            {/* Badge */}
-            {user.badge && (
-              <motion.div
-                className="absolute -top-1 -right-1"
-                whileHover={{ scale: 1.2 }}
-              >
-                {user.badge === 'premium' && (
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
-                    <Crown className="w-3.5 h-3.5 text-white" />
-                  </div>
-                )}
-                {user.badge === 'verified' && (
-                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-lg">
-                    <Star className="w-3.5 h-3.5 text-white fill-current" />
-                  </div>
-                )}
-                {user.badge === 'og' && (
-                  <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center shadow-lg">
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </motion.div>
-
-          {/* Username */}
-          <h3 className="text-lg sm:text-xl font-bold text-[var(--color-text)] text-center truncate max-w-full mb-3">
-            {user.username}
-          </h3>
-
-          {/* Stats */}
-          <motion.div
-            className={`
-              flex flex-col items-center gap-1 px-5 py-2.5 rounded-2xl w-full
-              ${style.bg} border border-[var(--color-border)]
-            `}
-            whileHover={{ scale: 1.05 }}
-          >
-            <span className={`text-xl sm:text-2xl font-bold ${style.text}`}>
-              {getStatValue()}
-            </span>
-            <span className="text-xs text-[var(--color-text-muted)]">
-              {getStatLabel()}
-            </span>
-          </motion.div>
-        </div>
-
-        {/* Shine Effect on Hover */}
-        <motion.div
-          className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none overflow-hidden"
+  active: RankingType;
+  onChange: (t: RankingType) => void;
+}) => (
+  <div
+    className="inline-flex p-1 rounded-2xl"
+    style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+  >
+    {FILTERS.map((f) => {
+      const on = active === f.id;
+      return (
+        <button
+          key={f.id}
+          onClick={() => onChange(f.id)}
+          className={`
+            relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
+            transition-colors duration-200 select-none
+            ${on ? 'text-white' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}
+          `}
         >
-          <motion.div
-            className="absolute inset-0"
-            style={{
-              background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.1) 45%, transparent 50%)',
-            }}
-            animate={{
-              x: ['-100%', '200%'],
-            }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              repeatDelay: 3,
-            }}
-          />
-        </motion.div>
-      </motion.div>
-    </motion.div>
-  );
-};
+          {on && (
+            <motion.div
+              layoutId="rankTab"
+              className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]"
+              style={{ boxShadow: '0 4px 14px rgba(99,102,241,0.25)' }}
+              transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+            />
+          )}
+          <span className="relative z-10 flex items-center gap-2">
+            {f.icon}
+            <span className="hidden sm:inline">{f.label}</span>
+          </span>
+        </button>
+      );
+    })}
+  </div>
+);
 
 // ═══════════════════════════════════════════════════════════
-// RANKING CARD COMPONENT
+// PODIUM
 // ═══════════════════════════════════════════════════════════
 
-const RankingCard = ({
-  user,
-  position,
-  filter,
-  formatNumber,
-  formatDate,
-  index
-}: {
-  user: User;
-  position: number;
-  filter: FilterType;
-  formatNumber: (n: number) => string;
-  formatDate: (d: Date) => string;
-  index: number;
-}) => {
-  const isTopTen = position <= 10;
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
+const PODIUM_ORDER: { idx: number; pos: PodiumPos }[] = [
+  { idx: 1, pos: 2 },
+  { idx: 0, pos: 1 },
+  { idx: 2, pos: 3 },
+];
 
-  const getStatValue = () => {
-    switch (filter) {
-      case 'views': return formatNumber(user.views);
-      case 'coins': return formatNumber(user.coins);
-      case 'oldest': return formatDate(user.joinedDate);
-    }
-  };
-
-  const getStatIcon = () => {
-    switch (filter) {
-      case 'views': return <Eye className="w-4 h-4" />;
-      case 'coins': return <Coins className="w-4 h-4" />;
-      case 'oldest': return <Calendar className="w-4 h-4" />;
-    }
-  };
-
-  const getStatLabel = () => {
-    switch (filter) {
-      case 'views': return 'visualizações';
-      case 'coins': return 'vcoins';
-      case 'oldest': return 'membro desde';
-    }
-  };
-
-  const getPositionColor = () => {
-    if (position <= 3) return 'var(--color-primary)';
-    if (position <= 10) return 'var(--color-secondary)';
-    return 'var(--color-text-muted)';
-  };
+const PodiumSection = ({ users, type }: { users: AnyUser[]; type: RankingType }) => {
+  if (users.length < 3) return null;
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, x: -30, filter: "blur(10px)" }}
-      animate={isInView ? { opacity: 1, x: 0, filter: "blur(0px)" } : {}}
-      transition={{ duration: 0.5, delay: Math.min(index * 0.03, 0.3) }}
-      className="group"
-    >
-      <motion.div
-        className={`
-          relative p-4 sm:p-5 rounded-2xl border
-          transition-all duration-300 cursor-pointer
-          ${isTopTen
-            ? 'border-[var(--color-primary)]/30 bg-gradient-to-r from-[var(--color-primary)]/5 to-transparent'
-            : 'border-[var(--color-border)] bg-[var(--color-surface)]'
-          }
-        `}
-        whileHover={{
-          scale: 1.01,
-          y: -4,
-          boxShadow: '0 10px 40px rgba(143, 124, 255, 0.15)',
-          borderColor: 'var(--color-primary)',
-        }}
-        whileTap={{ scale: 0.99 }}
-      >
-        {/* Hover Gradient */}
-        <motion.div
-          className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-          style={{
-            background: 'linear-gradient(135deg, rgba(143,124,255,0.05), rgba(255,107,157,0.05))',
-          }}
+    <div className="relative py-8 mb-6">
+      {/* glow */}
+      <div className="absolute inset-0 flex justify-center pointer-events-none">
+        <div
+          className="w-72 h-36 rounded-full blur-[100px]"
+          style={{ backgroundColor: 'var(--color-primary)', opacity: 0.08 }}
         />
+      </div>
 
-        {/* Progress Bar for Top 10 */} {isTopTen && (<motion.div className="absolute bottom-0 left-2 h-0.5 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]" initial={{ width: 0 }} animate={isInView ? { width: `${98 - (position - 1) * 10}%` } : {}} transition={{ duration: 1, delay: 0.5 }} />)}
+      <div className="relative flex justify-center items-end gap-2 sm:gap-4">
+        {PODIUM_ORDER.map(({ idx, pos }) => {
+          const user = users[idx];
+          const cfg = PODIUM[pos];
+          const isFirst = pos === 1;
+          const avatarCls = isFirst
+            ? 'w-[72px] h-[72px] sm:w-[88px] sm:h-[88px]'
+            : 'w-[56px] h-[56px] sm:w-[64px] sm:h-[64px]';
+          const offset = pos === 1 ? 'mt-0' : pos === 2 ? 'mt-6 sm:mt-8' : 'mt-8 sm:mt-10';
+          const pedestalH = pos === 1 ? 72 : pos === 2 ? 48 : 36;
 
-        <div className="relative flex items-center gap-3 sm:gap-5">
-          {/* Position */}
-          <motion.div
-            className={`
-              relative flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 
-              flex items-center justify-center
-              rounded-xl font-bold text-lg
-              border-2 transition-all duration-300
-            `}
-            style={{
-              borderColor: getPositionColor(),
-              color: getPositionColor(),
-              backgroundColor: `${getPositionColor()}15`,
-            }}
-            whileHover={{ scale: 1.1, rotate: 5 }}
-          >
-            {position <= 3 ? (
-              <motion.div
-                animate={{ rotate: [0, 5, -5, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
+          return (
+            <motion.a
+              key={pos}
+              href={`/${user.slug}`}
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: pos === 1 ? 0.15 : pos === 2 ? 0.05 : 0.25,
+                type: 'spring',
+                stiffness: 260,
+                damping: 24,
+              }}
+              className={`flex flex-col items-center ${offset} w-24 sm:w-28 no-underline cursor-pointer group`}
+            >
+              {/* badge */}
+              <div
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full mb-3 text-xs font-bold text-white bg-gradient-to-r ${cfg.gradient}`}
+                style={{ boxShadow: `0 4px 12px rgba(${cfg.rgb}, 0.35)` }}
               >
-                {position === 1 && <Trophy className="w-6 h-6" />}
-                {position === 2 && <Medal className="w-6 h-6" />}
-                {position === 3 && <Award className="w-6 h-6" />}
-              </motion.div>
-            ) : (
-              <span className="flex items-center">
-                <Hash className="w-3 h-3 opacity-50" />
-                {position}
-              </span>
-            )}
+                <cfg.Icon className="w-3 h-3" />
+                <span>#{pos}</span>
+              </div>
 
-            {/* Glow for top positions */}
-            {position <= 3 && (
-              <motion.div
-                className="absolute inset-0 rounded-xl pointer-events-none"
-                style={{
-                  boxShadow: `0 0 20px ${getPositionColor()}66`,
-                }}
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
-          </motion.div>
-
-          {/* Avatar */}
-          <motion.div
-            className="relative flex-shrink-0"
-            whileHover={{ scale: 1.1 }}
-          >
-            <div className={`
-              w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden
-              ring-2 transition-all duration-300
-              ${isTopTen ? 'ring-[var(--color-primary)]/50' : 'ring-[var(--color-border)]'}
-            `}>
-              <img
-                src={user.avatar}
-                alt={user.username}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-              />
-            </div>
-
-            {/* Online Indicator */}
-            {user.isOnline && (
-              <motion.div
-                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-[var(--color-background)]"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
-
-            {/* Badge */}
-            {user.badge && (
-              <div className="absolute -top-1 -right-1">
-                {user.badge === 'premium' && (
-                  <motion.div
-                    className="w-5 h-5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 flex items-center justify-center"
-                    animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              {/* avatar */}
+              <div
+                className={`relative ${avatarCls} rounded-full p-[3px] bg-gradient-to-br ${cfg.gradient} transition-transform duration-300 group-hover:scale-105`}
+                style={{ boxShadow: `0 8px 24px rgba(${cfg.rgb}, 0.3)` }}
+              >
+                <img
+                  src={user.profileImageUrl || DEFAULT_AVATAR}
+                  alt={user.slug}
+                  className="w-full h-full rounded-full object-cover"
+                  style={{ backgroundColor: 'var(--color-background)' }}
+                  loading="lazy"
+                />
+                {isFirst && (
+                  <div
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center"
+                    style={{ boxShadow: '0 2px 8px rgba(251,191,36,0.5)' }}
                   >
-                    <Crown className="w-3 h-3 text-white" />
-                  </motion.div>
-                )}
-                {user.badge === 'verified' && (
-                  <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                    <Star className="w-3 h-3 text-white fill-current" />
-                  </div>
-                )}
-                {user.badge === 'og' && (
-                  <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
-                    <Sparkles className="w-3 h-3 text-white" />
+                    <Star className="w-3.5 h-3.5 text-white fill-white" />
                   </div>
                 )}
               </div>
-            )}
-          </motion.div>
 
-          {/* User Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-sm sm:text-base font-bold text-[var(--color-text)] truncate">
-                {user.username}
-              </h3>
-              {isTopTen && (
-                <motion.div
-                  animate={{ rotate: [0, 15, -15, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Sparkles className="w-4 h-4 text-[var(--color-primary)] flex-shrink-0" />
-                </motion.div>
-              )}
-            </div>
+              {/* name */}
+              <p className="mt-2.5 text-sm font-semibold text-[var(--color-text)] truncate max-w-full text-center group-hover:text-[var(--color-primary)] transition-colors">
+                {user.slug}
+              </p>
 
-            {/* Secondary Stats */}
-            <div className="flex items-center gap-3 text-xs sm:text-sm text-[var(--color-text-muted)]">
-              {filter !== 'coins' && (
-                <span className="flex items-center gap-1">
-                  <Coins className="w-3 h-3" />
-                  {formatNumber(user.coins)}
-                </span>
-              )}
-              {filter !== 'views' && (
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3 h-3" />
-                  {formatNumber(user.views)}
-                </span>
-              )}
-              {filter !== 'oldest' && (
-                <span className="hidden sm:flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {formatDate(user.joinedDate)}
-                </span>
-              )}
-            </div>
-          </div>
+              {/* stat */}
+              <p className={`text-xs font-semibold bg-clip-text text-transparent bg-gradient-to-r ${cfg.gradient} mt-0.5`}>
+                {statValue(user, type)} {statLabel(type)}
+              </p>
 
-          {/* Stats */}
-          <div className="flex-shrink-0 text-right">
-            <motion.div
-              className={`
-                flex items-center justify-end gap-2 mb-1 
-                text-lg sm:text-xl font-bold
-              `}
-              style={{ color: isTopTen ? 'var(--color-primary)' : 'var(--color-text)' }}
-              whileHover={{ scale: 1.05 }}
-            >
-              <span className="hidden sm:block opacity-50">
-                {getStatIcon()}
-              </span>
-              <span>{getStatValue()}</span>
-            </motion.div>
-
-            <p className="text-xs text-[var(--color-text-muted)] flex items-center justify-end gap-1">
-              {getStatLabel()}
-
-              {position > 1 && (
-                <motion.span
-                  className="text-green-500 flex items-center"
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <ArrowUp className="w-3 h-3" />
-                </motion.span>
-              )}
-            </p>
-          </div>
-
-          {/* Actions */}
-          <motion.div
-            className="hidden lg:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300"
-            initial={{ x: 10 }}
-            whileHover={{ x: 0 }}
-          >
-            <motion.button
-              className="p-2 rounded-lg bg-[var(--color-surface-elevated)] hover:bg-[var(--color-primary)] text-[var(--color-text-muted)] hover:text-white transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <ExternalLink className="w-4 h-4" />
-            </motion.button>
-          </motion.div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════
-// SEARCH BAR COMPONENT
-// ═══════════════════════════════════════════════════════════
-
-const SearchBar = ({
-  value,
-  onChange
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) => {
-  const [isFocused, setIsFocused] = useState(false);
-
-  return (
-    <motion.div
-      className={`
-        relative flex items-center gap-3 px-4 py-3 rounded-2xl
-        border transition-all duration-300
-        ${isFocused
-          ? 'border-[var(--color-primary)] shadow-lg shadow-[var(--color-primary)]/20'
-          : 'border-[var(--color-border)]'
-        }
-        bg-[var(--color-surface)]
-      `}
-      animate={{
-        scale: isFocused ? 1.01 : 1,
-      }}
-    >
-      <Search className={`
-        w-5 h-5 transition-colors duration-300
-        ${isFocused ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-muted)]'}
-      `} />
-
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        placeholder="Buscar usuário..."
-        className="flex-1 bg-transparent text-[var(--color-text)] placeholder-[var(--color-text-muted)] outline-none"
-      />
-
-      <AnimatePresence>
-        {value && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
-            onClick={() => onChange('')}
-            className="p-1 rounded-full hover:bg-[var(--color-border)] transition-colors"
-          >
-            <ChevronDown className="w-4 h-4 text-[var(--color-text-muted)] rotate-45" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
-
-// ═══════════════════════════════════════════════════════════
-// PAGINATION COMPONENT
-// ═══════════════════════════════════════════════════════════
-
-const Pagination = ({
-  currentPage,
-  totalPages,
-  onPageChange,
-}: {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}) => {
-  const pages = useMemo(() => {
-    const result: (number | string)[] = [];
-
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) result.push(i);
-    } else {
-      result.push(1);
-      if (currentPage > 3) result.push('...');
-
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-
-      for (let i = start; i <= end; i++) result.push(i);
-
-      if (currentPage < totalPages - 2) result.push('...');
-      result.push(totalPages);
-    }
-
-    return result;
-  }, [currentPage, totalPages]);
-
-  return (
-    <div className="flex items-center justify-center gap-2">
-      <motion.button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className={`
-          p-2 rounded-xl border transition-all duration-300
-          ${currentPage === 1
-            ? 'opacity-50 cursor-not-allowed border-[var(--color-border)]'
-            : 'border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/10'
-          }
-        `}
-        whileHover={currentPage !== 1 ? { scale: 1.1 } : {}}
-        whileTap={currentPage !== 1 ? { scale: 0.9 } : {}}
-      >
-        <ChevronLeft className="w-5 h-5 text-[var(--color-text)]" />
-      </motion.button>
-
-      <div className="flex items-center gap-1">
-        {pages.map((page, idx) => (
-          <motion.button
-            key={idx}
-            onClick={() => typeof page === 'number' && onPageChange(page)}
-            disabled={page === '...'}
-            className={`
-              min-w-10 h-10 rounded-xl font-medium text-sm transition-all duration-300
-              ${page === currentPage
-                ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow-lg shadow-[var(--color-primary)]/30'
-                : page === '...'
-                  ? 'cursor-default text-[var(--color-text-muted)]'
-                  : 'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-primary)]'
-              }
-            `}
-            whileHover={page !== currentPage && page !== '...' ? { scale: 1.1 } : {}}
-            whileTap={page !== currentPage && page !== '...' ? { scale: 0.9 } : {}}
-          >
-            {page}
-          </motion.button>
-        ))}
+              {/* pedestal */}
+              <div
+                className="w-full rounded-t-xl mt-3"
+                style={{
+                  height: pedestalH,
+                  background: `linear-gradient(to top, rgba(${cfg.rgb},0.04), rgba(${cfg.rgb},0.15))`,
+                  borderTop: `2px solid rgba(${cfg.rgb},0.3)`,
+                  borderLeft: `1px solid rgba(${cfg.rgb},0.1)`,
+                  borderRight: `1px solid rgba(${cfg.rgb},0.1)`,
+                }}
+              />
+            </motion.a>
+          );
+        })}
       </div>
-
-      <motion.button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className={`
-          p-2 rounded-xl border transition-all duration-300
-          ${currentPage === totalPages
-            ? 'opacity-50 cursor-not-allowed border-[var(--color-border)]'
-            : 'border-[var(--color-border)] hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/10'
-          }
-        `}
-        whileHover={currentPage !== totalPages ? { scale: 1.1 } : {}}
-        whileTap={currentPage !== totalPages ? { scale: 0.9 } : {}}
-      >
-        <ChevronRight className="w-5 h-5 text-[var(--color-text)]" />
-      </motion.button>
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════
-// MOCK DATA GENERATOR
+// RANKING ROW
 // ═══════════════════════════════════════════════════════════
 
-const generateMockUsers = (): User[] => {
-  const users: User[] = [];
-  const names = [
-    'ShadowGamer', 'NeonKnight', 'CyberMage', 'PixelHunter', 'DarkPhoenix',
-    'StormBreaker', 'MysticWarrior', 'CrystalDragon', 'VoidWalker', 'StarChaser',
-    'ThunderBolt', 'FrostByte', 'BlazeFury', 'EchoNinja', 'LunarEclipse',
-    'SolarFlare', 'CosmicRider', 'QuantumLeap', 'NeonSamurai', 'VaporWave',
-    'IcePhantom', 'FireStorm', 'NightHawk', 'GhostRider', 'SilverArrow'
-  ];
-  const badges: (User['badge'] | undefined)[] = ['verified', 'premium', 'og', undefined, undefined, undefined];
+const RankingRow = React.memo(
+  ({
+    user,
+    position,
+    type,
+    index,
+  }: {
+    user: AnyUser;
+    position: number;
+    type: RankingType;
+    index: number;
+  }) => {
+    const isTop3 = position <= 3;
+    const isTop10 = position <= 10;
+    const Icon = isTop3 ? (PODIUM[position as PodiumPos]?.Icon ?? null) : null;
 
-  for (let i = 0; i < 100; i++) {
-    users.push({
-      id: `user-${i}`,
-      username: `${names[i % names.length]}${i > 24 ? i : ''}`,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${i}&backgroundColor=b6e3f4,c0aede,d1d4f9`,
-      views: Math.floor(Math.random() * 1000000) + 1000,
-      coins: Math.floor(Math.random() * 50000) + 100,
-      joinedDate: new Date(2020 + Math.floor(Math.random() * 4), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28)),
-      badge: badges[Math.floor(Math.random() * badges.length)],
-      isOnline: Math.random() > 0.7,
-    });
+    return (
+      <motion.a
+        href={`/${user.slug}`}
+        initial={{ opacity: 0, x: -16 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: Math.min(index * 0.025, 0.4), duration: 0.3 }}
+        className={`
+          group flex items-center gap-3 p-3 rounded-xl no-underline
+          border transition-all duration-200 cursor-pointer
+          border-[var(--color-border)] bg-[var(--color-surface)]
+          hover:border-[var(--color-primary)] hover:translate-x-1
+        `}
+        style={{
+          boxShadow: 'none',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 2px 16px rgba(99,102,241,0.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      >
+        {/* position */}
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold border flex-shrink-0"
+          style={badgeStyle(position)}
+        >
+          {Icon ? <Icon className="w-3.5 h-3.5" /> : position}
+        </div>
+
+        {/* avatar */}
+        <img
+          src={user.profileImageUrl || DEFAULT_AVATAR}
+          alt={user.slug}
+          loading="lazy"
+          className={`
+            w-10 h-10 rounded-full object-cover flex-shrink-0
+            ring-2 transition-all duration-200
+            group-hover:ring-[var(--color-primary)]
+            ${isTop10 ? 'ring-[var(--color-primary)]' : 'ring-[var(--color-border)]'}
+          `}
+        />
+
+        {/* name */}
+        <span className="flex-1 min-w-0 font-medium text-sm text-[var(--color-text)] truncate group-hover:text-[var(--color-primary)] transition-colors duration-200">
+          {user.slug}
+        </span>
+
+        {/* stat */}
+        <div className="flex items-baseline gap-1.5 flex-shrink-0">
+          <span
+            className="font-bold text-sm tabular-nums"
+            style={{ color: isTop10 ? 'var(--color-primary)' : 'var(--color-text)' }}
+          >
+            {statValue(user, type)}
+          </span>
+          <span className="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider hidden sm:inline">
+            {statLabel(type)}
+          </span>
+        </div>
+
+        {/* arrow */}
+        <ExternalLink className="w-3.5 h-3.5 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+      </motion.a>
+    );
   }
-  return users;
+);
+RankingRow.displayName = 'RankingRow';
+
+// ═══════════════════════════════════════════════════════════
+// ERROR & EMPTY
+// ═══════════════════════════════════════════════════════════
+
+const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.96 }}
+    animate={{ opacity: 1, scale: 1 }}
+    className="flex flex-col items-center justify-center py-16 text-center"
+  >
+    <div
+      className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+      style={{
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        border: '1px solid rgba(239,68,68,0.2)',
+      }}
+    >
+      <AlertCircle className="w-8 h-8" style={{ color: 'rgb(248,113,113)' }} />
+    </div>
+    <p className="text-[var(--color-text)] font-semibold text-lg mb-1">Erro ao carregar ranking</p>
+    <p className="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm">{error}</p>
+    <button
+      onClick={onRetry}
+      className="px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 active:scale-[0.98] transition-all"
+      style={{ boxShadow: '0 4px 14px rgba(99,102,241,0.25)' }}
+    >
+      Tentar novamente
+    </button>
+  </motion.div>
+);
+
+const EmptyState = () => (
+  <div className="flex flex-col items-center py-16">
+    <div
+      className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+      style={{
+        backgroundColor: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+      }}
+    >
+      <Search className="w-8 h-8 text-[var(--color-text-muted)]" />
+    </div>
+    <p className="text-[var(--color-text)] font-medium mb-1">Nenhum resultado</p>
+    <p className="text-sm text-[var(--color-text-muted)]">Tente buscar por outro nome</p>
+  </div>
+);
+
+// ═══════════════════════════════════════════════════════════
+// PAGINATION
+// ═══════════════════════════════════════════════════════════
+
+const Pagination = ({
+  current,
+  total,
+  onChange,
+}: {
+  current: number;
+  total: number;
+  onChange: (p: number) => void;
+}) => {
+  const pages = useMemo(() => {
+    const r: (number | '...')[] = [];
+    if (total <= 7) {
+      for (let i = 0; i < total; i++) r.push(i);
+    } else {
+      r.push(0);
+      if (current > 2) r.push('...');
+      for (let i = Math.max(1, current - 1); i <= Math.min(total - 2, current + 1); i++) r.push(i);
+      if (current < total - 3) r.push('...');
+      r.push(total - 1);
+    }
+    return r;
+  }, [current, total]);
+
+  if (total <= 1) return null;
+
+  const btnBase =
+    'p-2 rounded-xl border transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed';
+
+  return (
+    <div className="pt-8 space-y-3">
+      <div className="flex items-center justify-center gap-1.5">
+        <button
+          onClick={() => onChange(current - 1)}
+          disabled={current === 0}
+          className={`${btnBase} border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:border-[var(--color-primary)]`}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {pages.map((p, i) =>
+          p === '...' ? (
+            <span
+              key={`d${i}`}
+              className="w-8 h-8 flex items-center justify-center text-sm text-[var(--color-text-muted)]"
+            >
+              ···
+            </span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onChange(p)}
+              className={`
+                min-w-[2rem] h-8 rounded-xl text-sm font-medium transition-all active:scale-95
+                ${
+                  p === current
+                    ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white'
+                    : 'border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)]'
+                }
+              `}
+              style={p === current ? { boxShadow: '0 4px 12px rgba(99,102,241,0.25)' } : {}}
+            >
+              {p + 1}
+            </button>
+          )
+        )}
+
+        <button
+          onClick={() => onChange(current + 1)}
+          disabled={current === total - 1}
+          className={`${btnBase} border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:border-[var(--color-primary)]`}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      <p className="text-center text-xs text-[var(--color-text-muted)]">
+        Página {current + 1} de {total}
+      </p>
+    </div>
+  );
 };
 
 // ═══════════════════════════════════════════════════════════
-// MAIN RANKING COMPONENT
+// MAIN
 // ═══════════════════════════════════════════════════════════
 
 const Ranking: React.FC = () => {
-  const [activeFilter, setActiveFilter] = useState<FilterType>('views');
-  const [users] = useState<User[]>(generateMockUsers());
+  const [activeFilter, setActiveFilter] = useState<RankingType>('views');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const itemsPerPage = 20;
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  // Simulate loading
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data, isLoading, error, currentPage, totalPages, totalElements, setPage, refresh } =
+    useRanking(activeFilter, PAGE_SIZE);
 
-  // Reset page on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeFilter, searchQuery]);
+  const filteredData = useMemo(() => {
+    if (!searchQuery.trim()) return data;
+    const q = searchQuery.toLowerCase();
+    return data.filter((u) => u.slug.toLowerCase().includes(q));
+  }, [data, searchQuery]);
 
-  const filters: FilterOption[] = [
-    { id: 'views', label: 'Mais Views', icon: <Eye className="w-4 h-4" />, description: 'Ordenar por visualizações' },
-    { id: 'coins', label: 'Mais Moedas', icon: <Coins className="w-4 h-4" />, description: 'Ordenar por vcoins' },
-    { id: 'oldest', label: 'Veteranos', icon: <Clock className="w-4 h-4" />, description: 'Membros mais antigos' },
-  ];
+  const showPodium = currentPage === 0 && !searchQuery.trim() && data.length >= 3;
 
-  const sortedAndFilteredUsers = useMemo(() => {
-    let result = [...users];
-
-    // Search filter
-    if (searchQuery) {
-      result = result.filter(user =>
-        user.username.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Sort
-    switch (activeFilter) {
-      case 'views':
-        return result.sort((a, b) => b.views - a.views);
-      case 'coins':
-        return result.sort((a, b) => b.coins - a.coins);
-      case 'oldest':
-        return result.sort((a, b) => a.joinedDate.getTime() - b.joinedDate.getTime());
-      default:
-        return result;
-    }
-  }, [users, activeFilter, searchQuery]);
-
-  const totalPages = Math.ceil(sortedAndFilteredUsers.length / itemsPerPage);
-  const paginatedUsers = sortedAndFilteredUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const topThree = sortedAndFilteredUsers.slice(0, 3);
-
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toLocaleString();
+  const handleFilterChange = (t: RankingType) => {
+    setActiveFilter(t);
+    setSearchQuery('');
   };
 
-  const formatDate = (date: Date): string => {
-    return new Intl.DateTimeFormat('pt-BR', {
-      year: 'numeric',
-      month: 'short'
-    }).format(date);
+  const handlePageChange = (p: number) => {
+    setPage(p);
+    setTimeout(() => {
+      contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  // ── render content ──
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <SkeletonList
+          podium={currentPage === 0 && !searchQuery.trim()}
+          count={currentPage === 0 ? PAGE_SIZE - 3 : PAGE_SIZE}
+        />
+      );
+    }
+    if (error) return <ErrorState error={error} onRetry={refresh} />;
+
+    return (
+      <motion.div
+        key={`${activeFilter}-${currentPage}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+      >
+        {showPodium && <PodiumSection users={data} type={activeFilter} />}
+
+        {/* divider */}
+        {showPodium && (
+          <div className="flex items-center gap-3 mb-4">
+            <div
+              className="flex-1 h-px"
+              style={{
+                background:
+                  'linear-gradient(to right, transparent, var(--color-border), transparent)',
+              }}
+            />
+            <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] font-medium select-none">
+              Classificação
+            </span>
+            <div
+              className="flex-1 h-px"
+              style={{
+                background:
+                  'linear-gradient(to right, transparent, var(--color-border), transparent)',
+              }}
+            />
+          </div>
+        )}
+
+        {/* search results info */}
+        {searchQuery.trim() && (
+          <div className="flex items-center gap-2 mb-3 text-sm text-[var(--color-text-muted)]">
+            <Search className="w-3.5 h-3.5" />
+            <span>
+              {filteredData.length} resultado{filteredData.length !== 1 && 's'} para "
+              <strong className="text-[var(--color-text)]">{searchQuery}</strong>"
+            </span>
+          </div>
+        )}
+
+        {/* list */}
+        <div className="space-y-1.5">
+          {filteredData.map((user, index) => {
+            const position = currentPage * PAGE_SIZE + index + 1;
+            if (showPodium && position <= 3) return null;
+            return (
+              <RankingRow
+                key={`${user.slug}-${position}`}
+                user={user}
+                position={position}
+                type={activeFilter}
+                index={showPodium ? index - 3 : index}
+              />
+            );
+          })}
+        </div>
+
+        {filteredData.length === 0 && <EmptyState />}
+
+        {totalPages > 1 && !searchQuery.trim() && (
+          <Pagination current={currentPage} total={totalPages} onChange={handlePageChange} />
+        )}
+      </motion.div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] relative overflow-hidden">
-      {/* Animated Background Blobs */}
+    <div className="min-h-screen bg-[var(--color-background)] my-5">
+      {/* bg decorations */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-[128px]"
-          style={{ backgroundColor: 'var(--color-primary)' }}
-          animate={{
-            opacity: [0.1, 0.15, 0.1],
-            scale: [1, 1.1, 1],
-            x: [0, 30, 0],
-            y: [0, -20, 0],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        <div
+          className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-[120px]"
+          style={{ backgroundColor: 'var(--color-primary)', opacity: 0.07 }}
         />
-        <motion.div
-          className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full blur-[128px]"
-          style={{ backgroundColor: 'var(--color-secondary)' }}
-          animate={{
-            opacity: [0.1, 0.15, 0.1],
-            scale: [1.1, 1, 1.1],
-            x: [0, -30, 0],
-            y: [0, 20, 0],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[150px]"
-          style={{ backgroundColor: 'var(--color-primary-dark)' }}
-          animate={{
-            opacity: [0.05, 0.08, 0.05],
-            rotate: [0, 180, 360],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        <div
+          className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full blur-[120px]"
+          style={{ backgroundColor: 'var(--color-secondary)', opacity: 0.07 }}
         />
       </div>
 
-      {/* Grid Pattern */}
-      <div
-        className="fixed inset-0 opacity-[0.02] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(var(--color-text) 1px, transparent 1px), linear-gradient(90deg, var(--color-text) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-        }}
-      />
-
-      <div className="relative z-10 p-4 sm:p-6 lg:p-8 pt-20 sm:pt-24">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8 sm:mb-12 text-center"
+      <div ref={contentRef} className="relative z-10 max-w-2xl mx-auto px-4 py-8 pt-20">
+        {/* header */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="text-center mb-8"
+        >
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-4"
+            style={{
+              backgroundColor: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.2)',
+              color: 'var(--color-primary)',
+            }}
           >
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 mb-6 px-5 py-2.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]"
-            >
-              <motion.div
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              >
-                <Sparkles className="w-4 h-4 text-[var(--color-primary)]" />
-              </motion.div>
-              <span className="text-sm font-medium text-[var(--color-text-muted)]">
-                Ranking Global
-              </span>
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            </motion.div>
+            <Trophy className="w-3 h-3" />
+            <span>Leaderboard</span>
+          </div>
 
-            {/* Title */}
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-4"
-            >
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-primary-dark)] bg-[length:200%_auto] animate-gradient">
-                Top 100 Usuários
-              </span>
-            </motion.h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]">
+              Ranking
+            </span>
+          </h1>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-[var(--color-text-muted)] text-base sm:text-lg max-w-2xl mx-auto"
-            >
-              Confira os melhores jogadores da plataforma e conquiste seu lugar no topo
-            </motion.p>
+          {totalElements > 0 && (
+            <p className="text-sm text-[var(--color-text-muted)]">
+              {totalElements.toLocaleString('pt-BR')} usuários competindo
+            </p>
+          )}
+        </motion.div>
 
-            {/* Stats Summary */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-              className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-8"
-            >
-              {[
-                { icon: <Users className="w-5 h-5" />, label: 'Usuários', value: users.length },
-                { icon: <Eye className="w-5 h-5" />, label: 'Total Views', value: users.reduce((acc, u) => acc + u.views, 0) },
-                { icon: <Coins className="w-5 h-5" />, label: 'Total Coins', value: users.reduce((acc, u) => acc + u.coins, 0) },
-              ].map((stat, idx) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.6 + idx * 0.1 }}
-                  className="flex items-center gap-3 px-4 sm:px-5 py-3 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]"
-                >
-                  <div className="text-[var(--color-primary)]">{stat.icon}</div>
-                  <div className="text-left">
-                    <p className="text-xs text-[var(--color-text-muted)]">{stat.label}</p>
-                    <p className="text-base sm:text-lg font-bold text-[var(--color-text)]">
-                      <AnimatedCounter value={stat.value} />
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
+        {/* controls */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+          className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6"
+        >
+          <FilterTabs active={activeFilter} onChange={handleFilterChange} />
 
-          {/* Search & Filters */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="mb-8 space-y-4"
-          >
-            {/* Search */}
-            <div className="max-w-md mx-auto">
-              <SearchBar value={searchQuery} onChange={setSearchQuery} />
-            </div>
-
-            {/* Filters */}
-            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-              <div className="flex gap-3 min-w-max sm:min-w-0 sm:flex-wrap sm:justify-center">
-                {filters.map((filter) => (
-                  <FilterPill
-                    key={filter.id}
-                    filter={filter}
-                    isActive={activeFilter === filter.id}
-                    onClick={() => setActiveFilter(filter.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Loading State */}
-          <AnimatePresence mode="wait">
-            {isLoading ? (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-3"
-              >
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <SkeletonCard key={i} index={i} />
-                ))}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="content"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                {/* Podium - Desktop - CORRIGIDO */}
-                {currentPage === 1 && !searchQuery && topThree.length === 3 && (
-                  <div className="mb-12 hidden lg:flex justify-center items-start gap-6 max-w-4xl mx-auto pt-4">
-                    {/* 2nd Place */}
-                    <div className="flex-1 max-w-[280px]">
-                      <PodiumCard
-                        user={topThree[1]}
-                        position={2}
-                        filter={activeFilter}
-                        formatNumber={formatNumber}
-                        formatDate={formatDate}
-                      />
-                    </div>
-                    {/* 1st Place */}
-                    <div className="flex-1 max-w-[280px]">
-                      <PodiumCard
-                        user={topThree[0]}
-                        position={1}
-                        filter={activeFilter}
-                        formatNumber={formatNumber}
-                        formatDate={formatDate}
-                      />
-                    </div>
-                    {/* 3rd Place */}
-                    <div className="flex-1 max-w-[280px]">
-                      <PodiumCard
-                        user={topThree[2]}
-                        position={3}
-                        filter={activeFilter}
-                        formatNumber={formatNumber}
-                        formatDate={formatDate}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Ranking List */}
-                <div className="space-y-3">
-                  {paginatedUsers.map((user, index) => {
-                    const globalPosition = (currentPage - 1) * itemsPerPage + index + 1;
-                    return (
-                      <RankingCard
-                        key={user.id}
-                        user={user}
-                        position={globalPosition}
-                        filter={activeFilter}
-                        formatNumber={formatNumber}
-                        formatDate={formatDate}
-                        index={index}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Empty State */}
-                {paginatedUsers.length === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center py-16"
-                  >
-                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-[var(--color-surface)] flex items-center justify-center">
-                      <Search className="w-8 h-8 text-[var(--color-text-muted)]" />
-                    </div>
-                    <h3 className="text-xl font-bold text-[var(--color-text)] mb-2">
-                      Nenhum usuário encontrado
-                    </h3>
-                    <p className="text-[var(--color-text-muted)]">
-                      Tente buscar por outro nome
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="mt-10"
-                  >
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={setCurrentPage}
-                    />
-                  </motion.div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Footer */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="mt-12 text-center"
-          >
-            <div className="inline-flex items-center gap-4 px-6 py-4 rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)]">
-              <motion.div
-                className="w-2 h-2 rounded-full bg-green-500"
-                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* search */}
+            <div className="relative flex-1 sm:flex-initial">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar usuário..."
+                className="
+                  w-full sm:w-48 pl-9 pr-8 py-2.5 rounded-xl
+                  bg-[var(--color-surface)] border border-[var(--color-border)]
+                  text-sm text-[var(--color-text)]
+                  placeholder-[var(--color-text-muted)]
+                  outline-none transition-all duration-200
+                  focus:border-[var(--color-primary)]
+                "
+                style={{ boxShadow: 'none' }}
+                onFocus={(e) => {
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.12)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Atualizado em tempo real •
-                <span className="text-[var(--color-text)] font-semibold ml-1">
-                  {sortedAndFilteredUsers.length}
-                </span> usuários
-              </p>
-              <motion.button
-                className="p-1.5 rounded-lg hover:bg-[var(--color-border)] transition-colors"
-                whileHover={{ rotate: 180 }}
-                transition={{ duration: 0.3 }}
-              >
-                <RefreshCw className="w-4 h-4 text-[var(--color-text-muted)]" />
-              </motion.button>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-[var(--color-border)] transition-colors"
+                >
+                  <X className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                </button>
+              )}
             </div>
-          </motion.div>
-        </div>
+
+            {/* refresh */}
+            <button
+              onClick={refresh}
+              disabled={isLoading}
+              className="
+                p-2.5 rounded-xl border border-[var(--color-border)]
+                bg-[var(--color-surface)] text-[var(--color-text-muted)]
+                hover:border-[var(--color-primary)] hover:text-[var(--color-text)]
+                active:scale-95 transition-all disabled:opacity-40
+              "
+              title="Atualizar ranking"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </motion.div>
+
+        {/* content */}
+        {renderContent()}
+
+        {/* footer */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="mt-10 flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)]"
+        >
+          <div
+            className="w-1.5 h-1.5 rounded-full animate-pulse"
+            style={{
+              backgroundColor: 'rgb(16,185,129)',
+              boxShadow: '0 0 6px rgba(16,185,129,0.5)',
+            }}
+          />
+          <span>Atualizado em tempo real</span>
+        </motion.div>
       </div>
-
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes gradient {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .animate-gradient {
-          animation: gradient 3s ease infinite;
-        }
-
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   );
 };
