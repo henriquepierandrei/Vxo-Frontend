@@ -8,8 +8,8 @@ import {
 } from "react";
 import { api } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
+import { useLocation } from "react-router-dom";
 
-// Interfaces para o novo formato de resposta
 interface CardSettings {
   opacity: number;
   blur: number;
@@ -41,11 +41,11 @@ interface MediaUrls {
 }
 
 export interface PageEffects {
-  snow: boolean;        
-  rain: boolean;     
-  cash: boolean; 
-  thunder: boolean; 
-  smoke: boolean; 
+  snow: boolean;
+  rain: boolean;
+  cash: boolean;
+  thunder: boolean;
+  smoke: boolean;
   stars: boolean;
 }
 
@@ -62,7 +62,7 @@ interface PageSettings {
 
 interface ProfileResponse {
   slug: string;
-  premiumExpireAt:  string;
+  premiumExpireAt: string;
   level: string;
   name: string;
   createdAt: string;
@@ -79,9 +79,27 @@ interface ProfileContextData {
   profileImageError: boolean;
   setProfileImageError: (val: boolean) => void;
   refreshProfile: () => Promise<void>;
-  // Helper para acessar a URL da imagem de perfil mais facilmente
   profileImageUrl: string | null;
 }
+
+const PUBLIC_ONLY_ROUTES = [
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/plans",
+  "/ranking",
+  "/unauthorized",
+];
+
+const isPublicProfilePage = (pathname: string): boolean => {
+  const isKnown = PUBLIC_ONLY_ROUTES.some(
+    (r) => pathname === r || pathname.startsWith(r + "/")
+  );
+  const isDashboard = pathname.startsWith("/dashboard");
+  return !isKnown && !isDashboard;
+};
 
 const ProfileContext = createContext<ProfileContextData>(
   {} as ProfileContextData
@@ -89,6 +107,7 @@ const ProfileContext = createContext<ProfileContextData>(
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const location = useLocation();
   const [profileData, setProfileData] = useState<ProfileResponse | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   const [profileImageError, setProfileImageError] = useState(false);
@@ -108,18 +127,18 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && !isPublicProfilePage(location.pathname)) {
       if (!profileData) {
         fetchProfile();
       }
-    } else {
+    } else if (!user) {
       setProfileData(null);
       setProfileImageError(false);
     }
-  }, [user, profileData, fetchProfile]);
+  }, [user, location.pathname, fetchProfile]);
 
-  // Helper para acessar a URL da imagem de perfil
-  const profileImageUrl = profileData?.pageSettings?.mediaUrls?.profileImageUrl || null;
+  const profileImageUrl =
+    profileData?.pageSettings?.mediaUrls?.profileImageUrl || null;
 
   return (
     <ProfileContext.Provider
@@ -135,8 +154,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       {children}
     </ProfileContext.Provider>
   );
-}
-
+} 
 export const useProfile = () => {
   const context = useContext(ProfileContext);
 

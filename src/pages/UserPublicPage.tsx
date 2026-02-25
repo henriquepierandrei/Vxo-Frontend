@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../services/api';
+import { publicApi } from '../services/api';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -598,29 +598,7 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
 
     };
 
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => {
-            if (!isDragging || !sliderRef.current) return;
-            const rect = sliderRef.current.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const newVolume = Math.max(0, Math.min(1, x / rect.width));
-            onChange(newVolume);
-        };
 
-        const handleMouseUp = () => {
-            setIsDragging(false);
-        };
-
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-        }
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging, onChange]);
 
     const getVolumeIcon = () => {
         if (volume === 0) {
@@ -1629,10 +1607,9 @@ const CardContent: React.FC<CardContentProps> = ({
     frame,
     badges,
     showPlusOne,
-    getNameClass,
     hasVerifiedBadge,
 }) => {
-    const profileSize = 120;
+    const profileSize = 110;
     const frameSize = profileSize + 22;
     const centered = data.contentSettings.centerAlign;
     const linkColor = data.contentSettings.biographyColor;
@@ -2152,6 +2129,46 @@ const UserPublicPage: React.FC = () => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const hasTriedAutoplay = useRef(false);
 
+
+    const [tiltX, setTiltX] = useState(0);
+    const [tiltY, setTiltY] = useState(0);
+    const [scale, setScale] = useState(1); // ✅ ADICIONAR ESTADO PARA SCALE
+    const [hovering, setHovering] = useState(false); // ✅ ESTADO PARA HOVER
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    /* ADICIONE ESTES HANDLERS PARA O EFEITO 3D */
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!data?.cardSettings.perspective || !cardRef.current) return;
+
+        const card = cardRef.current;
+        const rect = card.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+
+        const mouseX = e.clientX - centerX;
+        const mouseY = e.clientY - centerY;
+
+        const rotateY = (mouseX / (rect.width / 2)) * 15;
+        const rotateX = -(mouseY / (rect.height / 2)) * 15;
+
+        setTiltX(rotateX);
+        setTiltY(rotateY);
+    };
+
+    const handleMouseLeave = () => {
+        setTiltX(0);
+        setTiltY(0);
+        setScale(1); // ✅ RESETAR SCALE
+        setHovering(false); // ✅ RESETAR HOVER
+    };
+
+    const handleMouseEnter = () => {
+        if (data?.cardSettings.hoverGrow) {
+            setScale(1.03); // ✅ APLICAR SCALE VIA ESTADO
+            setHovering(true); // ✅ MARCAR COMO HOVERING
+        }
+    };
+
     /* FETCH */
     useEffect(() => {
         if (!slug) return;
@@ -2169,7 +2186,7 @@ const UserPublicPage: React.FC = () => {
                     language: navigator.language,
                 };
 
-                const response = await api.post<UserPageResponse>(
+                const response = await publicApi.post<UserPageResponse>(
                     `/public/${slug}`,
                     request
                 );
@@ -2551,27 +2568,43 @@ const UserPublicPage: React.FC = () => {
 
     /* CARD STYLE - WIDTH MAIOR (500px) */
     const cardStyle: React.CSSProperties = {
-        backgroundColor: hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
-        backdropFilter: `blur(${data.cardSettings.blur}px) saturate(180%)`,
-        WebkitBackdropFilter: `blur(${data.cardSettings.blur + 10}px) saturate(180%)`,
+        backgroundColor: data.cardSettings.opacity === 0
+            ? 'transparent'
+            : hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
+        backdropFilter: data.cardSettings.blur === 0
+            ? 'none'
+            : `blur(${data.cardSettings.blur}px) saturate(180%)`,
+        WebkitBackdropFilter: data.cardSettings.blur === 0
+            ? 'none'
+            : `blur(${data.cardSettings.blur}px) saturate(180%)`,
         transform: data.cardSettings.perspective
-            ? 'perspective(1000px) rotateX(2deg)'
-            : 'none',
-        transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+            ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})` // ✅ INCLUIR SCALE
+            : data.cardSettings.hoverGrow && hovering
+                ? `scale(${scale})` // ✅ SCALE SEM PERSPECTIVA
+                : 'none',
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.15s ease-out, box-shadow 0.3s ease', // ✅ TRANSIÇÃO AJUSTADA
         borderRadius: 32,
         padding: 20,
         width: '100%',
-        maxWidth: 500, // WIDTH MAIOR
+        maxWidth: 500,
         border: data.cardSettings.rgbBorder
             ? 'none'
             : '1px solid rgba(255, 255, 255, 0.18)',
         boxSizing: 'border-box',
-        boxShadow: `
-            0 8px 32px rgba(0, 0, 0, 0.12),
-            0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-            0 1px 0 0 rgba(255, 255, 255, 0.1) inset
-        `,
+        boxShadow: hovering && data.cardSettings.hoverGrow // ✅ SOMBRA BASEADA NO HOVER
+            ? `
+                0 20px 60px rgba(0, 0, 0, 0.2),
+                0 0 0 1px rgba(255, 255, 255, 0.1) inset
+            `
+            : `
+                0 8px 32px rgba(0, 0, 0, 0.12),
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                0 1px 0 0 rgba(255, 255, 255, 0.1) inset
+            `,
+        willChange: 'transform',
     };
+
 
     const getNameClass = () => {
         if (data.nameEffects.neon) return 'name-neon';
@@ -2584,7 +2617,11 @@ const UserPublicPage: React.FC = () => {
 
     const handleCardHoverEnter = (e: React.MouseEvent<HTMLDivElement>) => {
         if (data.cardSettings.hoverGrow) {
-            e.currentTarget.style.transform = 'scale(1.03)';
+            // Preservar o tilt atual ao adicionar o scale
+            const currentTransform = data.cardSettings.perspective
+                ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.03)`
+                : 'scale(1.03)';
+            e.currentTarget.style.transform = currentTransform;
             e.currentTarget.style.boxShadow = `
                 0 20px 60px rgba(0, 0, 0, 0.2),
                 0 0 0 1px rgba(255, 255, 255, 0.1) inset
@@ -2593,9 +2630,11 @@ const UserPublicPage: React.FC = () => {
     };
 
     const handleCardHoverLeave = (e: React.MouseEvent<HTMLDivElement>) => {
-        e.currentTarget.style.transform = data.cardSettings.perspective
-            ? 'perspective(1000px) rotateX(2deg)'
+        // Voltar ao estado normal preservando o tilt
+        const baseTransform = data.cardSettings.perspective
+            ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`
             : 'none';
+        e.currentTarget.style.transform = baseTransform;
         e.currentTarget.style.boxShadow = `
             0 8px 32px rgba(0, 0, 0, 0.12),
             0 0 0 1px rgba(255, 255, 255, 0.05) inset,
@@ -2709,16 +2748,18 @@ const UserPublicPage: React.FC = () => {
                         position: 'relative',
                         zIndex: 10,
                         width: '100%',
-                        maxWidth: 500, // WIDTH MAIOR
+                        maxWidth: 500,
                         animation: 'slideUp 0.6s ease-out',
                     }}
                 >
                     {data.cardSettings.rgbBorder ? (
                         <div className="rgb-border-wrapper">
                             <div
-                                style={{ ...cardStyle, borderRadius: 30 }}
-                                onMouseEnter={handleCardHoverEnter}
-                                onMouseLeave={handleCardHoverLeave}
+                                ref={cardRef}
+                                style={cardStyle}
+                                onMouseMove={handleMouseMove}
+                                onMouseEnter={handleMouseEnter} // ✅ USAR NOVO HANDLER
+                                onMouseLeave={handleMouseLeave}
                             >
                                 <CardContent
                                     data={data}
@@ -2732,9 +2773,11 @@ const UserPublicPage: React.FC = () => {
                         </div>
                     ) : (
                         <div
+                            ref={cardRef}
                             style={cardStyle}
-                            onMouseEnter={handleCardHoverEnter}
-                            onMouseLeave={handleCardHoverLeave}
+                            onMouseMove={handleMouseMove}
+                            onMouseEnter={handleMouseEnter} // ✅ USAR NOVO HANDLER
+                            onMouseLeave={handleMouseLeave}
                         >
                             <CardContent
                                 data={data}

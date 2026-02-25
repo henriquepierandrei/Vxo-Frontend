@@ -61,7 +61,6 @@ function App() {
                 <Route path="/:slug" element={<UserPublicPage />} />
 
 
-
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 

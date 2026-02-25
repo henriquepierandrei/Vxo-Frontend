@@ -48,6 +48,14 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+export const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Interceptor de Response - Trata erros e faz refresh do token
 api.interceptors.response.use(
   (response) => response,
