@@ -50,6 +50,11 @@ import {
   Copy,
   CheckCircle2,
   Edit3,
+  Ticket,
+  PartyPopper,
+  KeyRound,
+  Clock,
+  History,
 } from "lucide-react";
 import React from "react";
 import { checkoutService } from "../../services/checkoutService";
@@ -64,7 +69,17 @@ interface GiftFormData {
   message: string;
 }
 
-type MainTab = "store" | "coins" | "customize";
+type MainTab = "store" | "coins" | "customize" | "voucher";
+
+interface VoucherResponse {
+  success: boolean;
+  message?: string;
+  reward?: {
+    type: string;
+    amount?: number;
+    itemName?: string;
+  };
+}
 
 // ═══════════════════════════════════════════════════════════
 // CONFIGURAÇÃO
@@ -166,26 +181,43 @@ const validateSlug = (slug: string): { isValid: boolean; error?: string } => {
   if (!slug || slug.trim().length === 0) {
     return { isValid: false, error: "A URL não pode estar vazia" };
   }
-  
+
   if (slug.length < 1) {
     return { isValid: false, error: "A URL deve ter no mínimo 1 caractér" };
   }
-  
+
   if (slug.length > 30) {
     return { isValid: false, error: "A URL deve ter no máximo 30 caracteres" };
   }
-  
+
   // Apenas letras, números, underscores e hífens
   const slugRegex = /^[a-zA-Z0-9_-]+$/;
   if (!slugRegex.test(slug)) {
     return { isValid: false, error: "Use apenas letras, números, _ ou -" };
   }
-  
+
   // Não pode começar ou terminar com hífen/underscore
   if (/^[-_]|[-_]$/.test(slug)) {
     return { isValid: false, error: "Não pode começar ou terminar com - ou _" };
   }
-  
+
+  return { isValid: true };
+};
+
+// Validação do código do voucher
+const validateVoucherCode = (code: string): { isValid: boolean; error?: string } => {
+  if (!code || code.trim().length === 0) {
+    return { isValid: false, error: "Digite um código de voucher" };
+  }
+
+  if (code.length < 3) {
+    return { isValid: false, error: "O código deve ter no mínimo 3 caracteres" };
+  }
+
+  if (code.length > 50) {
+    return { isValid: false, error: "O código deve ter no máximo 50 caracteres" };
+  }
+
   return { isValid: true };
 };
 
@@ -764,16 +796,16 @@ const CoinPackageCard = ({
       className={`
         relative overflow-hidden rounded-2xl
         border-2 transition-all duration-300
-        ${pkg.isBestValue 
-          ? "border-yellow-500 bg-gradient-to-b from-yellow-500/10 via-amber-500/5 to-transparent" 
-          : pkg.isPopular 
+        ${pkg.isBestValue
+          ? "border-yellow-500 bg-gradient-to-b from-yellow-500/10 via-amber-500/5 to-transparent"
+          : pkg.isPopular
             ? "border-[var(--color-primary)] bg-gradient-to-b from-[var(--color-primary)]/10 to-transparent"
             : "border-[var(--color-border)] bg-[var(--color-surface)]"
         }
         ${isProcessing && !isThisProcessing ? "opacity-50 pointer-events-none" : ""}
       `}
       style={{
-        boxShadow: pkg.isBestValue 
+        boxShadow: pkg.isBestValue
           ? "0 0 40px rgba(234, 179, 8, 0.2), 0 0 80px rgba(234, 179, 8, 0.1)"
           : pkg.isPopular
             ? "0 0 30px rgba(var(--color-primary-rgb), 0.15)"
@@ -830,16 +862,16 @@ const CoinPackageCard = ({
         <div className="flex flex-col items-center mb-6">
           <motion.div
             className="relative mb-4"
-            animate={{ 
+            animate={{
               rotate: pkg.isBestValue ? [0, 5, -5, 0] : 0,
               scale: pkg.isBestValue ? [1, 1.05, 1] : 1
             }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            <div 
+            <div
               className="w-20 h-20 rounded-full flex items-center justify-center"
               style={{
-                background: pkg.isBestValue 
+                background: pkg.isBestValue
                   ? "linear-gradient(135deg, #F59E0B, #D97706)"
                   : pkg.isPopular
                     ? "linear-gradient(135deg, var(--color-primary), var(--color-secondary))"
@@ -908,7 +940,7 @@ const CoinPackageCard = ({
             w-full py-4 rounded-xl font-semibold text-base
             flex items-center justify-center gap-2
             transition-all disabled:opacity-50 disabled:cursor-not-allowed
-            ${pkg.isBestValue 
+            ${pkg.isBestValue
               ? "bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-white shadow-lg shadow-yellow-500/25"
               : pkg.isPopular
                 ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] hover:shadow-lg hover:shadow-[var(--color-primary)]/25 text-white"
@@ -942,20 +974,20 @@ const CoinsPurchaseSection = ({
 
   const handlePurchaseCoins = async (amount: CoinAmount) => {
     console.log('[CoinsPurchase] Iniciando compra de moedas:', amount);
-    
+
     setIsProcessing(true);
     setProcessingAmount(amount);
-    
+
     try {
       onNotification('info', 'Preparando checkout...');
-      
+
       const response = await checkoutService.checkoutCoins(amount);
-      
+
       console.log('[CoinsPurchase] Resposta do checkout:', response);
-      
+
       if (response.success && response.checkoutUrl) {
         onNotification('success', 'Redirecionando para o pagamento...');
-        
+
         // Pequeno delay para mostrar a notificação
         setTimeout(() => {
           checkoutService.redirectToCheckout(response.checkoutUrl!);
@@ -963,7 +995,7 @@ const CoinsPurchaseSection = ({
       } else {
         throw new Error(response.error || 'Erro ao criar checkout');
       }
-      
+
     } catch (error: any) {
       console.error('[CoinsPurchase] Erro ao processar compra:', error);
       onNotification('error', error.message || 'Erro ao processar compra. Tente novamente.');
@@ -994,7 +1026,7 @@ const CoinsPurchaseSection = ({
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-yellow-500/10 to-amber-500/5 border border-yellow-500/20">
             <Coins size={24} className="text-yellow-500" />
             <div>
@@ -1112,12 +1144,12 @@ const CustomizeSection = ({
 
     try {
       onNotification('info', 'Alterando sua URL...');
-      
+
       await checkoutService.changeSlug(newSlug);
-      
+
       onNotification('success', `URL alterada com sucesso para /${newSlug}!`);
       onSlugChanged();
-      
+
     } catch (error: any) {
       console.error('[CustomizeSection] Erro ao alterar slug:', error);
       onNotification('error', error.message || 'Erro ao alterar URL. Tente novamente.');
@@ -1157,7 +1189,7 @@ const CustomizeSection = ({
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-yellow-500/10 to-amber-500/5 border border-yellow-500/20">
             <Coins size={24} className="text-yellow-500" />
             <div>
@@ -1179,7 +1211,7 @@ const CustomizeSection = ({
             </div>
             <h3 className="font-semibold text-[var(--color-text)]">Sua URL Atual</h3>
           </div>
-          
+
           <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
             <ExternalLink size={18} className="text-[var(--color-text-muted)]" />
             <code className="flex-1 text-sm text-[var(--color-text)] font-mono">
@@ -1226,8 +1258,8 @@ const CustomizeSection = ({
                   text-[var(--color-text)] placeholder-[var(--color-text-muted)]
                   focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 
                   transition-all font-mono
-                  ${validationError 
-                    ? 'border-red-500 focus:border-red-500' 
+                  ${validationError
+                    ? 'border-red-500 focus:border-red-500'
                     : hasChanged && !validationError
                       ? 'border-green-500 focus:border-green-500'
                       : 'border-[var(--color-border)] focus:border-[var(--color-primary)]'
@@ -1357,6 +1389,348 @@ const CustomizeSection = ({
           </div>
         </StoreCard>
       </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENTE: Seção de Ativar Voucher
+// ═══════════════════════════════════════════════════════════
+
+const VoucherSection = ({
+  onNotification,
+  onVoucherRedeemed,
+}: {
+  onNotification: (type: "success" | "error" | "info", message: string) => void;
+  onVoucherRedeemed: () => void;
+}) => {
+  const [voucherCode, setVoucherCode] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [redeemSuccess, setRedeemSuccess] = useState<VoucherResponse | null>(null);
+
+  // Validação em tempo real
+  useEffect(() => {
+    if (!voucherCode.trim()) {
+      setValidationError(null);
+      return;
+    }
+
+    const validation = validateVoucherCode(voucherCode);
+    setValidationError(validation.isValid ? null : validation.error || null);
+  }, [voucherCode]);
+
+  const handleCodeChange = (value: string) => {
+    // Remove espaços extras e converte para maiúsculas
+    const sanitized = value.toUpperCase().replace(/\s+/g, '');
+    setVoucherCode(sanitized);
+    setRedeemSuccess(null);
+  };
+
+  const handleSubmit = async () => {
+    const validation = validateVoucherCode(voucherCode);
+    if (!validation.isValid) {
+      setValidationError(validation.error || "Código inválido");
+      return;
+    }
+
+    setIsProcessing(true);
+    setValidationError(null);
+
+    try {
+      onNotification('info', 'Verificando Voucher...');
+
+      const response = await checkoutService.useVoucher(voucherCode);
+
+      if (response.success) {
+        setRedeemSuccess(response);
+        onNotification('success', response.message || 'Voucher ativado com sucesso!');
+        setVoucherCode("");
+        onVoucherRedeemed();
+      } else {
+        throw new Error(response.message || 'Erro ao ativar voucher');
+      }
+
+    } catch (error: any) {
+      console.error('[VoucherSection] Erro ao ativar voucher:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao ativar voucher. Verifique o código e tente novamente.';
+      onNotification('error', errorMessage);
+      setValidationError(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isProcessing && voucherCode.trim() && !validationError) {
+      handleSubmit();
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <StoreCard gradient>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <motion.div
+              className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30"
+              animate={{
+                rotate: [0, 5, -5, 0],
+                scale: [1, 1.05, 1]
+              }}
+              transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
+            >
+              <Ticket size={32} className="text-emerald-500" />
+            </motion.div>
+            <div>
+              <h2 className="text-xl font-bold text-[var(--color-text)]">
+                Ativar Voucher
+              </h2>
+              <p className="text-sm text-[var(--color-text-muted)] mt-1">
+                Resgate códigos promocionais e ganhe recompensas exclusivas
+              </p>
+            </div>
+          </div>
+
+          <motion.div
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20"
+            animate={{ opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            <Gift size={20} className="text-emerald-500" />
+            <span className="text-sm font-medium text-emerald-400">Recompensas Instantâneas</span>
+          </motion.div>
+        </div>
+      </StoreCard>
+
+      {/* Main Input Card */}
+      <StoreCard>
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-emerald-500/10">
+              <KeyRound size={18} className="text-emerald-400" />
+            </div>
+            <h3 className="font-semibold text-[var(--color-text)]">Digite seu código</h3>
+          </div>
+
+          {/* Input */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Ticket size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+              <input
+                type="text"
+                value={voucherCode}
+                onChange={(e) => handleCodeChange(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="EXEMPLO-ABC123"
+                maxLength={50}
+                disabled={isProcessing}
+                className={`
+                  w-full pl-12 pr-4 py-4 rounded-xl
+                  bg-[var(--color-surface)] border-2 
+                  text-[var(--color-text)] placeholder-[var(--color-text-muted)]
+                  focus:outline-none focus:ring-2 focus:ring-emerald-500/30 
+                  transition-all font-mono text-lg tracking-wider uppercase
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  ${validationError
+                    ? 'border-red-500 focus:border-red-500'
+                    : voucherCode.trim() && !validationError
+                      ? 'border-emerald-500 focus:border-emerald-500'
+                      : 'border-[var(--color-border)] focus:border-emerald-500'
+                  }
+                `}
+              />
+              {voucherCode && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  onClick={() => setVoucherCode("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] transition-all"
+                  disabled={isProcessing}
+                >
+                  <X size={18} />
+                </motion.button>
+              )}
+            </div>
+
+            {/* Validation Message */}
+            <AnimatePresence>
+              {validationError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-center gap-2 text-red-400 text-sm"
+                >
+                  <AlertCircle size={14} />
+                  <span>{validationError}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Character Count */}
+            <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
+              <span>Os códigos são case-insensitive</span>
+              <span className={voucherCode.length > 40 ? "text-yellow-400" : ""}>
+                {voucherCode.length}/50
+              </span>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <motion.button
+            onClick={handleSubmit}
+            disabled={isProcessing || !voucherCode.trim() || !!validationError}
+            className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-semibold text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25"
+            whileHover={!isProcessing && voucherCode.trim() && !validationError ? { scale: 1.02 } : {}}
+            whileTap={!isProcessing && voucherCode.trim() && !validationError ? { scale: 0.98 } : {}}
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                Ativando...
+              </>
+            ) : (
+              <>
+                <Check size={20} />
+                Ativar Voucher
+                <ArrowRight size={18} />
+              </>
+            )}
+          </motion.button>
+        </div>
+      </StoreCard>
+
+      {/* Success State */}
+      <AnimatePresence>
+        {redeemSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          >
+            <StoreCard className="border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-transparent">
+              <div className="flex flex-col items-center text-center py-6">
+                <motion.div
+                  className="p-4 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-500/10 mb-4"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <PartyPopper size={48} className="text-emerald-500" />
+                </motion.div>
+                <motion.h3
+                  className="text-2xl font-bold text-[var(--color-text)] mb-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  Voucher Ativado!
+                </motion.h3>
+                <motion.p
+                  className="text-[var(--color-text-muted)] mb-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  {redeemSuccess.message || "Sua recompensa foi adicionada à sua conta"}
+                </motion.p>
+
+                {redeemSuccess.reward && (
+                  <motion.div
+                    className="flex items-center gap-3 px-6 py-3 rounded-xl bg-[var(--color-surface)] border border-emerald-500/20"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    {redeemSuccess.reward.type === 'coins' && (
+                      <>
+                        <Coins size={24} className="text-yellow-500" />
+                        <span className="text-lg font-bold text-[var(--color-text)]">
+                          +{redeemSuccess.reward.amount?.toLocaleString()} Moedas
+                        </span>
+                      </>
+                    )}
+                    {redeemSuccess.reward.type === 'item' && (
+                      <>
+                        <Gift size={24} className="text-purple-500" />
+                        <span className="text-lg font-bold text-[var(--color-text)]">
+                          {redeemSuccess.reward.itemName}
+                        </span>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+            </StoreCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StoreCard className="text-center">
+          <div className="p-3 rounded-xl bg-emerald-500/10 w-fit mx-auto mb-3">
+            <Zap size={24} className="text-emerald-400" />
+          </div>
+          <h4 className="font-semibold text-[var(--color-text)] mb-1">Ativação Instantânea</h4>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            As recompensas são creditadas imediatamente na sua conta
+          </p>
+        </StoreCard>
+
+        <StoreCard className="text-center">
+          <div className="p-3 rounded-xl bg-blue-500/10 w-fit mx-auto mb-3">
+            <Gift size={24} className="text-blue-400" />
+          </div>
+          <h4 className="font-semibold text-[var(--color-text)] mb-1">Diversas Recompensas</h4>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Moedas, itens exclusivos, molduras e muito mais
+          </p>
+        </StoreCard>
+
+        <StoreCard className="text-center">
+          <div className="p-3 rounded-xl bg-purple-500/10 w-fit mx-auto mb-3">
+            <Clock size={24} className="text-purple-400" />
+          </div>
+          <h4 className="font-semibold text-[var(--color-text)] mb-1">Tempo Limitado</h4>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Alguns códigos podem ter prazo de validade
+          </p>
+        </StoreCard>
+      </div>
+
+      {/* Tips Section */}
+      <StoreCard>
+        <div className="flex items-start gap-4">
+          <div className="p-3 rounded-xl bg-amber-500/10 flex-shrink-0">
+            <AlertCircle size={24} className="text-amber-400" />
+          </div>
+          <div className="space-y-2">
+            <h4 className="font-semibold text-[var(--color-text)]">Onde encontrar códigos?</h4>
+            <ul className="text-sm text-[var(--color-text-muted)] space-y-1.5">
+              <li className="flex items-center gap-2">
+                <ChevronRight size={14} className="text-emerald-400" />
+                Promoções especiais nas redes sociais
+              </li>
+              <li className="flex items-center gap-2">
+                <ChevronRight size={14} className="text-emerald-400" />
+                Eventos e parcerias exclusivas
+              </li>
+              <li className="flex items-center gap-2">
+                <ChevronRight size={14} className="text-emerald-400" />
+                Recompensas por indicação de amigos
+              </li>
+              <li className="flex items-center gap-2">
+                <ChevronRight size={14} className="text-emerald-400" />
+                Brindes em lives e streams
+              </li>
+            </ul>
+          </div>
+        </div>
+      </StoreCard>
     </div>
   );
 };
@@ -1967,9 +2341,9 @@ const DashboardStore = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // ✅ NOVO: Tab principal (loja, moedas ou personalização)
+  // ✅ ATUALIZADO: Tab principal agora inclui voucher
   const [mainTab, setMainTab] = useState<MainTab>("store");
-  
+
   const [activeTab, setActiveTab] = useState<StoreItemType | "all">("all");
   const [filterOwned, setFilterOwned] = useState<"all" | "owned" | "not_owned">("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -2079,25 +2453,25 @@ const DashboardStore = () => {
   };
 
   const handleEquip = async (item: StoreItem) => {
-  setIsSubmitting(true);
-  setLocalError(null);
+    setIsSubmitting(true);
+    setLocalError(null);
 
-  try {
-    
-    // Pequeno delay pra UX não parecer bugado
-    setTimeout(() => {
-      navigate("/dashboard/inventory");
-    }, 1000);
+    try {
 
-  } catch (err: any) {
+      // Pequeno delay pra UX não parecer bugado
+      setTimeout(() => {
+        navigate("/dashboard/inventory");
+      }, 1000);
 
-    setLocalError(
-      err.response?.data?.message || "Erro ao ir para o inventário."
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    } catch (err: any) {
+
+      setLocalError(
+        err.response?.data?.message || "Erro ao ir para o inventário."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleFavorite = (item: StoreItem) => {
     toggleFavorite(item.id);
@@ -2108,7 +2482,7 @@ const DashboardStore = () => {
     clearError();
   };
 
-  // Função para notificações (usada pelo CoinsPurchaseSection e CustomizeSection)
+  // Função para notificações (usada pelo CoinsPurchaseSection, CustomizeSection e VoucherSection)
   const showNotification = (type: "success" | "error" | "info", message: string) => {
     if (type === "success") {
       setSuccessMessage(message);
@@ -2123,6 +2497,11 @@ const DashboardStore = () => {
 
   // Callback quando o slug é alterado com sucesso
   const handleSlugChanged = () => {
+    refreshProfile();
+  };
+
+  // Callback quando o voucher é resgatado com sucesso
+  const handleVoucherRedeemed = () => {
     refreshProfile();
   };
 
@@ -2183,7 +2562,7 @@ const DashboardStore = () => {
         </div>
       </motion.div>
 
-      {/* Main Tabs (Loja / Comprar Moedas / Personalizar) */}
+      {/* Main Tabs (Loja / Comprar Moedas / Personalizar / Voucher) */}
       <div className="flex flex-wrap gap-4 mb-6">
         <MainTabButton
           active={mainTab === "store"}
@@ -2203,6 +2582,12 @@ const DashboardStore = () => {
           icon={Link2}
           label="Personalizar URL"
           badge={`${SLUG_CHANGE_COST}`}
+        />
+        <MainTabButton
+          active={mainTab === "voucher"}
+          onClick={() => setMainTab("voucher")}
+          icon={Ticket}
+          label="Ativar Voucher"
         />
       </div>
 
@@ -2255,8 +2640,8 @@ const DashboardStore = () => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <CoinsPurchaseSection 
-              userCoins={userCoins} 
+            <CoinsPurchaseSection
+              userCoins={userCoins}
               onNotification={showNotification}
             />
           </motion.div>
@@ -2273,6 +2658,19 @@ const DashboardStore = () => {
               userCoins={userCoins}
               onNotification={showNotification}
               onSlugChanged={handleSlugChanged}
+            />
+          </motion.div>
+        ) : mainTab === "voucher" ? (
+          <motion.div
+            key="voucher"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <VoucherSection
+              onNotification={showNotification}
+              onVoucherRedeemed={handleVoucherRedeemed}
             />
           </motion.div>
         ) : (

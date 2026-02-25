@@ -131,80 +131,80 @@ const isVerifiedBadge = (badge: InventoryItem): boolean => {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const VerifiedIcon: React.FC<{ size?: number }> = ({ size = 22 }) => {
-  const iconPath =
-    "M21.007 8.27C22.194 9.125 23 10.45 23 12c0 1.55-.806 2.876-1.993 3.73.24 1.442-.134 2.958-1.227 4.05-1.095 1.095-2.61 1.459-4.046 1.225C14.883 22.196 13.546 23 12 23c-1.55 0-2.878-.807-3.731-1.996-1.438.235-2.954-.128-4.05-1.224-1.095-1.095-1.459-2.611-1.217-4.05C1.816 14.877 1 13.551 1 12s.816-2.878 2.002-3.73c-.242-1.439.122-2.955 1.218-4.05 1.093-1.094 2.61-1.467 4.057-1.227C9.125 1.804 10.453 1 12 1c1.545 0 2.88.803 3.732 1.993 1.442-.24 2.956.135 4.048 1.227 1.093 1.092 1.468 2.608 1.227 4.05Zm-4.426-.084a1 1 0 0 1 .233 1.395l-5 7a1 1 0 0 1-1.521.126l-3-3a1 1 0 0 1 1.414-1.414l2.165 2.165 4.314-6.04a1 1 0 0 1 1.395-.232Z";
+    const iconPath =
+        "M21.007 8.27C22.194 9.125 23 10.45 23 12c0 1.55-.806 2.876-1.993 3.73.24 1.442-.134 2.958-1.227 4.05-1.095 1.095-2.61 1.459-4.046 1.225C14.883 22.196 13.546 23 12 23c-1.55 0-2.878-.807-3.731-1.996-1.438.235-2.954-.128-4.05-1.224-1.095-1.095-1.459-2.611-1.217-4.05C1.816 14.877 1 13.551 1 12s.816-2.878 2.002-3.73c-.242-1.439.122-2.955 1.218-4.05 1.093-1.094 2.61-1.467 4.057-1.227C9.125 1.804 10.453 1 12 1c1.545 0 2.88.803 3.732 1.993 1.442-.24 2.956.135 4.048 1.227 1.093 1.092 1.468 2.608 1.227 4.05Zm-4.426-.084a1 1 0 0 1 .233 1.395l-5 7a1 1 0 0 1-1.521.126l-3-3a1 1 0 0 1 1.414-1.414l2.165 2.165 4.314-6.04a1 1 0 0 1 1.395-.232Z";
 
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      style={{ flexShrink: 0, overflow: "visible" }}
-    >
-      <defs>
-        {/* Gradiente de preenchimento */}
-        <linearGradient id="vGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#2563EB" />
-          <stop offset="100%" stopColor="#3B82F6" />
-        </linearGradient>
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            style={{ flexShrink: 0, overflow: "visible" }}
+        >
+            <defs>
+                {/* Gradiente de preenchimento */}
+                <linearGradient id="vGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#2563EB" />
+                    <stop offset="100%" stopColor="#3B82F6" />
+                </linearGradient>
 
-        {/* Filtro de glow — segue a FORMA, sem quadrado */}
-        <filter id="vGlow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur" />
-          <feColorMatrix
-            in="blur"
-            type="matrix"
-            values="0 0 0 0 0.15
+                {/* Filtro de glow — segue a FORMA, sem quadrado */}
+                <filter id="vGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur" />
+                    <feColorMatrix
+                        in="blur"
+                        type="matrix"
+                        values="0 0 0 0 0.15
                     0 0 0 0 0.39
                     0 0 0 0 0.92
                     0 0 0 0.6 0"
-            result="glow"
-          />
-          <feMerge>
-            <feMergeNode in="glow" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
+                        result="glow"
+                    />
+                    <feMerge>
+                        <feMergeNode in="glow" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
 
-        {/* Clip recorta o brilho na forma do ícone */}
-        <clipPath id="vClip">
-          <path d={iconPath} />
-        </clipPath>
+                {/* Clip recorta o brilho na forma do ícone */}
+                <clipPath id="vClip">
+                    <path d={iconPath} />
+                </clipPath>
 
-        {/* Gradiente do brilho (bordas suaves) */}
-        <linearGradient id="vShine" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="white" stopOpacity="0" />
-          <stop offset="50%" stopColor="white" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="white" stopOpacity="0" />
-        </linearGradient>
-      </defs>
+                {/* Gradiente do brilho (bordas suaves) */}
+                <linearGradient id="vShine" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="white" stopOpacity="0" />
+                    <stop offset="50%" stopColor="white" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="white" stopOpacity="0" />
+                </linearGradient>
+            </defs>
 
-      {/* Ícone com glow */}
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d={iconPath}
-        fill="url(#vGrad)"
-        filter="url(#vGlow)"
-      />
-
-      {/* Faixa de brilho animada (presa à forma) */}
-      <g clipPath="url(#vClip)">
-        <g transform="rotate(30 12 12)">
-          <rect y="-5" width="8" height="35" fill="url(#vShine)">
-            <animate
-              attributeName="x"
-              values="-12; 28; 28"
-              keyTimes="0; 0.4; 1"
-              dur="3s"
-              repeatCount="indefinite"
+            {/* Ícone com glow */}
+            <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d={iconPath}
+                fill="url(#vGrad)"
+                filter="url(#vGlow)"
             />
-          </rect>
-        </g>
-      </g>
-    </svg>
-  );
+
+            {/* Faixa de brilho animada (presa à forma) */}
+            <g clipPath="url(#vClip)">
+                <g transform="rotate(30 12 12)">
+                    <rect y="-5" width="8" height="35" fill="url(#vShine)">
+                        <animate
+                            attributeName="x"
+                            values="-12; 28; 28"
+                            keyTimes="0; 0.4; 1"
+                            dur="3s"
+                            repeatCount="indefinite"
+                        />
+                    </rect>
+                </g>
+            </g>
+        </svg>
+    );
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -554,7 +554,7 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
                         height: 32,
                         objectFit: 'contain',
                         // Aplica o filtro de cor usando biographyColor (RESTAURADO)
-                        filter: rgbToFilter(biographyColor),
+                        filter: `${rgbToFilter(biographyColor)} drop-shadow(0 0 1px rgba(0, 150, 255, 0.7))`,
                     }}
                 />
             </div>
@@ -1742,17 +1742,31 @@ const CardContent: React.FC<CardContentProps> = ({
                 }}
             >
                 <h1
-                    className={getNameClass()}
+                    className={
+                        data.nameEffects.neon
+                            ? 'name-neon'
+                            : data.nameEffects.shiny
+                                ? 'name-shiny'
+                                : data.nameEffects.rgb
+                                    ? 'name-rgb'
+                                    : ''
+                    }
                     style={{
                         fontSize: 28,
                         fontWeight: 'bold',
                         margin: 0,
-                        color: getNameClass() ? undefined : '#fff',
                         letterSpacing: '-0.02em',
+                        color:
+                            !data.nameEffects.neon &&
+                                !data.nameEffects.shiny &&
+                                !data.nameEffects.rgb
+                                ? data.contentSettings.biographyColor || '#fff'
+                                : undefined,
                     }}
                 >
                     {data.slug}
                 </h1>
+
 
                 {/* Ícone de Verificado Azul */}
                 {hasVerifiedBadge && (
@@ -1845,19 +1859,40 @@ const CardContent: React.FC<CardContentProps> = ({
                 <div
                     style={{
                         width: '100%',
-                        aspectRatio: '16/9',
                         borderRadius: 20,
                         overflow: 'hidden',
                         marginTop: 8,
                         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+                        // Altura dinâmica baseada no tipo de embed
+                        ...(data.embedUrl.includes('spotify.com')
+                            ? {
+                                // Spotify: altura fixa baseada no tipo
+                                height: data.embedUrl.includes('/track/')
+                                    ? 152  // Track compacto
+                                    : data.embedUrl.includes('/episode/')
+                                        ? 152
+                                        : 352, // Playlist, album, artist
+                                minHeight: data.embedUrl.includes('/track/') ? 152 : 352,
+                            }
+                            : {
+                                // YouTube e outros: aspect ratio 16/9
+                                aspectRatio: '16/9',
+                            }
+                        ),
                     }}
                 >
                     <iframe
                         src={data.embedUrl}
-                        style={{ width: '100%', height: '100%', border: 'none' }}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            border: 'none',
+                            borderRadius: 12,
+                        }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
                         title="Embed"
+                        loading="lazy"
                     />
                 </div>
             )}
@@ -2299,22 +2334,216 @@ const UserPublicPage: React.FC = () => {
     if (error || !data) {
         return (
             <>
-                <style dangerouslySetInnerHTML={{ __html: globalStylesCSS }} />
-                <div
-                    style={{
-                        minHeight: '100vh',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f0f23 100%)',
-                        flexDirection: 'column',
-                        gap: 16,
-                    }}
-                >
-                    <h1 style={{ fontSize: 72, fontWeight: 'bold', color: '#fff', margin: 0 }}>
-                        404
-                    </h1>
-                    <p style={{ color: '#9ca3af' }}>Usuário não encontrado</p>
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                ${globalStylesCSS}
+                
+                @keyframes slideIn {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                
+                @keyframes float {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-8px); }
+                }
+                
+                @keyframes pulse-glow {
+                    0%, 100% { box-shadow: 0 0 20px rgba(143, 124, 255, 0.2); }
+                    50% { box-shadow: 0 0 40px rgba(143, 124, 255, 0.4); }
+                }
+                
+                .error-page {
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #121316;
+                    padding: 20px;
+                    position: relative;
+                    overflow: hidden;
+                }
+                
+                .error-page::before {
+                    content: '';
+                    position: absolute;
+                    width: 500px;
+                    height: 500px;
+                    background: radial-gradient(circle, rgba(143, 124, 255, 0.08) 0%, transparent 70%);
+                    top: -150px;
+                    right: -150px;
+                    pointer-events: none;
+                }
+                
+                .error-page::after {
+                    content: '';
+                    position: absolute;
+                    width: 400px;
+                    height: 400px;
+                    background: radial-gradient(circle, rgba(79, 140, 255, 0.06) 0%, transparent 70%);
+                    bottom: -100px;
+                    left: -100px;
+                    pointer-events: none;
+                }
+                
+                .error-card {
+                    background: rgba(17, 18, 19, 0.767);
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 28px;
+                    padding: 60px 48px;
+                    text-align: center;
+                    max-width: 420px;
+                    width: 100%;
+                    backdrop-filter: blur(24px);
+                    -webkit-backdrop-filter: blur(24px);
+                    animation: slideIn 0.5s ease-out;
+                    position: relative;
+                    z-index: 1;
+                }
+                
+                .error-avatar {
+                    width: 100px;
+                    height: 100px;
+                    background: linear-gradient(135deg, #1f2846 0%, rgba(143, 124, 255, 0.1) 100%);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 32px;
+                    border: 2px dashed rgba(143, 124, 255, 0.3);
+                    animation: float 3s ease-in-out infinite, pulse-glow 3s ease-in-out infinite;
+                }
+                
+                .error-avatar svg {
+                    width: 48px;
+                    height: 48px;
+                    color: rgba(237, 237, 237, 0.4);
+                }
+                
+                .error-status {
+                    display: inline-block;
+                    padding: 6px 16px;
+                    background: rgba(143, 124, 255, 0.1);
+                    border: 1px solid rgba(143, 124, 255, 0.3);
+                    border-radius: 20px;
+                    color: #8F7CFF;
+                    font-size: 13px;
+                    font-weight: 600;
+                    margin-bottom: 20px;
+                    letter-spacing: 0.5px;
+                }
+                
+                .error-heading {
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #EDEDED;
+                    margin: 0 0 12px;
+                }
+                
+                .error-desc {
+                    color: rgba(237, 237, 237, 0.6);
+                    font-size: 15px;
+                    line-height: 1.7;
+                    margin: 0 0 32px;
+                }
+                
+                .error-actions {
+                    display: flex;
+                    gap: 12px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+                
+                .btn-primary {
+                    padding: 14px 32px;
+                    background: linear-gradient(135deg, #8F7CFF 0%, #7A66F0 100%);
+                    color: #fff;
+                    border: none;
+                    border-radius: 14px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    text-decoration: none;
+                    box-shadow: 0 4px 20px rgba(143, 124, 255, 0.3);
+                }
+                
+                .btn-primary:hover {
+                    background: linear-gradient(135deg, #7A66F0 0%, #8F7CFF 100%);
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 30px rgba(143, 124, 255, 0.5);
+                }
+                
+                .btn-primary:active {
+                    transform: translateY(0);
+                }
+                
+                .btn-secondary {
+                    padding: 14px 32px;
+                    background: rgba(255, 255, 255, 0.021);
+                    color: rgba(237, 237, 237, 0.6);
+                    border: 1px solid rgba(255, 255, 255, 0.12);
+                    border-radius: 14px;
+                    font-size: 14px;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    text-decoration: none;
+                }
+                
+                .btn-secondary:hover {
+                    background: rgba(255, 255, 255, 0.09);
+                    border-color: rgba(255, 255, 255, 0.2);
+                    color: #EDEDED;
+                }
+                
+                @media (max-width: 480px) {
+                    .error-card {
+                        padding: 40px 28px;
+                        border-radius: 20px;
+                    }
+                    
+                    .error-heading {
+                        font-size: 24px;
+                    }
+                    
+                    .error-actions {
+                        flex-direction: column;
+                    }
+                    
+                    .btn-primary,
+                    .btn-secondary {
+                        width: 100%;
+                        justify-content: center;
+                    }
+                }
+            `}} />
+
+                <div className="error-page">
+                    <div className="error-card">
+                        <div className="error-avatar">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={1.5}
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                />
+                            </svg>
+                        </div>
+                        <span className="error-status">Erro 404</span>
+                        <h1 className="error-heading">Perfil não encontrado</h1>
+                        <p className="error-desc">
+                            Não conseguimos encontrar o usuário que você está procurando.
+                            Verifique o link ou tente buscar novamente.
+                        </p>
+                        <div className="error-actions">
+                            <a href="/" className="btn-primary">Ir para home</a>
+                            <button onClick={() => window.history.back()} className="btn-secondary">
+                                Voltar
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </>
         );
@@ -2330,7 +2559,7 @@ const UserPublicPage: React.FC = () => {
             : 'none',
         transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         borderRadius: 32,
-        padding: 40,
+        padding: 20,
         width: '100%',
         maxWidth: 500, // WIDTH MAIOR
         border: data.cardSettings.rgbBorder
@@ -2350,6 +2579,8 @@ const UserPublicPage: React.FC = () => {
         if (data.nameEffects.rgb) return 'name-rgb';
         return '';
     };
+
+
 
     const handleCardHoverEnter = (e: React.MouseEvent<HTMLDivElement>) => {
         if (data.cardSettings.hoverGrow) {
@@ -2436,7 +2667,7 @@ const UserPublicPage: React.FC = () => {
                                     width: 50,
                                     height: 80,
                                     borderRadius: '50%',
-                                    
+
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -2467,7 +2698,7 @@ const UserPublicPage: React.FC = () => {
                             >
                                 {data.contentSettings.biography}
                             </h2>
-                            
+
                         </div>
                     </div>
                 )}
@@ -2536,7 +2767,7 @@ const UserPublicPage: React.FC = () => {
                 {/* MARCA D'ÁGUA */}
                 {!data.isPremium && (
                     <div
-                    onClick={() => window.location.href = "/"}
+                        onClick={() => window.location.href = "/"}
                         style={{
                             position: 'fixed',
                             bottom: 20,

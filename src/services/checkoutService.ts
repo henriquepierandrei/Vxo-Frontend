@@ -7,6 +7,16 @@ import type { CheckoutResponse, PlanType, CoinAmount } from '../types/checkout.t
 // TIPOS ADICIONAIS
 // ═══════════════════════════════════════════════════════════
 
+interface VoucherResponse {
+  success: boolean;
+  message?: string;
+  reward?: {
+    type: string;
+    amount?: number;
+    itemName?: string;
+  };
+}
+
 export interface ChangeSlugResponse {
   status: string;
   message: string;
@@ -31,6 +41,34 @@ class CheckoutService {
     setTimeout(() => {
       this.pendingRequests.delete(key);
     }, 100);
+  }
+
+  /**
+   * Ativa um código de voucher
+   * @param code - Código do voucher
+   * @returns Promise com a resposta do servidor
+   */
+  async useVoucher(code: string): Promise<VoucherResponse> {
+    try {
+      const response = await api.post('/user/vouchers/use', null, {
+        params: { code }
+      });
+      
+      return {
+        success: true,
+        message: response.data.message || 'Voucher ativado com sucesso!',
+        reward: response.data.reward
+      };
+    } catch (error: any) {
+      console.error('[CheckoutService] Erro ao ativar voucher:', error);
+      
+      // Extrai mensagem de erro do backend
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error 
+        || 'Erro ao ativar voucher. Verifique o código e tente novamente.';
+      
+      throw new Error(errorMessage);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
