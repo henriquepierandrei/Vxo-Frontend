@@ -459,18 +459,48 @@ function rgbToFilter(c: string): string {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BADGE TOOLTIP COMPONENT - Com filtro de cor restaurado
+   HELPER: Inverter cor hex
 ═══════════════════════════════════════════════════════════════════════════ */
 
+const invertColor = (hex: string): string => {
+    // Remove o #
+    const color = hex.replace('#', '');
+
+    let r: number, g: number, b: number;
+
+    if (color.length === 3) {
+        r = parseInt(color[0] + color[0], 16);
+        g = parseInt(color[1] + color[1], 16);
+        b = parseInt(color[2] + color[2], 16);
+    } else {
+        r = parseInt(color.slice(0, 2), 16);
+        g = parseInt(color.slice(2, 4), 16);
+        b = parseInt(color.slice(4, 6), 16);
+    }
+
+    // Inverte cada canal
+    const invR = (255 - r).toString(16).padStart(2, '0');
+    const invG = (255 - g).toString(16).padStart(2, '0');
+    const invB = (255 - b).toString(16).padStart(2, '0');
+
+    return `#${invR}${invG}${invB}`;
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGE TOOLTIP COMPONENT - Com filtro de cor restaurado
+═══════════════════════════════════════════════════════════════════════════ */
 interface BadgeWithTooltipProps {
     badge: InventoryItem;
-    biographyColor: string;
+    biographyColor: string; // ← Mudou de cardColor para biographyColor
 }
 
 const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyColor }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const badgeName = badge.name || extractBadgeName(badge.url);
     const isVerified = isVerifiedBadge(badge);
+
+    // Não precisa mais inverter - usa direto a cor da biography
+    // const invertedColor = invertColor(cardColor); // ← REMOVIDO
 
     return (
         <div
@@ -488,7 +518,7 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
                     bottom: 'calc(100% + 12px)',
                     left: '50%',
                     transform: `translateX(-50%) ${showTooltip ? 'translateY(0)' : 'translateY(8px)'}`,
-                    padding: '8px 14px',
+                    padding: '4px 7px',
                     borderRadius: 12,
                     backgroundColor: 'rgba(0, 0, 0, 0.85)',
                     backdropFilter: 'blur(20px)',
@@ -539,7 +569,7 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
                 />
             </div>
 
-            {/* Badge Image - COM FILTRO DE COR RESTAURADO */}
+            {/* Badge Image - COM COR DA BIOGRAPHY */}
             <div
                 style={{
                     transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -550,11 +580,11 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
                     src={badge.url}
                     alt={badgeName}
                     style={{
-                        width: 32,
-                        height: 32,
+                        width: 28,
+                        height: 28,
                         objectFit: 'contain',
-                        // Aplica o filtro de cor usando biographyColor (RESTAURADO)
-                        filter: `${rgbToFilter(biographyColor)} drop-shadow(0 0 1px rgba(0, 150, 255, 0.7))`,
+                        // ✅ Usa biographyColor diretamente
+                        filter: `${rgbToFilter(biographyColor)} drop-shadow(0 0 1px ${biographyColor}80)`,
                     }}
                 />
             </div>
@@ -564,6 +594,10 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
 
 /* ═══════════════════════════════════════════════════════════════════════════
    VOLUME SLIDER COMPONENT
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VOLUME SLIDER COMPONENT - PREMIUM VERSION
 ═══════════════════════════════════════════════════════════════════════════ */
 
 interface VolumeSliderProps {
@@ -583,200 +617,526 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [isHovering, setIsHovering] = useState(false);
+    const [audioLevels, setAudioLevels] = useState<number[]>([0.3, 0.5, 0.7, 0.4, 0.6, 0.8, 0.5, 0.3]);
     const sliderRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    const handleSliderClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Simular níveis de áudio quando tocando
+    useEffect(() => {
+        if (!isPlaying) {
+            setAudioLevels([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setAudioLevels(prev =>
+                prev.map(() => 0.2 + Math.random() * 0.8 * volume)
+            );
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [isPlaying, volume]);
+
+    // Fechar ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setIsExpanded(false);
+            }
+        };
+
+        if (isExpanded) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [isExpanded]);
+
+    const handleSliderInteraction = (e: React.MouseEvent | MouseEvent) => {
         if (!sliderRef.current) return;
         const rect = sliderRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const newVolume = Math.max(0, Math.min(1, x / rect.width));
-        onChange(newVolume);
+        const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+        onChange(Math.round(y * 100) / 100);
     };
 
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
+        handleSliderInteraction(e);
 
+        const handleMouseMove = (e: MouseEvent) => handleSliderInteraction(e);
+        const handleMouseUp = () => {
+            setIsDragging(false);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
     };
 
+    // Ícone de volume dinâmico
+    const VolumeIcon = () => {
+        const getIcon = () => {
+            if (volume === 0) {
+                return (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path
+                            d="M11 5L6 9H2V15H6L11 19V5Z"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                        <line
+                            x1="22"
+                            y1="9"
+                            x2="16"
+                            y2="15"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                        />
+                        <line
+                            x1="16"
+                            y1="9"
+                            x2="22"
+                            y2="15"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                        />
+                    </svg>
+                );
+            }
 
+            return (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path
+                        d="M11 5L6 9H2V15H6L11 19V5Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="currentColor"
+                        fillOpacity="0.2"
+                    />
+                    {volume > 0 && (
+                        <path
+                            d="M15.54 8.46C16.48 9.4 17 10.67 17 12C17 13.33 16.48 14.6 15.54 15.54"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            style={{
+                                opacity: volume > 0.3 ? 1 : 0.4,
+                                transition: 'opacity 0.2s'
+                            }}
+                        />
+                    )}
+                    {volume > 0.5 && (
+                        <path
+                            d="M18.07 5.93C19.78 7.64 20.75 9.78 20.75 12C20.75 14.22 19.78 16.36 18.07 18.07"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            style={{
+                                opacity: volume > 0.6 ? 1 : 0.4,
+                                transition: 'opacity 0.2s'
+                            }}
+                        />
+                    )}
+                </svg>
+            );
+        };
 
-    const getVolumeIcon = () => {
-        if (volume === 0) {
-            return (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" />
-                    <line x1="23" y1="9" x2="17" y2="15" strokeLinecap="round" />
-                    <line x1="17" y1="9" x2="23" y2="15" strokeLinecap="round" />
-                </svg>
-            );
-        } else if (volume < 0.5) {
-            return (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                </svg>
-            );
-        } else {
-            return (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                </svg>
-            );
-        }
+        return (
+            <div style={{ color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {getIcon()}
+            </div>
+        );
     };
+
+    // Ícone de Play/Pause animado
+    const PlayPauseIcon = () => (
+        <div
+            style={{
+                width: 20,
+                height: 20,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+            }}
+        >
+            {isPlaying ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1">
+                        <animate
+                            attributeName="height"
+                            values="16;12;16"
+                            dur="0.5s"
+                            repeatCount="indefinite"
+                        />
+                        <animate
+                            attributeName="y"
+                            values="4;6;4"
+                            dur="0.5s"
+                            repeatCount="indefinite"
+                        />
+                    </rect>
+                    <rect x="14" y="4" width="4" height="16" rx="1">
+                        <animate
+                            attributeName="height"
+                            values="12;16;12"
+                            dur="0.5s"
+                            repeatCount="indefinite"
+                        />
+                        <animate
+                            attributeName="y"
+                            values="6;4;6"
+                            dur="0.5s"
+                            repeatCount="indefinite"
+                        />
+                    </rect>
+                </svg>
+            ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5.14v14.72a1 1 0 001.5.86l11-7.36a1 1 0 000-1.72l-11-7.36a1 1 0 00-1.5.86z" />
+                </svg>
+            )}
+        </div>
+    );
 
     return (
         <div
+            ref={containerRef}
+            onMouseEnter={() => setIsHovering(true)}
+            onMouseLeave={() => setIsHovering(false)}
             style={{
                 position: 'fixed',
-                top: 20,
-                left: 20,
+                bottom: 24,
+                right: 24,
+                zIndex: 1000,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: 0,
-                zIndex: 50,
-                padding: '6px 8px',
-                borderRadius: 50,
-                backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                gap: 8,
             }}
-            onMouseEnter={() => setIsExpanded(true)}
-            onMouseLeave={() => !isDragging && setIsExpanded(false)}
         >
-            <button
-                onClick={onTogglePlay}
+            {/* ══════ SLIDER EXPANDIDO ══════ */}
+            <div
                 style={{
-                    width: 36,
-                    height: 36,
+                    position: 'relative',
+                    width: 56,
+                    height: isExpanded ? 180 : 0,
+                    opacity: isExpanded ? 1 : 0,
+                    transform: isExpanded ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.9)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    pointerEvents: isExpanded ? 'auto' : 'none',
+                    overflow: 'hidden',
+                }}
+            >
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(20,20,20,0.98) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        borderRadius: 28,
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: `
+                            0 20px 60px rgba(0,0,0,0.5),
+                            0 0 0 1px rgba(255,255,255,0.05) inset,
+                            0 -20px 40px rgba(255,255,255,0.02) inset
+                        `,
+                        padding: '16px 12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 12,
+                    }}
+                >
+                    {/* Porcentagem de volume */}
+                    <div
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: '#fff',
+                            opacity: 0.9,
+                            letterSpacing: '0.05em',
+                            fontFamily: 'SF Mono, Monaco, monospace',
+                        }}
+                    >
+                        {Math.round(volume * 100)}%
+                    </div>
+
+                    {/* Slider Track */}
+                    <div
+                        ref={sliderRef}
+                        onMouseDown={handleMouseDown}
+                        style={{
+                            position: 'relative',
+                            width: 32,
+                            height: 100,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        {/* Background Track */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                width: 6,
+                                height: '100%',
+                                background: 'rgba(255,255,255,0.1)',
+                                borderRadius: 3,
+                                overflow: 'hidden',
+                            }}
+                        >
+                            {/* Filled Track */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    height: `${volume * 100}%`,
+                                    background: 'linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%)',
+                                    borderRadius: 3,
+                                    transition: isDragging ? 'none' : 'height 0.15s ease-out',
+                                    boxShadow: '0 0 12px rgba(255,255,255,0.3)',
+                                }}
+                            />
+                        </div>
+
+                        {/* Audio Visualizer Bars */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                inset: 0,
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                justifyContent: 'center',
+                                gap: 2,
+                                padding: '0 2px',
+                                opacity: isPlaying ? 0.6 : 0,
+                                transition: 'opacity 0.3s',
+                            }}
+                        >
+                            {audioLevels.map((level, i) => (
+                                <div
+                                    key={i}
+                                    style={{
+                                        width: 2,
+                                        height: `${level * 100}%`,
+                                        background: `linear-gradient(180deg, 
+                                            rgba(255,255,255,0.9) 0%, 
+                                            rgba(255,255,255,0.3) 100%
+                                        )`,
+                                        borderRadius: 1,
+                                        transition: 'height 0.1s ease-out',
+                                    }}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Thumb/Handle */}
+                        <div
+                            style={{
+                                position: 'absolute',
+                                left: '50%',
+                                bottom: `calc(${volume * 100}% - 8px)`,
+                                transform: `translateX(-50%) scale(${isDragging ? 1.2 : 1})`,
+                                width: 16,
+                                height: 16,
+                                background: '#fff',
+                                borderRadius: '50%',
+                                boxShadow: `
+                                    0 2px 8px rgba(0,0,0,0.3),
+                                    0 0 0 ${isDragging ? '8px' : '0px'} rgba(255,255,255,0.1)
+                                `,
+                                transition: isDragging
+                                    ? 'transform 0.1s, box-shadow 0.2s'
+                                    : 'all 0.15s ease-out',
+                                cursor: 'grab',
+                            }}
+                        >
+                            {/* Inner dot */}
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    width: 6,
+                                    height: 6,
+                                    background: 'linear-gradient(135deg, #333 0%, #000 100%)',
+                                    borderRadius: '50%',
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Mute Button */}
+                    <button
+                        onClick={onToggleMute}
+                        style={{
+                            width: 32,
+                            height: 32,
+                            background: volume === 0
+                                ? 'rgba(255,59,48,0.2)'
+                                : 'rgba(255,255,255,0.1)',
+                            border: 'none',
+                            borderRadius: '50%',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s',
+                            color: volume === 0 ? '#ff3b30' : '#fff',
+                        }}
+                    >
+                        <VolumeIcon />
+                    </button>
+                </div>
+            </div>
+
+            {/* ══════ BOTÃO PRINCIPAL (PLAY/PAUSE) ══════ */}
+            <button
+                onClick={() => {
+                    if (isExpanded) {
+                        onTogglePlay();
+                    } else {
+                        setIsExpanded(true);
+                    }
+                }}
+                onContextMenu={(e) => {
+                    e.preventDefault();
+                    setIsExpanded(!isExpanded);
+                }}
+                style={{
+                    position: 'relative',
+                    width: 56,
+                    height: 56,
                     borderRadius: '50%',
-                    backgroundColor: isPlaying ? 'rgba(255, 255, 255, 0.15)' : 'rgba(139, 92, 246, 0.8)',
                     border: 'none',
-                    color: '#fff',
                     cursor: 'pointer',
+                    background: 'linear-gradient(135deg, rgba(30,30,30,0.98) 0%, rgba(10,10,10,0.98) 100%)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: `
+                        0 8px 32px rgba(0,0,0,0.4),
+                        0 0 0 1px rgba(255,255,255,0.1) inset,
+                        ${isPlaying ? '0 0 20px rgba(255,255,255,0.1)' : 'none'}
+                    `,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                    flexShrink: 0,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transform: isHovering ? 'scale(1.05)' : 'scale(1)',
+                    overflow: 'hidden',
                 }}
             >
-                {isPlaying ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="6" y="4" width="4" height="16" rx="1" />
-                        <rect x="14" y="4" width="4" height="16" rx="1" />
-                    </svg>
-                ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <polygon points="6,3 20,12 6,21" />
-                    </svg>
+                {/* Animated Ring quando tocando */}
+                {isPlaying && (
+                    <>
+                        <div
+                            style={{
+                                position: 'absolute',
+                                inset: -2,
+                                borderRadius: '50%',
+                                border: '2px solid transparent',
+                                borderTopColor: 'rgba(255,255,255,0.5)',
+                                animation: 'spin 2s linear infinite',
+                            }}
+                        />
+                        <style>
+                            {`
+                                @keyframes spin {
+                                    to { transform: rotate(360deg); }
+                                }
+                            `}
+                        </style>
+                    </>
                 )}
+
+                {/* Glow effect */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: '50%',
+                        background: `radial-gradient(circle at 30% 30%, 
+                            rgba(255,255,255,0.15) 0%, 
+                            transparent 60%
+                        )`,
+                    }}
+                />
+
+                {/* Volume Level Indicator Ring */}
+                <svg
+                    style={{
+                        position: 'absolute',
+                        width: 52,
+                        height: 52,
+                        transform: 'rotate(-90deg)',
+                    }}
+                >
+                    <circle
+                        cx="26"
+                        cy="26"
+                        r="24"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.1)"
+                        strokeWidth="2"
+                    />
+                    <circle
+                        cx="26"
+                        cy="26"
+                        r="24"
+                        fill="none"
+                        stroke="rgba(255,255,255,0.6)"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeDasharray={`${volume * 150.8} 150.8`}
+                        style={{
+                            transition: 'stroke-dasharray 0.2s ease-out',
+                        }}
+                    />
+                </svg>
+
+                {/* Icon */}
+                <PlayPauseIcon />
             </button>
 
+            {/* ══════ HINT TOOLTIP ══════ */}
             <div
                 style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    overflow: 'hidden',
-                    width: isExpanded && isPlaying ? 160 : 0,
-                    opacity: isExpanded && isPlaying ? 1 : 0,
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    marginLeft: isExpanded && isPlaying ? 8 : 0,
+                    position: 'absolute',
+                    right: 70,
+                    bottom: 14,
+                    padding: '6px 12px',
+                    background: 'rgba(0,0,0,0.9)',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: '#fff',
+                    whiteSpace: 'nowrap',
+                    opacity: isHovering && !isExpanded ? 1 : 0,
+                    transform: isHovering && !isExpanded ? 'translateX(0)' : 'translateX(10px)',
+                    transition: 'all 0.2s',
+                    pointerEvents: 'none',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
                 }}
             >
-                <button
-                    onClick={onToggleMute}
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        cursor: 'pointer',
-                        padding: 4,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'color 0.2s',
-                        flexShrink: 0,
-                    }}
-                >
-                    {getVolumeIcon()}
-                </button>
-
-                <div
-                    ref={sliderRef}
-                    onClick={handleSliderClick}
-                    onMouseDown={handleMouseDown}
-                    style={{
-                        width: 80,
-                        height: 6,
-                        borderRadius: 3,
-                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                        cursor: 'pointer',
-                        position: 'relative',
-                        overflow: 'visible',
-                    }}
-                >
-                    <div
-                        style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            height: '100%',
-                            width: `${volume * 100}%`,
-                            borderRadius: 3,
-                            background: 'linear-gradient(90deg, #8B5CF6, #EC4899)',
-                            transition: isDragging ? 'none' : 'width 0.1s ease',
-                        }}
-                    />
-
-                    <div
-                        style={{
-                            position: 'absolute',
-                            left: `calc(${volume * 100}% - 7px)`,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            width: 14,
-                            height: 14,
-                            borderRadius: '50%',
-                            backgroundColor: '#fff',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                            transition: isDragging ? 'none' : 'left 0.1s ease, transform 0.15s ease',
-                            cursor: 'grab',
-                        }}
-                        onMouseDown={() => setIsDragging(true)}
-                    />
-                </div>
-
-                <span
-                    style={{
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        minWidth: 28,
-                        textAlign: 'right',
-                        fontFamily: 'system-ui, -apple-system, sans-serif',
-                    }}
-                >
-                    {Math.round(volume * 100)}%
-                </span>
+                {isPlaying ? 'Tocando' : 'Pausado'} • Clique para {isPlaying ? 'pausar' : 'tocar'}
             </div>
         </div>
     );
 };
-
 /* ═══════════════════════════════════════════════════════════════════════════
    SOCIAL ICONS (COLOQUE SEUS ÍCONES AQUI MANUALMENTE)
 ═══════════════════════════════════════════════════════════════════════════ */
-
-
-
-
 const InstagramIcon: React.FC<IconProps> = ({ color }) => (
     <svg viewBox="0 0 24 24" width="30" height="30">
         <defs>
@@ -859,9 +1219,8 @@ const TwitchIcon: React.FC<IconProps> = ({ color }) => (
 );
 
 const SoundcloudIcon: React.FC<IconProps> = ({ color }) => (
-    <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#FF5500"}>
-        <path d="M1.175 12.225c-.051 0-.094.046-.101.1l-.233 2.154.233 2.105c.007.058.05.098.101.098.05 0 .09-.04.099-.098l.255-2.105-.27-2.154c-.009-.06-.052-.1-.101-.1m-.899.828c-.06 0-.091.037-.104.094L0 14.479l.165 1.308c.014.057.045.094.09.094s.089-.037.099-.094l.195-1.308-.195-1.332c.01-.057-.04-.094-.09-.094m1.83-1.229c-.061 0-.12.045-.12.104l-.21 2.563.225 2.458c0 .06.045.104.106.104.061 0 .12-.044.12-.104l.24-2.458-.24-2.563c0-.06-.059-.104-.12-.104m.945-.089c-.075 0-.135.06-.15.135l-.193 2.64.21 2.544c.016.077.075.138.149.138.075 0 .135-.061.15-.138l.24-2.544-.24-2.64c-.015-.075-.075-.135-.15-.135m1.065.202c-.09 0-.166.075-.18.165l-.18 2.46.195 2.48c.015.09.091.164.18.164.091 0 .166-.074.181-.164l.21-2.48-.21-2.46c-.016-.09-.091-.165-.181-.165m.96-.285c-.105 0-.195.09-.195.195l-.165 2.535.18 2.46c0 .104.09.194.195.194s.195-.089.195-.194l.195-2.46-.195-2.535c0-.104-.09-.195-.195-.195m1.035-.105c-.12 0-.225.104-.225.225l-.15 2.415.165 2.43c0 .12.104.224.225.224.12 0 .224-.104.224-.224l.18-2.43-.18-2.415c0-.12-.104-.225-.225-.225m1.095-.195c-.135 0-.255.12-.27.255L6.9 14.145l.15 2.4c.016.135.136.255.271.255s.255-.12.27-.255l.166-2.4-.165-2.64c-.015-.135-.135-.255-.27-.255" />
-    </svg>
+    <svg width="30" height="30" fill="#FF5500" viewBox="-271 345.8 256 111.2"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M-238.4,398.1c-0.8,0-1.4,0.6-1.5,1.5l-2.3,28l2.3,27.1c0.1,0.8,0.7,1.5,1.5,1.5c0.8,0,1.4-0.6,1.5-1.5l2.6-27.1l-2.6-28 C-237,398.7-237.7,398.1-238.4,398.1z"></path> <path d="M-228.2,399.9c-0.9,0-1.7,0.7-1.7,1.7l-2.1,26l2.1,27.3c0.1,1,0.8,1.7,1.7,1.7c0.9,0,1.6-0.7,1.7-1.7l2.4-27.3l-2.4-26 C-226.6,400.6-227.3,399.9-228.2,399.9z"></path> <path d="M-258.6,403.5c-0.5,0-1,0.4-1.1,1l-2.5,23l2.5,22.5c0.1,0.6,0.5,1,1.1,1c0.5,0,1-0.4,1.1-1l2.9-22.5l-2.9-23 C-257.7,404-258.1,403.5-258.6,403.5z"></path> <path d="M-268.1,412.3c-0.5,0-1,0.4-1,1l-1.9,14.3l1.9,14c0.1,0.6,0.5,1,1,1s0.9-0.4,1-1l2.2-14l-2.2-14.2 C-267.2,412.8-267.6,412.3-268.1,412.3z"></path> <path d="M-207.5,373.5c-1.2,0-2.1,0.9-2.2,2.1l-1.9,52l1.9,27.2c0.1,1.2,1,2.1,2.2,2.1s2.1-0.9,2.2-2.1l2.1-27.2l-2.1-52 C-205.4,374.4-206.4,373.5-207.5,373.5z"></path> <path d="M-248.6,399c-0.7,0-1.2,0.5-1.3,1.3l-2.4,27.3l2.4,26.3c0.1,0.7,0.6,1.3,1.3,1.3c0.7,0,1.2-0.5,1.3-1.2l2.7-26.3l-2.7-27.3 C-247.4,399.6-247.9,399-248.6,399z"></path> <path d="M-217.9,383.4c-1,0-1.9,0.8-1.9,1.9l-2,42.3l2,27.3c0.1,1.1,0.9,1.9,1.9,1.9s1.9-0.8,1.9-1.9l2.3-27.3l-2.3-42.3 C-216,384.2-216.9,383.4-217.9,383.4z"></path> <path d="M-154.4,359.3c-1.8,0-3.2,1.4-3.2,3.2l-1.2,65l1.2,26.1c0,1.8,1.5,3.2,3.2,3.2c1.8,0,3.2-1.5,3.2-3.2l1.4-26.1l-1.4-65 C-151.1,360.8-152.6,359.3-154.4,359.3z"></path> <path d="M-197.1,368.9c-1.3,0-2.3,1-2.4,2.4l-1.8,56.3l1.8,26.9c0,1.3,1.1,2.3,2.4,2.3s2.3-1,2.4-2.4l2-26.9l-2-56.3 C-194.7,370-195.8,368.9-197.1,368.9z"></path> <path d="M-46.5,394c-4.3,0-8.4,0.9-12.2,2.4C-61.2,368-85,345.8-114,345.8c-7.1,0-14,1.4-20.1,3.8c-2.4,0.9-3,1.9-3,3.7v99.9 c0,1.9,1.5,3.5,3.4,3.7c0.1,0,86.7,0,87.3,0c17.4,0,31.5-14.1,31.5-31.5C-15,408.1-29.1,394-46.5,394z"></path> <path d="M-143.6,353.2c-1.9,0-3.4,1.6-3.5,3.5l-1.4,70.9l1.4,25.7c0,1.9,1.6,3.4,3.5,3.4c1.9,0,3.4-1.6,3.5-3.5l1.5-25.8l-1.5-70.9 C-140.2,354.8-141.7,353.2-143.6,353.2z"></path> <path d="M-186.5,366.8c-1.4,0-2.5,1.1-2.6,2.6l-1.6,58.2l1.6,26.7c0,1.4,1.2,2.6,2.6,2.6s2.5-1.1,2.6-2.6l1.8-26.7l-1.8-58.2 C-184,367.9-185.1,366.8-186.5,366.8z"></path> <path d="M-175.9,368.1c-1.5,0-2.8,1.2-2.8,2.8l-1.5,56.7l1.5,26.5c0,1.6,1.3,2.8,2.8,2.8s2.8-1.2,2.8-2.8l1.7-26.5l-1.7-56.7 C-173.1,369.3-174.3,368.1-175.9,368.1z"></path> <path d="M-165.2,369.9c-1.7,0-3,1.3-3,3l-1.4,54.7l1.4,26.3c0,1.7,1.4,3,3,3c1.7,0,3-1.3,3-3l1.5-26.3l-1.5-54.7 C-162.2,371.3-163.5,369.9-165.2,369.9z"></path> </g> </g></svg>
+
 );
 
 const WhatsappIcon: React.FC<IconProps> = ({ color }) => (
@@ -937,8 +1296,8 @@ const BlueskyIcon: React.FC<IconProps> = ({ color }) => (
 );
 
 const ThreadsIcon: React.FC<IconProps> = ({ color }) => (
-    <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#000000"}>
-        <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.69-1.685-1.74-1.752-2.96-.065-1.182.408-2.256 1.33-3.022.88-.73 2.082-1.146 3.48-1.206l.005-.001c1.077-.042 2.088.042 3.046.254l.022.006c-.02-.986-.262-1.236-.29-1.264a.89.89 0 00-.025-.023c-.233-.19-.727-.396-1.57-.396h-.004c-1.174.003-2.08.473-2.54.828l-1.378-1.652c.757-.587 2.158-1.292 3.918-1.295h.008c1.238 0 2.2.331 2.861.984.648.64 1.017 1.548 1.096 2.702.577.237 1.086.524 1.525.857.67.51 1.18 1.134 1.513 1.857.677 1.467.808 4.023-1.248 6.037-1.782 1.746-4.013 2.593-7.024 2.62zm-.535-8.185c-1.637.083-2.378.738-2.423 1.538-.034.6.253 1.063.788 1.412.56.364 1.28.527 2.006.488 1.065-.058 1.86-.46 2.365-1.2.343-.503.58-1.168.696-1.956a8.717 8.717 0 00-1.325-.233 10.022 10.022 0 00-2.107-.049z" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" x="0px" y="0px" viewBox="0 0 50 50">
+        <path d="M46,9v32c0,2.757-2.243,5-5,5H9c-2.757,0-5-2.243-5-5V9c0-2.757,2.243-5,5-5h32C43.757,4,46,6.243,46,9z M33.544,35.913	c2.711-2.708,2.635-6.093,1.746-8.17c-0.54-1.255-1.508-2.33-2.798-3.108l-0.223-0.138c-0.33-0.208-0.609-0.375-1.046-0.542	c-0.008-0.278-0.025-0.556-0.058-0.807c-0.59-4.561-3.551-5.535-5.938-5.55c-2.154,0-3.946,0.92-5.044,2.592l1.672,1.098	c0.736-1.121,1.871-1.689,3.366-1.689c2.367,0.015,3.625,1.223,3.96,3.801c-1.141-0.231-2.426-0.314-3.807-0.233	c-3.924,0.226-5.561,2.591-5.442,4.836c0.134,2.486,2.278,4.222,5.216,4.222c0.13,0,0.259-0.003,0.384-0.011	c2.297-0.126,5.105-1.29,5.61-6.063c0.021,0.013,0.041,0.026,0.062,0.039l0.253,0.157c0.932,0.562,1.621,1.317,1.994,2.185	c0.643,1.501,0.682,3.964-1.322,5.966c-1.732,1.73-3.812,2.479-6.936,2.502c-3.47-0.026-6.099-1.145-7.812-3.325	c-1.596-2.028-2.42-4.953-2.451-8.677c0.031-3.728,0.855-6.646,2.451-8.673c1.714-2.181,4.349-3.299,7.814-3.325	c3.492,0.026,6.165,1.149,7.944,3.338c0.864,1.063,1.525,2.409,1.965,3.998l1.928-0.532c-0.514-1.858-1.301-3.449-2.341-4.728	c-2.174-2.674-5.363-4.045-9.496-4.076c-4.12,0.031-7.278,1.406-9.387,4.089c-1.875,2.383-2.844,5.712-2.879,9.91	c0.035,4.193,1.004,7.529,2.879,9.913c2.109,2.682,5.262,4.058,9.385,4.088C28.857,38.973,31.433,38.021,33.544,35.913z M28.993,25.405c0.07,0.016,0.138,0.031,0.202,0.046c-0.005,0.078-0.01,0.146-0.015,0.198c-0.314,3.928-2.295,4.489-3.761,4.569	c-0.091,0.005-0.181,0.008-0.271,0.008c-1.851,0-3.144-0.936-3.218-2.329c-0.065-1.218,0.836-2.576,3.561-2.732	c0.297-0.018,0.589-0.027,0.875-0.027C27.325,25.137,28.209,25.227,28.993,25.405z"></path>
     </svg>
 );
 
@@ -1061,27 +1420,51 @@ const globalStylesCSS = `
     0% { background-position: 200% center; }
     100% { background-position: -200% center; }
 }
-.name-shiny {
-    background: linear-gradient(
-        90deg,
-        #ffffff 0%,
-        #ffffff 30%,
-        #c0c0c0 38%,
-        #e8e8ff 44%,
-        #ffffff 50%,
-        #e8e8ff 56%,
-        #c0c0c0 62%,
-        #ffffff 70%,
-        #ffffff 100%
-    );
-    background-size: 200% auto;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shiny-move 2.5s linear infinite;
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
+
+/* Container com GIF de fundo */
+.name-shiny-container {
+    position: relative;
+    display: inline-block;
+    padding: 6px 12px;
 }
-    
+
+/* GIF ATRÁS do texto */
+.name-shiny-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('https://vxo.lat/shiny.gif') repeat center/auto;
+    opacity: 1;
+    border-radius: 12px;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* GIF NA FRENTE do texto também (dobra o efeito) */
+.name-shiny-container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('https://vxo.lat/shiny.gif') repeat center/auto;
+    opacity: 0.7;
+    border-radius: 12px;
+    z-index: 2;
+    pointer-events: none;
+    mix-blend-mode: screen; /* faz o preto ficar transparente, só partículas aparecem */
+}
+
+/* Texto no meio */
+.name-shiny {
+    position: relative;
+    z-index: 1;
+    color: #ffffff;
+    font-weight: bold;
+    -webkit-text-fill-color: #ffffff;
+    text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5);
+    background: none;
+    background-image: none;
+    animation: none;
+}
 
 @keyframes rgb-cycle {
     0% { color: #ff0000; }
@@ -1381,53 +1764,212 @@ const ThunderEffect: React.FC = () => {
 };
 
 const SmokeEffect: React.FC = () => {
-    const ref = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        const container = ref.current;
-        if (!container) return;
-        const els: HTMLDivElement[] = [];
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-        const create = () => {
-            const el = document.createElement('div');
-            const size = Math.random() * 100 + 50;
-            el.style.cssText = [
-                'position:fixed',
-                `left:${Math.random() * 100}vw`,
-                'bottom:-100px',
-                `width:${size}px`,
-                `height:${size}px`,
-                'background:radial-gradient(circle,rgba(255,255,255,0.3) 0%,transparent 70%)',
-                'border-radius:50%',
-                'pointer-events:none',
-                'z-index:9999',
-                `animation:smoke-rise ${Math.random() * 5 + 5}s linear forwards`,
-            ].join(';');
-            container.appendChild(el);
-            els.push(el);
-            setTimeout(() => {
-                el.remove();
-                const i = els.indexOf(el);
-                if (i > -1) els.splice(i, 1);
-            }, 10000);
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        interface SmokeParticle {
+            x: number;
+            y: number;
+            vx: number;
+            vy: number;
+            size: number;
+            maxSize: number;
+            growRate: number;
+            opacity: number;
+            fadeRate: number;
+            turbulenceX: number;
+            turbulenceY: number;
+            turbulenceSpeed: number;
+            turbulenceOffset: number;
+            rotation: number;
+            rotationSpeed: number;
+            life: number;
+            maxLife: number;
+            color: { r: number; g: number; b: number };
+        }
+
+        const particles: SmokeParticle[] = [];
+        let time = 0;
+
+        // Pontos de emissão na base da tela
+        const emitters = [
+            { x: 0.15, spread: 60 },
+            { x: 0.35, spread: 80 },
+            { x: 0.5, spread: 100 },
+            { x: 0.65, spread: 80 },
+            { x: 0.85, spread: 60 },
+        ];
+
+        const createParticle = (): SmokeParticle => {
+            const emitter = emitters[Math.floor(Math.random() * emitters.length)];
+            const baseX = canvas.width * emitter.x;
+            const spread = emitter.spread;
+
+            // Tons de cinza com leve variação azulada
+            const brightness = Math.random() * 40 + 180;
+            const blueTint = Math.random() * 15;
+
+            return {
+                x: baseX + (Math.random() - 0.5) * spread,
+                y: canvas.height + 20 + Math.random() * 40,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: -(Math.random() * 0.6 + 0.3),
+                size: Math.random() * 8 + 4,
+                maxSize: Math.random() * 120 + 80,
+                growRate: Math.random() * 0.4 + 0.2,
+                opacity: 0,
+                fadeRate: Math.random() * 0.001 + 0.0008,
+                turbulenceX: Math.random() * 2 + 1,
+                turbulenceY: Math.random() * 0.5 + 0.3,
+                turbulenceSpeed: Math.random() * 0.008 + 0.004,
+                turbulenceOffset: Math.random() * Math.PI * 2,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.005,
+                life: 0,
+                maxLife: Math.random() * 600 + 400,
+                color: {
+                    r: brightness,
+                    g: brightness,
+                    b: brightness + blueTint,
+                },
+            };
         };
 
-        const interval = setInterval(create, 500);
+        // Pré-popular com partículas
+        for (let i = 0; i < 15; i++) {
+            const p = createParticle();
+            p.life = Math.random() * p.maxLife * 0.5;
+            p.size = p.maxSize * 0.5;
+            p.y = canvas.height - Math.random() * canvas.height * 0.7;
+            p.opacity = 0.08;
+            particles.push(p);
+        }
+
+        let spawnTimer = 0;
+        let animId: number;
+
+        const draw = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            time++;
+            spawnTimer++;
+
+            // Spawn gradual
+            if (spawnTimer % 8 === 0 && particles.length < 60) {
+                particles.push(createParticle());
+            }
+
+            // Vento global suave
+            const globalWindX = Math.sin(time * 0.002) * 0.15;
+            const globalWindY = Math.cos(time * 0.0015) * 0.05;
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life++;
+
+                // Progresso de vida normalizado (0 a 1)
+                const lifeProgress = p.life / p.maxLife;
+
+                // Fase de aparição (fade in suave nos primeiros 15%)
+                if (lifeProgress < 0.15) {
+                    p.opacity = (lifeProgress / 0.15) * 0.12;
+                }
+                // Fase estável (15% a 50%)
+                else if (lifeProgress < 0.5) {
+                    p.opacity = 0.12;
+                }
+                // Fase de dissipação (50% a 100%)
+                else {
+                    const fadeProgress = (lifeProgress - 0.5) / 0.5;
+                    p.opacity = 0.12 * (1 - fadeProgress * fadeProgress);
+                }
+
+                // Crescimento com desaceleração
+                if (p.size < p.maxSize) {
+                    const growFactor = 1 - (p.size / p.maxSize);
+                    p.size += p.growRate * growFactor;
+                }
+
+                // Turbulência orgânica (Perlin-like com múltiplas frequências)
+                const turb1 = Math.sin(time * p.turbulenceSpeed + p.turbulenceOffset) * p.turbulenceX;
+                const turb2 = Math.sin(time * p.turbulenceSpeed * 0.7 + p.turbulenceOffset * 1.3) * p.turbulenceX * 0.5;
+                const turb3 = Math.cos(time * p.turbulenceSpeed * 1.3 + p.turbulenceOffset * 0.7) * p.turbulenceY;
+
+                // Aplicar física
+                p.x += p.vx + turb1 + turb2 + globalWindX;
+                p.y += p.vy + turb3 + globalWindY;
+
+                // Desacelerar subida gradualmente
+                p.vy *= 0.999;
+
+                // Rotação
+                p.rotation += p.rotationSpeed;
+
+                // Desenhar partícula com gradiente radial suave
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+
+                // Gradiente radial com múltiplas camadas para suavidade
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 0.5);
+
+                const { r, g, b } = p.color;
+                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.8})`);
+                gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.6})`);
+                gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.35})`);
+                gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.15})`);
+                gradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.05})`);
+                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+                ctx.fillStyle = gradient;
+
+                // Forma levemente oval para parecer mais natural
+                ctx.scale(1, 0.85 + Math.sin(p.rotation) * 0.15);
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+
+                // Remover partículas mortas
+                if (p.life >= p.maxLife || p.opacity <= 0.001 || p.y < -p.size) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            animId = requestAnimationFrame(draw);
+        };
+
+        draw();
+
+        const onResize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+        window.addEventListener('resize', onResize);
+
         return () => {
-            clearInterval(interval);
-            els.forEach((e) => e.remove());
+            cancelAnimationFrame(animId);
+            window.removeEventListener('resize', onResize);
         };
     }, []);
 
     return (
-        <div
-            ref={ref}
+        <canvas
+            ref={canvasRef}
             style={{
                 position: 'fixed',
                 inset: 0,
                 pointerEvents: 'none',
-                overflow: 'hidden',
                 zIndex: 9999,
+                mixBlendMode: 'screen',
             }}
         />
     );
@@ -1641,7 +2183,7 @@ const CardContent: React.FC<CardContentProps> = ({
             style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 18,
+                gap: 12,
                 alignItems: centered ? 'center' : 'flex-start',
                 textAlign: centered ? 'center' : 'left',
             }}
@@ -1718,31 +2260,38 @@ const CardContent: React.FC<CardContentProps> = ({
                     gap: 8,
                 }}
             >
-                <h1
-                    className={
-                        data.nameEffects.neon
-                            ? 'name-neon'
-                            : data.nameEffects.shiny
-                                ? 'name-shiny'
+                {data.nameEffects.shiny ? (
+                    <div className="name-shiny-container">
+                        <h1
+                            className="name-shiny"
+                            style={{ fontSize: 28, fontWeight: 'bold', margin: 0, letterSpacing: '-0.02em' }}
+                        >
+                            {data.slug}
+                        </h1>
+                    </div>
+                ) : (
+                    <h1
+                        className={
+                            data.nameEffects.neon
+                                ? 'name-neon'
                                 : data.nameEffects.rgb
                                     ? 'name-rgb'
                                     : ''
-                    }
-                    style={{
-                        fontSize: 28,
-                        fontWeight: 'bold',
-                        margin: 0,
-                        letterSpacing: '-0.02em',
-                        color:
-                            !data.nameEffects.neon &&
-                                !data.nameEffects.shiny &&
-                                !data.nameEffects.rgb
-                                ? data.contentSettings.biographyColor || '#fff'
-                                : undefined,
-                    }}
-                >
-                    {data.slug}
-                </h1>
+                        }
+                        style={{
+                            fontSize: 28,
+                            fontWeight: 'bold',
+                            margin: 0,
+                            letterSpacing: '-0.02em',
+                            color:
+                                !data.nameEffects.neon && !data.nameEffects.rgb
+                                    ? data.contentSettings.biographyColor || '#fff'
+                                    : undefined,
+                        }}
+                    >
+                        {data.slug}
+                    </h1>
+                )}
 
 
                 {/* Ícone de Verificado Azul */}
@@ -1765,21 +2314,21 @@ const CardContent: React.FC<CardContentProps> = ({
                 <div
                     style={{
                         width: 'max-content',
-                        padding: '10px 24px',
+                        padding: '0px',
                         borderRadius: 20,
                         backgroundColor: 'transparent',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: 14,
+                        gap: 3,
                     }}
                 >
-                    {displayBadges.map((badge) => (
+                    {/* Onde você renderiza os badges */}
+                    {badges.map((badge) => (
                         <BadgeWithTooltip
                             key={badge.id}
                             badge={badge}
-                            biographyColor={data.contentSettings.biographyColor}
+                            biographyColor={data.contentSettings.biographyColor || '#fff'}  // ← Passa a cor da biography
                         />
                     ))}
                 </div>
@@ -1789,7 +2338,7 @@ const CardContent: React.FC<CardContentProps> = ({
             {data.contentSettings.biography && (
                 <p
                     style={{
-                        fontSize: 14,
+                        fontSize: 18,
                         color: linkColor,
                         margin: 0,
                         maxWidth: 380,
@@ -1807,7 +2356,7 @@ const CardContent: React.FC<CardContentProps> = ({
                     style={{
                         display: 'flex',
                         flexWrap: 'wrap',
-                        gap: 8,
+                        gap: 6,
                         justifyContent: centered ? 'center' : 'flex-start',
                     }}
                 >
@@ -1815,7 +2364,7 @@ const CardContent: React.FC<CardContentProps> = ({
                         <span
                             key={tag.tagId}
                             style={{
-                                padding: '6px 14px',
+                                padding: '3px 5px',
                                 borderRadius: 14,
                                 border: '1px solid',
                                 borderColor: `${data.contentSettings.biographyColor}40`,
@@ -1874,46 +2423,6 @@ const CardContent: React.FC<CardContentProps> = ({
                 </div>
             )}
 
-            {/* VIEW COUNTER */}
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    color: data.contentSettings.biographyColor,
-                    fontSize: 14,
-                    position: 'relative',
-                    opacity: 0.8,
-                }}
-            >
-                <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                </svg>
-                <span>{data.views.toLocaleString()}</span>
-
-                {showPlusOne && (
-                    <span
-                        className="animate-float-up"
-                        style={{
-                            position: 'absolute',
-                            right: -30,
-                            color: '#4ade80',
-                            fontWeight: 'bold',
-                            fontSize: 18,
-                        }}
-                    >
-                        +1
-                    </span>
-                )}
-            </div>
 
             {/* ═══════════════════════════════════════════════════════════════
                 LINKS TIPADOS (hasLinkTyped: true) - APENAS ÍCONE SVG
@@ -1923,7 +2432,7 @@ const CardContent: React.FC<CardContentProps> = ({
                     style={{
                         display: 'flex',
                         flexWrap: 'wrap',
-                        gap: 12,
+                        gap: 0,
                         justifyContent: centered ? 'center' : 'flex-start',
                         width: '100%',
                     }}
@@ -1941,7 +2450,7 @@ const CardContent: React.FC<CardContentProps> = ({
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    padding: 10,
+                                    padding: 5,
                                     borderRadius: 16,
                                     backgroundColor: 'transparent',
                                     transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1950,14 +2459,12 @@ const CardContent: React.FC<CardContentProps> = ({
                                 title={link.title}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.transform = 'scale(1.15) translateY(-2px)';
-                                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                                 }}
                                 onMouseLeave={(e) => {
                                     e.currentTarget.style.transform = 'scale(1)';
-                                    e.currentTarget.style.backgroundColor = 'transparent';
                                 }}
                             >
-                                {Icon && <Icon color={linkColor} />}
+                                {Icon && <Icon />}
                             </a>
                         );
                     })}
@@ -2108,6 +2615,46 @@ const CardContent: React.FC<CardContentProps> = ({
                     })}
                 </div>
             )}
+            {/* VIEW COUNTER */}
+            <div
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    color: data.contentSettings.biographyColor,
+                    fontSize: 14,
+                    position: 'relative',
+                    opacity: 0.8,
+                }}
+            >
+                <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+                <span>{data.views.toLocaleString()}</span>
+
+                {showPlusOne && (
+                    <span
+                        className="animate-float-up"
+                        style={{
+                            position: 'absolute',
+                            right: -30,
+                            color: '#4ade80',
+                            fontWeight: 'bolder',
+                            fontSize: 18,
+                        }}
+                    >
+                        +1
+                    </span>
+                )}
+            </div>
         </div>
     );
 };
@@ -2585,23 +3132,10 @@ const UserPublicPage: React.FC = () => {
         transformStyle: 'preserve-3d',
         transition: 'transform 0.15s ease-out, box-shadow 0.3s ease', // ✅ TRANSIÇÃO AJUSTADA
         borderRadius: 32,
-        padding: 20,
+        padding: 10,
         width: '100%',
         maxWidth: 500,
-        border: data.cardSettings.rgbBorder
-            ? 'none'
-            : '1px solid rgba(255, 255, 255, 0.18)',
         boxSizing: 'border-box',
-        boxShadow: hovering && data.cardSettings.hoverGrow // ✅ SOMBRA BASEADA NO HOVER
-            ? `
-                0 20px 60px rgba(0, 0, 0, 0.2),
-                0 0 0 1px rgba(255, 255, 255, 0.1) inset
-            `
-            : `
-                0 8px 32px rgba(0, 0, 0, 0.12),
-                0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-                0 1px 0 0 rgba(255, 255, 255, 0.1) inset
-            `,
         willChange: 'transform',
     };
 
@@ -2611,35 +3145,6 @@ const UserPublicPage: React.FC = () => {
         if (data.nameEffects.shiny) return 'name-shiny';
         if (data.nameEffects.rgb) return 'name-rgb';
         return '';
-    };
-
-
-
-    const handleCardHoverEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (data.cardSettings.hoverGrow) {
-            // Preservar o tilt atual ao adicionar o scale
-            const currentTransform = data.cardSettings.perspective
-                ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(1.03)`
-                : 'scale(1.03)';
-            e.currentTarget.style.transform = currentTransform;
-            e.currentTarget.style.boxShadow = `
-                0 20px 60px rgba(0, 0, 0, 0.2),
-                0 0 0 1px rgba(255, 255, 255, 0.1) inset
-            `;
-        }
-    };
-
-    const handleCardHoverLeave = (e: React.MouseEvent<HTMLDivElement>) => {
-        // Voltar ao estado normal preservando o tilt
-        const baseTransform = data.cardSettings.perspective
-            ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`
-            : 'none';
-        e.currentTarget.style.transform = baseTransform;
-        e.currentTarget.style.boxShadow = `
-            0 8px 32px rgba(0, 0, 0, 0.12),
-            0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-            0 1px 0 0 rgba(255, 255, 255, 0.1) inset
-        `;
     };
 
     /* RENDER */
@@ -2653,8 +3158,9 @@ const UserPublicPage: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: 20,
+                    padding: 10,
                     position: 'relative',
+                    overflowY: 'hidden',
                     overflow: 'hidden',
                 }}
             >
@@ -2730,7 +3236,7 @@ const UserPublicPage: React.FC = () => {
                             <h2
                                 style={{
                                     color: '#fff',
-                                    fontSize: 22,
+                                    fontSize: 12,
                                     marginBottom: 12,
                                     fontWeight: 600,
                                 }}
@@ -2748,7 +3254,7 @@ const UserPublicPage: React.FC = () => {
                         position: 'relative',
                         zIndex: 10,
                         width: '100%',
-                        maxWidth: 500,
+                        maxWidth: 480,
                         animation: 'slideUp 0.6s ease-out',
                     }}
                 >
@@ -2813,7 +3319,7 @@ const UserPublicPage: React.FC = () => {
                         onClick={() => window.location.href = "/"}
                         style={{
                             position: 'fixed',
-                            bottom: 20,
+                            top: 20,
                             right: 20,
                             padding: '8px 14px',
                             fontSize: 12,

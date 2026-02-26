@@ -2159,7 +2159,7 @@ const DashboardCustomization = () => {
                 >
                   <FileUpload
                     label="Imagem/Vídeo de Fundo"
-                    accept="image/jpeg,image/png,image/gif,image/mp4,video/webm,video/ogg"
+                    accept="image/jpeg,image/png,image/gif,video/mp4,video/webm,video/ogg"
                     file={fileUploads.background}
                     currentUrl={settings.backgroundUrl}
                     onFileSelect={(file) => updateFileUpload("background", file)}
