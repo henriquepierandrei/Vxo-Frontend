@@ -212,250 +212,110 @@ const VerifiedIcon: React.FC<{ size?: number }> = ({ size = 22 }) => {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 function rgbToFilter(c: string): string {
-    let r: number, g: number, b: number;
-
-    if (c.startsWith('#')) {
-        const hex = c.replace('#', '');
-        if (hex.length === 3) {
-            r = parseInt(hex[0] + hex[0], 16);
-            g = parseInt(hex[1] + hex[1], 16);
-            b = parseInt(hex[2] + hex[2], 16);
-        } else {
-            r = parseInt(hex.slice(0, 2), 16);
-            g = parseInt(hex.slice(2, 4), 16);
-            b = parseInt(hex.slice(4, 6), 16);
+    const parse = (c: string) => {
+        if (c.startsWith('#')) {
+            const h = c.replace('#', '');
+            const f = h.length === 3;
+            return [0, 1, 2].map(i => parseInt(f ? h[i]+h[i] : h.slice(i*2, i*2+2), 16));
         }
-    } else {
-        const result = c.match(/\d+/g);
-        if (!result || result.length < 3) return '';
-        [r, g, b] = result.map(Number);
-    }
+        return (c.match(/\d+/g) || []).map(Number);
+    };
 
-    class Color {
-        r: number;
-        g: number;
-        b: number;
-        constructor(r: number, g: number, b: number) {
-            this.r = this.clamp(r);
-            this.g = this.clamp(g);
-            this.b = this.clamp(b);
-        }
-        clamp(v: number) {
-            return Math.max(0, Math.min(255, v));
-        }
+    const [tr, tg, tb] = parse(c);
+    const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
-        hsl() {
-            const r = this.r / 255,
-                g = this.g / 255,
-                b = this.b / 255;
-            const max = Math.max(r, g, b),
-                min = Math.min(r, g, b);
-            let h = 0,
-                s = 0;
-            const l = (max + min) / 2;
-            if (max !== min) {
-                const d = max - min;
-                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-                switch (max) {
-                    case r:
-                        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-                        break;
-                    case g:
-                        h = ((b - r) / d + 2) / 6;
-                        break;
-                    case b:
-                        h = ((r - g) / d + 4) / 6;
-                        break;
-                }
+    const toHSL = (r: number, g: number, b: number) => {
+        const [nr, ng, nb] = [r/255, g/255, b/255];
+        const max = Math.max(nr, ng, nb), min = Math.min(nr, ng, nb);
+        let h = 0, s = 0;
+        const l = (max + min) / 2;
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+            h = max === nr ? ((ng-nb)/d + (ng<nb?6:0))/6
+              : max === ng ? ((nb-nr)/d+2)/6
+              : ((nr-ng)/d+4)/6;
+        }
+        return [h*360, s*100, l*100];
+    };
+
+    const targetHSL = toHSL(tr, tg, tb);
+
+    const applyFilters = (f: number[]) => {
+        let r = 0, g = 0, b = 0;
+        const linear = (slope: number, int: number) => {
+            r = clamp(r*slope+int*255); g = clamp(g*slope+int*255); b = clamp(b*slope+int*255);
+        };
+        // invert
+        const iv = f[0]/100;
+        r = clamp((iv+(r/255)*(1-2*iv))*255);
+        g = clamp((iv+(g/255)*(1-2*iv))*255);
+        b = clamp((iv+(b/255)*(1-2*iv))*255);
+        // sepia
+        const sv = f[1]/100;
+        const [sr,sg,sb] = [r,g,b];
+        r = clamp(sr*(1-.607*sv)+sg*.769*sv+sb*.189*sv);
+        g = clamp(sr*.349*sv+sg*(1-.314*sv)+sb*.168*sv);
+        b = clamp(sr*.272*sv+sg*.534*sv+sb*(1-.869*sv));
+        // saturate
+        const stv = f[2]/100;
+        const [sa,sag,sab] = [r,g,b];
+        r = clamp(sa*(.213+.787*stv)+sag*(.715-.715*stv)+sab*(.072-.072*stv));
+        g = clamp(sa*(.213-.213*stv)+sag*(.715+.285*stv)+sab*(.072-.072*stv));
+        b = clamp(sa*(.213-.213*stv)+sag*(.715-.715*stv)+sab*(.072+.928*stv));
+        // hue-rotate
+        const rad = (f[3]*3.6/180)*Math.PI;
+        const cos = Math.cos(rad), sin = Math.sin(rad);
+        const [hr,hg,hb] = [r,g,b];
+        r = clamp(hr*(.213+cos*.787-sin*.213)+hg*(.715-cos*.715-sin*.715)+hb*(.072-cos*.072+sin*.928));
+        g = clamp(hr*(.213-cos*.213+sin*.143)+hg*(.715+cos*.285+sin*.14)+hb*(.072-cos*.072-sin*.283));
+        b = clamp(hr*(.213-cos*.213-sin*.787)+hg*(.715-cos*.715+sin*.715)+hb*(.072+cos*.928+sin*.072));
+        // brightness & contrast
+        linear(f[4]/100, 0);
+        linear(f[5]/100, -(0.5*f[5]/100)+0.5);
+
+        const hsl = toHSL(r, g, b);
+        return Math.abs(r-tr)+Math.abs(g-tg)+Math.abs(b-tb)
+             + Math.abs(hsl[0]-targetHSL[0])+Math.abs(hsl[1]-targetHSL[1])+Math.abs(hsl[2]-targetHSL[2]);
+    };
+
+    const fix = (v: number, i: number) => {
+        const max = [100,100,7500,350,100,100][i];
+        if (i===2) v = v%7500; else if (i===4) v = v%360;
+        return Math.max(0, Math.min(v, max));
+    };
+
+    const spsa = (A: number, a: number[], c: number, vals: number[], iters: number) => {
+        let best = { loss: Infinity, values: vals.slice() };
+        const deltas = Array(6), high = Array(6), low = Array(6);
+        for (let k = 0; k < iters; k++) {
+            const ck = c / Math.pow(k+1, 0.16667);
+            for (let i = 0; i < 6; i++) {
+                deltas[i] = Math.random() > 0.5 ? 1 : -1;
+                high[i] = vals[i]+ck*deltas[i];
+                low[i] = vals[i]-ck*deltas[i];
             }
-            return [h * 360, s * 100, l * 100];
-        }
-    }
-
-    class Solver {
-        target: Color;
-        targetHSL: number[];
-        reusedColor: Color;
-
-        constructor(target: Color) {
-            this.target = target;
-            this.targetHSL = target.hsl();
-            this.reusedColor = new Color(0, 0, 0);
-        }
-
-        solve() {
-            const result = this.solveNarrow(this.solveWide());
-            return this.css(result.values);
-        }
-
-        solveWide() {
-            const A = 5,
-                c = 15;
-            const a = [60, 180, 18000, 600, 1.2, 1.2];
-            let best = { loss: Infinity, values: [] as number[] };
-            for (let i = 0; i < 3; i++) {
-                const initial = [50, 20, 3750, 50, 100, 100];
-                const result = this.spsa(A, a, c, initial, 1000);
-                if (result.loss < best.loss) best = result;
+            const diff = applyFilters(high) - applyFilters(low);
+            for (let i = 0; i < 6; i++) {
+                vals[i] = fix(vals[i] - (a[i]/Math.pow(A+k+1, 1)) * (diff/(2*ck)) * deltas[i], i);
             }
-            return best;
+            const loss = applyFilters(vals);
+            if (loss < best.loss) best = { loss, values: vals.slice() };
         }
+        return best;
+    };
 
-        solveNarrow(wide: { loss: number; values: number[] }) {
-            const A = wide.loss,
-                c = 2;
-            const A5 = A + 1;
-            const a = [0.25 * A5, 0.25 * A5, A5, 0.25 * A5, 0.2 * A5, 0.2 * A5];
-            return this.spsa(A, a, c, wide.values, 500);
-        }
-
-        spsa(
-            A: number,
-            a: number[],
-            c: number,
-            values: number[],
-            iters: number
-        ) {
-            const alpha = 1,
-                gamma = 0.16667;
-            let best = { loss: Infinity, values: values.slice() };
-            const deltas = new Array(6),
-                highArgs = new Array(6),
-                lowArgs = new Array(6);
-
-            for (let k = 0; k < iters; k++) {
-                const ck = c / Math.pow(k + 1, gamma);
-                for (let i = 0; i < 6; i++) {
-                    deltas[i] = Math.random() > 0.5 ? 1 : -1;
-                    highArgs[i] = values[i] + ck * deltas[i];
-                    lowArgs[i] = values[i] - ck * deltas[i];
-                }
-                const lossDiff = this.loss(highArgs) - this.loss(lowArgs);
-                for (let i = 0; i < 6; i++) {
-                    const g = (lossDiff / (2 * ck)) * deltas[i];
-                    const ak = a[i] / Math.pow(A + k + 1, alpha);
-                    values[i] = this.fix(values[i] - ak * g, i);
-                }
-                const loss = this.loss(values);
-                if (loss < best.loss) best = { loss, values: values.slice() };
-            }
-            return best;
-        }
-
-        fix(value: number, idx: number) {
-            const max = [100, 100, 7500, 350, 100, 100][idx];
-            if (idx === 2) value = value % 7500;
-            else if (idx === 4) value = value % 360;
-            return Math.max(0, Math.min(value, max));
-        }
-
-        loss(filters: number[]) {
-            const c = this.reusedColor;
-            c.r = 0;
-            c.g = 0;
-            c.b = 0;
-            this.applyFilters(c, filters);
-            const hsl = c.hsl();
-            return (
-                Math.abs(c.r - this.target.r) +
-                Math.abs(c.g - this.target.g) +
-                Math.abs(c.b - this.target.b) +
-                Math.abs(hsl[0] - this.targetHSL[0]) +
-                Math.abs(hsl[1] - this.targetHSL[1]) +
-                Math.abs(hsl[2] - this.targetHSL[2])
-            );
-        }
-
-        applyFilters(c: Color, filters: number[]) {
-            this.invert(c, filters[0] / 100);
-            this.sepia(c, filters[1] / 100);
-            this.saturate(c, filters[2] / 100);
-            this.hueRotate(c, filters[3] * 3.6);
-            this.brightness(c, filters[4] / 100);
-            this.contrast(c, filters[5] / 100);
-        }
-
-        linear(c: Color, slope: number, intercept: number) {
-            c.r = c.clamp(c.r * slope + intercept * 255);
-            c.g = c.clamp(c.g * slope + intercept * 255);
-            c.b = c.clamp(c.b * slope + intercept * 255);
-        }
-
-        invert(c: Color, v: number) {
-            c.r = c.clamp((v + (c.r / 255) * (1 - 2 * v)) * 255);
-            c.g = c.clamp((v + (c.g / 255) * (1 - 2 * v)) * 255);
-            c.b = c.clamp((v + (c.b / 255) * (1 - 2 * v)) * 255);
-        }
-
-        sepia(c: Color, v: number) {
-            const r = c.r,
-                g = c.g,
-                b = c.b;
-            c.r = c.clamp(r * (1 - 0.607 * v) + g * 0.769 * v + b * 0.189 * v);
-            c.g = c.clamp(r * 0.349 * v + g * (1 - 0.314 * v) + b * 0.168 * v);
-            c.b = c.clamp(r * 0.272 * v + g * 0.534 * v + b * (1 - 0.869 * v));
-        }
-
-        saturate(c: Color, v: number) {
-            const r = c.r,
-                g = c.g,
-                b = c.b;
-            c.r = c.clamp(
-                r * (0.213 + 0.787 * v) +
-                g * (0.715 - 0.715 * v) +
-                b * (0.072 - 0.072 * v)
-            );
-            c.g = c.clamp(
-                r * (0.213 - 0.213 * v) +
-                g * (0.715 + 0.285 * v) +
-                b * (0.072 - 0.072 * v)
-            );
-            c.b = c.clamp(
-                r * (0.213 - 0.213 * v) +
-                g * (0.715 - 0.715 * v) +
-                b * (0.072 + 0.928 * v)
-            );
-        }
-
-        hueRotate(c: Color, angle: number) {
-            const rad = (angle / 180) * Math.PI;
-            const cos = Math.cos(rad),
-                sin = Math.sin(rad);
-            const r = c.r,
-                g = c.g,
-                b = c.b;
-            c.r = c.clamp(
-                r * (0.213 + cos * 0.787 - sin * 0.213) +
-                g * (0.715 - cos * 0.715 - sin * 0.715) +
-                b * (0.072 - cos * 0.072 + sin * 0.928)
-            );
-            c.g = c.clamp(
-                r * (0.213 - cos * 0.213 + sin * 0.143) +
-                g * (0.715 + cos * 0.285 + sin * 0.14) +
-                b * (0.072 - cos * 0.072 - sin * 0.283)
-            );
-            c.b = c.clamp(
-                r * (0.213 - cos * 0.213 - sin * 0.787) +
-                g * (0.715 - cos * 0.715 + sin * 0.715) +
-                b * (0.072 + cos * 0.928 + sin * 0.072)
-            );
-        }
-
-        brightness(c: Color, v: number) {
-            this.linear(c, v, 0);
-        }
-        contrast(c: Color, v: number) {
-            this.linear(c, v, -(0.5 * v) + 0.5);
-        }
-
-        css(filters: number[]) {
-            return `invert(${Math.round(filters[0])}%) sepia(${Math.round(filters[1])}%) saturate(${Math.round(filters[2])}%) hue-rotate(${Math.round(filters[3] * 3.6)}deg) brightness(${Math.round(filters[4])}%) contrast(${Math.round(filters[5])}%)`;
-        }
+    let best = { loss: Infinity, values: [] as number[] };
+    const a = [60,180,18000,600,1.2,1.2];
+    for (let i = 0; i < 3; i++) {
+        const r = spsa(5, a, 15, [50,20,3750,50,100,100], 1000);
+        if (r.loss < best.loss) best = r;
     }
+    const A5 = best.loss + 1;
+    const narrow = spsa(best.loss, [.25*A5,.25*A5,A5,.25*A5,.2*A5,.2*A5], 2, best.values, 500);
+    const f = narrow.values;
 
-    const color = new Color(r, g, b);
-    const solver = new Solver(color);
-    return solver.solve();
+    return `invert(${Math.round(f[0])}%) sepia(${Math.round(f[1])}%) saturate(${Math.round(f[2])}%) hue-rotate(${Math.round(f[3]*3.6)}deg) brightness(${Math.round(f[4])}%) contrast(${Math.round(f[5])}%)`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -499,77 +359,25 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
     const badgeName = badge.name || extractBadgeName(badge.url);
     const isVerified = isVerifiedBadge(badge);
 
-    // Não precisa mais inverter - usa direto a cor da biography
-    // const invertedColor = invertColor(cardColor); // ← REMOVIDO
+    // ✅ Verifica se a cor é válida
+    const isColorReady = useMemo(() => {
+        return biographyColor && 
+               biographyColor !== 'rgb(255, 255, 255)' && // cor padrão/fallback
+               biographyColor !== 'transparent';
+    }, [biographyColor]);
+
+    // ✅ Só calcula o filtro se a cor estiver pronta
+    const colorFilter = useMemo(() => {
+        if (!isColorReady) return 'none';
+        return rgbToFilter(biographyColor);
+    }, [biographyColor, isColorReady]);
 
     return (
         <div
-            style={{
-                position: 'relative',
-                cursor: 'pointer',
-            }}
+            style={{ position: 'relative', cursor: 'pointer' }}
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
         >
-            {/* Tooltip */}
-            <div
-                style={{
-                    position: 'absolute',
-                    bottom: 'calc(100% + 12px)',
-                    left: '50%',
-                    transform: `translateX(-50%) ${showTooltip ? 'translateY(0)' : 'translateY(8px)'}`,
-                    padding: '4px 7px',
-                    borderRadius: 12,
-                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset',
-                    whiteSpace: 'nowrap',
-                    opacity: showTooltip ? 1 : 0,
-                    visibility: showTooltip ? 'visible' : 'hidden',
-                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    zIndex: 100,
-                    pointerEvents: 'none',
-                }}
-            >
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                    }}
-                >
-                    {isVerified && <VerifiedIcon size={14} />}
-                    <span
-                        style={{
-                            color: '#fff',
-                            fontSize: 13,
-                            fontWeight: 500,
-                            letterSpacing: '-0.01em',
-                        }}
-                    >
-                        {isVerified ? 'Verificado' : badgeName}
-                    </span>
-                </div>
-
-                {/* Arrow */}
-                <div
-                    style={{
-                        position: 'absolute',
-                        bottom: -6,
-                        left: '50%',
-                        transform: 'translateX(-50%) rotate(45deg)',
-                        width: 12,
-                        height: 12,
-                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                        borderRight: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
-                    }}
-                />
-            </div>
-
-            {/* Badge Image - COM COR DA BIOGRAPHY */}
             <div
                 style={{
                     transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -577,14 +385,20 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
                 }}
             >
                 <img
+                    // ✅ Key força re-render quando a cor muda
+                    key={biographyColor}
                     src={badge.url}
                     alt={badgeName}
                     style={{
-                        width: 28,
-                        height: 28,
+                        width: 24,
+                        height: 24,
                         objectFit: 'contain',
-                        // ✅ Usa biographyColor diretamente
-                        filter: `${rgbToFilter(biographyColor)} drop-shadow(0 0 1px ${biographyColor}80)`,
+                        // ✅ Transição suave quando a cor chega
+                        transition: 'filter 0.3s ease-in-out, opacity 0.3s ease-in-out',
+                        opacity: isColorReady ? 1 : 0.5,
+                        filter: isColorReady 
+                            ? `${colorFilter} drop-shadow(0 0 1px ${biographyColor}80)`
+                            : 'grayscale(1)', // Fallback visual
                     }}
                 />
             </div>
@@ -1326,9 +1140,7 @@ const FivemIcon: React.FC<IconProps> = ({ color }) => (
 );
 
 const IFoodIcon: React.FC<IconProps> = ({ color }) => (
-    <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#EA1D2C"}>
-        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.6 18.893c-3.445 0-6.24-2.795-6.24-6.24s2.795-6.24 6.24-6.24c2.107 0 3.969 1.047 5.096 2.648l-2.247 1.297a3.449 3.449 0 00-2.849-1.497c-1.913 0-3.465 1.552-3.465 3.465s1.552 3.465 3.465 3.465c1.465 0 2.715-.91 3.22-2.195h-3.22v-2.595h6.12c.06.33.092.671.092 1.021 0 3.445-2.795 6.871-6.212 6.871z" />
-    </svg>
+    <svg width="30" height="30" fill={color || "#F40552"} viewBox="0 0 24 24" role="img"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path d="M8.428 1.67c-4.65 0-7.184 4.149-7.184 6.998 0 2.294 2.2 3.299 4.25 3.299l-.006-.006c4.244 0 7.184-3.854 7.184-6.998 0-2.29-2.175-3.293-4.244-3.293zm11.328 0c-4.65 0-7.184 4.149-7.184 6.998 0 2.294 2.2 3.299 4.25 3.299l-.006-.006C21.061 11.96 24 8.107 24 4.963c0-2.29-2.18-3.293-4.244-3.293zm-5.584 12.85 2.435 1.834c-2.17 2.07-6.124 3.525-9.353 3.17A8.913 8.913 0 0 1 .23 14.541H0a9.598 9.598 0 0 0 8.828 7.758c3.814.24 7.323-.905 9.947-3.13l-.004.007 1.08 2.988 1.555-7.623-7.234-.02z"></path></g></svg>
 );
 
 const GmailIcon: React.FC<IconProps> = ({ color }) => (
@@ -2151,8 +1963,8 @@ const CardContent: React.FC<CardContentProps> = ({
     showPlusOne,
     hasVerifiedBadge,
 }) => {
-    const profileSize = 110;
-    const frameSize = profileSize + 22;
+    const profileSize = 90;
+    const frameSize = profileSize + 20;
     const centered = data.contentSettings.centerAlign;
     const linkColor = data.contentSettings.biographyColor;
 
@@ -2183,7 +1995,8 @@ const CardContent: React.FC<CardContentProps> = ({
             style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 12,
+                padding: 14,
+                gap: 6,
                 alignItems: centered ? 'center' : 'flex-start',
                 textAlign: centered ? 'center' : 'left',
             }}
@@ -2264,7 +2077,7 @@ const CardContent: React.FC<CardContentProps> = ({
                     <div className="name-shiny-container">
                         <h1
                             className="name-shiny"
-                            style={{ fontSize: 28, fontWeight: 'bold', margin: 0, letterSpacing: '-0.02em' }}
+                            style={{ fontSize: 24, fontWeight: 'bold', margin: 0, letterSpacing: '-0.02em' }}
                         >
                             {data.slug}
                         </h1>
@@ -2338,12 +2151,12 @@ const CardContent: React.FC<CardContentProps> = ({
             {data.contentSettings.biography && (
                 <p
                     style={{
-                        fontSize: 18,
+                        fontSize: 15,
                         color: linkColor,
                         margin: 0,
                         maxWidth: 380,
-                        lineHeight: 1.6,
-                        opacity: 0.9,
+                        lineHeight: 1.3,
+                        opacity: 0.85,
                     }}
                 >
                     {data.contentSettings.biography}
@@ -2356,7 +2169,7 @@ const CardContent: React.FC<CardContentProps> = ({
                     style={{
                         display: 'flex',
                         flexWrap: 'wrap',
-                        gap: 6,
+                        gap: 4,
                         justifyContent: centered ? 'center' : 'flex-start',
                     }}
                 >
@@ -2385,9 +2198,9 @@ const CardContent: React.FC<CardContentProps> = ({
                 <div
                     style={{
                         width: '100%',
-                        borderRadius: 20,
+                        borderRadius: 16,
                         overflow: 'hidden',
-                        marginTop: 8,
+                        marginTop: 4,
                         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
                         // Altura dinâmica baseada no tipo de embed
                         ...(data.embedUrl.includes('spotify.com')
@@ -2480,8 +2293,8 @@ const CardContent: React.FC<CardContentProps> = ({
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: 12,
-                        marginTop: sortedLinks.typed.length > 0 ? 8 : 0,
+                        gap: 8,
+                        marginTop: sortedLinks.typed.length > 0 ? 4 : 0,
                     }}
                 >
                     {sortedLinks.generic.map((link) => {
@@ -2495,7 +2308,7 @@ const CardContent: React.FC<CardContentProps> = ({
                                 rel="noopener noreferrer"
                                 style={{
                                     width: '100%',
-                                    padding: '16px 20px',
+                                    padding: '12px 16px',  
                                     borderRadius: 16,
                                     backgroundColor: data.contentSettings.biographyColor + "1A",
                                     border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -2550,9 +2363,9 @@ const CardContent: React.FC<CardContentProps> = ({
                                     {favicon && (
                                         <div
                                             style={{
-                                                width: 36,
-                                                height: 36,
-                                                borderRadius: 12,
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: 10,
                                                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                                                 display: 'flex',
                                                 alignItems: 'center',
@@ -2564,8 +2377,8 @@ const CardContent: React.FC<CardContentProps> = ({
                                                 src={favicon}
                                                 alt=""
                                                 style={{
-                                                    width: 22,
-                                                    height: 22,
+                                                    width: 20,
+                                                    height: 20,
                                                     borderRadius: 6,
                                                     objectFit: 'contain',
                                                 }}
@@ -2582,7 +2395,7 @@ const CardContent: React.FC<CardContentProps> = ({
                                             textOverflow: 'ellipsis',
                                             whiteSpace: 'nowrap',
                                             flex: 1,
-                                            fontSize: 15,
+                                            fontSize: 14,
                                             fontWeight: 500,
                                             letterSpacing: '-0.01em',
                                         }}
@@ -2620,9 +2433,9 @@ const CardContent: React.FC<CardContentProps> = ({
                 style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: 6,
                     color: data.contentSettings.biographyColor,
-                    fontSize: 14,
+                    fontSize: 13,
                     position: 'relative',
                     opacity: 0.8,
                 }}
@@ -3118,25 +2931,21 @@ const UserPublicPage: React.FC = () => {
         backgroundColor: data.cardSettings.opacity === 0
             ? 'transparent'
             : hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
-        backdropFilter: data.cardSettings.blur === 0
-            ? 'none'
-            : `blur(${data.cardSettings.blur}px) saturate(180%)`,
-        WebkitBackdropFilter: data.cardSettings.blur === 0
-            ? 'none'
-            : `blur(${data.cardSettings.blur}px) saturate(180%)`,
+        ...(['backdropFilter', 'WebkitBackdropFilter'] as const).reduce((acc, key) => ({
+            ...acc,
+            [key]: data.cardSettings.blur ? `blur(${data.cardSettings.blur}px) saturate(180%)` : 'none',
+        }), {}),
         transform: data.cardSettings.perspective
-            ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})` // ✅ INCLUIR SCALE
-            : data.cardSettings.hoverGrow && hovering
-                ? `scale(${scale})` // ✅ SCALE SEM PERSPECTIVA
-                : 'none',
+            ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
+            : data.cardSettings.hoverGrow && hovering ? `scale(${scale})` : 'none',
         transformStyle: 'preserve-3d',
-        transition: 'transform 0.15s ease-out, box-shadow 0.3s ease', // ✅ TRANSIÇÃO AJUSTADA
-        borderRadius: 32,
-        padding: 10,
+        transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
+        borderRadius: 28,
+        padding: 6,
         width: '100%',
-        maxWidth: 500,
+        maxWidth: 480,
         boxSizing: 'border-box',
-        willChange: 'transform',
+        willChange: 'transform'
     };
 
 
@@ -3236,7 +3045,7 @@ const UserPublicPage: React.FC = () => {
                             <h2
                                 style={{
                                     color: '#fff',
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     marginBottom: 12,
                                     fontWeight: 600,
                                 }}

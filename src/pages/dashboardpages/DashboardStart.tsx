@@ -1,5 +1,5 @@
 // pages/Dashboard/DashboardStart.tsx
-import { motion, AnimatePresence } from "framer-motion";
+import { motion,  useAnimation, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   LayoutDashboard,
@@ -135,9 +135,9 @@ const getGreeting = (): { text: string; icon: React.ElementType } => {
 const formatDate = (dateString: string): string => {
   try {
     const date = new Date(dateString);
-    return new Intl.DateTimeFormat('pt-BR', { 
-      month: 'long', 
-      year: 'numeric' 
+    return new Intl.DateTimeFormat('pt-BR', {
+      month: 'long',
+      year: 'numeric'
     }).format(date);
   } catch {
     return "Data desconhecida";
@@ -231,145 +231,203 @@ const SectionHeader = ({
 // MASCOTE ANIMADO
 // ═══════════════════════════════════════════════════════════
 
+
 const AnimatedMascot = ({ isPremium }: { isPremium: boolean }) => {
+  const eyeControls = useAnimation();
+
+  useEffect(() => {
+    const blink = async () => {
+      while (true) {
+        await new Promise((r) => setTimeout(r, 3000 + Math.random() * 2000));
+        await eyeControls.start({ scaleY: 0.08, transition: { duration: 0.08 } });
+        await eyeControls.start({ scaleY: 1, transition: { duration: 0.1 } });
+      }
+    };
+    blink();
+  }, [eyeControls]);
+
   return (
     <motion.div
-      initial={{ scale: 0, rotate: -180 }}
-      animate={{ scale: 1, rotate: 0 }}
-      transition={{ 
-        type: "spring", 
-        stiffness: 200, 
-        damping: 15,
-        delay: 0.2 
-      }}
-      className="relative"
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 180, damping: 18, delay: 0.1 }}
+      className="relative flex items-center justify-center"
+      style={{ width: 160, height: 160 }}
     >
-      {/* Círculos decorativos de fundo */}
+      {/* Glow de fundo */}
       <motion.div
-        animate={{ 
-          scale: [1, 1.2, 1],
-          opacity: [0.3, 0.5, 0.3]
+        animate={{ opacity: [0.4, 0.7, 0.4], scale: [1, 1.08, 1] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, var(--color-primary, #6366f1) 0%, transparent 70%)",
+          filter: "blur(24px)",
         }}
-        transition={{ 
-          duration: 3, 
-          repeat: Infinity,
-          ease: "easeInOut" 
-        }}
-        className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--color-primary)]/20 to-transparent blur-xl"
       />
-      
-      {/* Container do mascote */}
+
+      {/* Corpo flutuante */}
       <motion.div
-        animate={{ y: [0, -8, 0] }}
-        transition={{ 
-          duration: 2.5, 
-          repeat: Infinity,
-          ease: "easeInOut" 
-        }}
-        className="relative w-28 h-28 sm:w-36 sm:h-36"
+        animate={{ y: [0, -7, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        className="relative"
+        style={{ width: 120, height: 120 }}
       >
-        {/* Corpo principal */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] shadow-2xl shadow-[var(--color-primary)]/30">
-          {/* Brilho */}
-          <div className="absolute top-2 left-4 w-6 h-6 rounded-full bg-white/30 blur-sm" />
-          
+        {/* SVG do mascote — robô minimalista profissional */}
+        <svg
+          viewBox="0 0 120 120"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-full drop-shadow-2xl"
+        >
+          {/* Sombra projetada */}
+          <ellipse cx="60" cy="115" rx="28" ry="5" fill="black" fillOpacity="0.12" />
+
+          {/* Antena */}
+          <line x1="60" y1="12" x2="60" y2="24" stroke="var(--color-primary, #6366f1)" strokeWidth="3" strokeLinecap="round" />
+          <motion.circle
+            cx="60"
+            cy="10"
+            r="5"
+            fill="var(--color-primary, #6366f1)"
+            animate={{ opacity: [1, 0.3, 1], scale: [1, 1.4, 1] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          />
+
+          {/* Cabeça */}
+          <rect x="22" y="24" width="76" height="62" rx="20" fill="white" />
+          <rect x="22" y="24" width="76" height="62" rx="20"
+            fill="url(#bodyGrad)" />
+
           {/* Olhos */}
+          <motion.g animate={eyeControls} style={{ originX: "50%", originY: "50%" }}>
+            {/* Olho esquerdo */}
+            <rect x="34" y="44" width="20" height="20" rx="7" fill="white" />
+            <motion.circle
+              cx="44"
+              cy="54"
+              r="6"
+              fill="var(--color-primary, #6366f1)"
+              animate={{ x: [0, 1, 0, -1, 0], y: [0, -1, 0, 1, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <circle cx="47" cy="51" r="2" fill="white" fillOpacity="0.9" />
+
+            {/* Olho direito */}
+            <rect x="66" y="44" width="20" height="20" rx="7" fill="white" />
+            <motion.circle
+              cx="76"
+              cy="54"
+              r="6"
+              fill="var(--color-primary, #6366f1)"
+              animate={{ x: [0, 1, 0, -1, 0], y: [0, -1, 0, 1, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+            />
+            <circle cx="79" cy="51" r="2" fill="white" fillOpacity="0.9" />
+          </motion.g>
+
+          {/* Boca — display LED */}
+          <rect x="38" y="72" width="44" height="8" rx="4" fill="white" fillOpacity="0.15" />
+          <motion.rect
+            x="42" y="74" width="8" height="4" rx="2"
+            fill="var(--color-primary, #6366f1)"
+            animate={{ opacity: [1, 0.2, 1] }}
+            transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
+          />
+          <motion.rect
+            x="54" y="74" width="8" height="4" rx="2"
+            fill="var(--color-primary, #6366f1)"
+            animate={{ opacity: [1, 0.2, 1] }}
+            transition={{ duration: 0.8, repeat: Infinity, delay: 0.15 }}
+          />
+          <motion.rect
+            x="66" y="74" width="8" height="4" rx="2"
+            fill="var(--color-primary, #6366f1)"
+            animate={{ opacity: [1, 0.2, 1] }}
+            transition={{ duration: 0.8, repeat: Infinity, delay: 0.3 }}
+          />
+
+          {/* Pescoço */}
+          <rect x="50" y="86" width="20" height="8" rx="4" fill="url(#bodyGrad)" />
+
+          {/* Corpo */}
+          <rect x="28" y="93" width="64" height="22" rx="12" fill="url(#bodyGrad)" />
+
+          {/* Detalhe no peito */}
+          <motion.rect
+            x="50" y="99" width="20" height="10" rx="5"
+            fill="white"
+            fillOpacity="0.15"
+          />
+          <motion.circle
+            cx="60" cy="104" r="3"
+            fill="var(--color-primary, #6366f1)"
+            animate={{ scale: [1, 1.3, 1], opacity: [0.8, 1, 0.8] }}
+            transition={{ duration: 1.6, repeat: Infinity }}
+          />
+
+          {/* Gradiente */}
+          <defs>
+            <linearGradient id="bodyGrad" x1="22" y1="24" x2="96" y2="115" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stopColor="var(--color-primary, #818cf8)" />
+              <stop offset="100%" stopColor="var(--color-primary-dark, #4f46e5)" />
+            </linearGradient>
+          </defs>
+        </svg>
+
+        
+
+        {/* Partículas flutuantes */}
+        {[
+          { x: -18, y: -10, delay: 0, size: 6, color: "var(--color-primary, #6366f1)" },
+          { x: 22, y: -16, delay: 0.6, size: 5, color: "#FBBF24" },
+          { x: -22, y: 30, delay: 1.2, size: 4, color: "var(--color-primary, #6366f1)" },
+          { x: 26, y: 28, delay: 1.8, size: 5, color: "#34D399" },
+        ].map((p, i) => (
           <motion.div
-            animate={{ scaleY: [1, 0.1, 1] }}
-            transition={{ 
-              duration: 0.2, 
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              width: p.size,
+              height: p.size,
+              background: p.color,
+              top: "50%",
+              left: "50%",
+              marginLeft: p.x,
+              marginTop: p.y,
+              opacity: 0,
+            }}
+            animate={{
+              y: [0, -12, 0],
+              opacity: [0, 0.9, 0],
+              scale: [0.5, 1.2, 0.5],
+            }}
+            transition={{
+              duration: 2.5,
               repeat: Infinity,
-              repeatDelay: 4 
+              delay: p.delay,
+              ease: "easeInOut",
             }}
-            className="absolute top-1/3 left-1/4 flex gap-4"
-          >
-            <div className="w-4 h-5 sm:w-5 sm:h-6 bg-white rounded-full flex items-center justify-center">
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-[var(--color-background)] rounded-full" />
-            </div>
-            <div className="w-4 h-5 sm:w-5 sm:h-6 bg-white rounded-full flex items-center justify-center">
-              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-[var(--color-background)] rounded-full" />
-            </div>
-          </motion.div>
-          
-          {/* Boca sorrindo */}
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ 
-              duration: 2, 
-              repeat: Infinity 
-            }}
-            className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 w-8 h-4 sm:w-10 sm:h-5"
-          >
-            <div className="w-full h-full border-b-4 border-white rounded-b-full" />
-          </motion.div>
-          
-          {/* Bochechas */}
-          <div className="absolute bottom-8 sm:bottom-10 left-3 w-3 h-2 sm:w-4 sm:h-3 bg-pink-300/50 rounded-full blur-sm" />
-          <div className="absolute bottom-8 sm:bottom-10 right-3 w-3 h-2 sm:w-4 sm:h-3 bg-pink-300/50 rounded-full blur-sm" />
-        </div>
-        
-        {/* Coroa para premium */}
-        {isPremium && (
-          <motion.div
-            animate={{ rotate: [-5, 5, -5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="absolute -top-4 left-1/2 -translate-x-1/2"
-          >
-            <Crown size={28} className="text-amber-400 drop-shadow-lg" />
-          </motion.div>
-        )}
-        
-        {/* Estrelinhas flutuando */}
-        <motion.div
-          animate={{ 
-            y: [0, -15, 0],
-            x: [0, 5, 0],
-            opacity: [0, 1, 0],
-            scale: [0.5, 1, 0.5]
-          }}
-          transition={{ 
-            duration: 2, 
-            repeat: Infinity,
-            delay: 0.5 
-          }}
-          className="absolute -top-2 -right-2"
-        >
-          <Sparkles size={16} className="text-amber-400" />
-        </motion.div>
-        
-        <motion.div
-          animate={{ 
-            y: [0, -10, 0],
-            x: [0, -5, 0],
-            opacity: [0, 1, 0],
-            scale: [0.5, 1, 0.5]
-          }}
-          transition={{ 
-            duration: 2.5, 
-            repeat: Infinity,
-            delay: 1 
-          }}
-          className="absolute -top-4 -left-2"
-        >
-          <Star size={14} className="text-[var(--color-primary)]" />
-        </motion.div>
+          />
+        ))}
       </motion.div>
     </motion.div>
   );
 };
 
+
 // ═══════════════════════════════════════════════════════════
 // WELCOME HERO SECTION
 // ═══════════════════════════════════════════════════════════
 
-const WelcomeHero = ({ 
-  name, 
-  isPremium, 
+const WelcomeHero = ({
+  name,
+  isPremium,
   level,
   coins,
-  daysSinceCreation 
-}: { 
-  name: string; 
+  daysSinceCreation
+}: {
+  name: string;
   isPremium: boolean;
   level: RankingLevel;
   coins: number;
@@ -386,9 +444,9 @@ const WelcomeHero = ({
     "O sucesso te espera!",
   ];
 
-  const randomMessage = useMemo(() => 
+  const randomMessage = useMemo(() =>
     motivationalMessages[Math.floor(Math.random() * motivationalMessages.length)],
-  []);
+    []);
 
   return (
     <motion.div
@@ -399,13 +457,13 @@ const WelcomeHero = ({
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-primary)]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-[var(--color-primary)]/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-      
+
       <div className="relative flex flex-col lg:flex-row items-center gap-6 lg:gap-10">
         {/* Mascote */}
         <div className="shrink-0">
           <AnimatedMascot isPremium={isPremium} />
         </div>
-        
+
         {/* Conteúdo de boas-vindas */}
         <div className="flex-1 text-center lg:text-left">
           <motion.div
@@ -419,14 +477,14 @@ const WelcomeHero = ({
               {greeting.text}
             </span>
           </motion.div>
-          
+
           <motion.h1
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4 }}
             className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[var(--color-text)] mb-2"
           >
-            Olá, <span className="text-[var(--color-primary)]">{name}</span>! 
+            Olá, <span className="text-[var(--color-primary)]">{name}</span>!
             <motion.span
               animate={{ rotate: [0, 14, -8, 14, -4, 10, 0] }}
               transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 3 }}
@@ -435,7 +493,7 @@ const WelcomeHero = ({
               👋
             </motion.span>
           </motion.h1>
-          
+
           <motion.p
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -444,7 +502,7 @@ const WelcomeHero = ({
           >
             {randomMessage}
           </motion.p>
-          
+
           {/* Tags de status */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -453,9 +511,9 @@ const WelcomeHero = ({
             className="flex flex-wrap items-center justify-center lg:justify-start gap-2"
           >
             {/* Level Badge */}
-            <div 
+            <div
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
-              style={{ 
+              style={{
                 backgroundColor: `${level.color}20`,
                 color: level.color,
                 border: `1px solid ${level.color}40`
@@ -464,23 +522,22 @@ const WelcomeHero = ({
               <span>{level.emoji}</span>
               <span>{level.title}</span>
             </div>
-            
+
             {/* Coins Badge */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-400 text-xs font-medium border border-amber-500/20">
               <Zap size={12} />
               <span>{coins} Vcoins</span>
             </div>
-            
+
             {/* Premium Badge */}
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
-              isPremium 
-                ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border border-amber-500/30' 
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${isPremium
+                ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border border-amber-500/30'
                 : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] border border-[var(--color-border)]'
-            }`}>
+              }`}>
               {isPremium ? <Crown size={12} /> : <CreditCard size={12} />}
               <span>{isPremium ? 'Premium' : 'Grátis'}</span>
             </div>
-            
+
             {/* Days Badge */}
             {daysSinceCreation > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-surface)] text-[var(--color-text-muted)] text-xs font-medium border border-[var(--color-border)]">
@@ -490,7 +547,7 @@ const WelcomeHero = ({
             )}
           </motion.div>
         </div>
-        
+
         {/* Ação rápida */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -593,9 +650,8 @@ const NotificationsDropdown = ({
                         key={notification.id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className={`p-4 hover:bg-[var(--color-surface)] transition-colors cursor-pointer ${
-                          !notification.read ? "bg-[var(--color-primary)]/5" : ""
-                        }`}
+                        className={`p-4 hover:bg-[var(--color-surface)] transition-colors cursor-pointer ${!notification.read ? "bg-[var(--color-primary)]/5" : ""
+                          }`}
                       >
                         <div className="flex gap-3">
                           <div
@@ -686,7 +742,7 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
                 {typeof stat.value === 'number' ? formatNumber(stat.value) : stat.value}
               </p>
             )}
-            
+
           </div>
         </div>
 
@@ -705,13 +761,13 @@ const StatCardComponent = ({ stat, index }: { stat: StatCard; index: number }) =
 // PROFILE CARD
 // ═══════════════════════════════════════════════════════════
 
-const ProfileCard = ({ 
-  name, 
-  slug, 
+const ProfileCard = ({
+  name,
+  slug,
   isPremium,
   avatarUrl,
-  level 
-}: { 
+  level
+}: {
   name: string;
   slug: string;
   isPremium: boolean;
@@ -738,14 +794,14 @@ const ProfileCard = ({
             className="relative mb-3"
           >
             {avatarUrl ? (
-              <img 
-                src={avatarUrl} 
+              <img
+                src={avatarUrl}
                 alt={name}
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-[var(--border-radius-lg)] object-cover shadow-xl"
                 style={{ boxShadow: `0 10px 40px ${level.color}40` }}
               />
             ) : (
-              <div 
+              <div
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-[var(--border-radius-lg)] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-xl shadow-[var(--color-primary)]/25"
               >
                 {name.charAt(0).toUpperCase()}
@@ -760,11 +816,10 @@ const ProfileCard = ({
           <p className="text-sm text-[var(--color-text-muted)]">@{slug}</p>
 
           {/* Account Badge */}
-          <div className={`mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${
-            isPremium 
+          <div className={`mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${isPremium
               ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/30'
               : 'bg-[var(--color-surface)] border-[var(--color-border)]'
-          }`}>
+            }`}>
             {isPremium ? (
               <Crown size={14} className="text-amber-400" />
             ) : (
@@ -845,16 +900,16 @@ const QuickActionsCard = () => {
               className="relative flex flex-col items-center gap-2 p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/30 transition-all group overflow-hidden"
             >
               {/* Hover glow effect */}
-              <div 
+              <div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                 style={{
                   background: `radial-gradient(circle at center, ${action.color}10, transparent 70%)`
                 }}
               />
-              
+
               <div
                 className="relative p-3 rounded-[var(--border-radius-md)] transition-all group-hover:scale-110 group-hover:shadow-lg"
-                style={{ 
+                style={{
                   backgroundColor: `${action.color}15`,
                   boxShadow: `0 0 0 0 ${action.color}00`
                 }}
@@ -881,8 +936,8 @@ const RankingCard = ({ currentLevel, views }: { currentLevel: RankingLevel; view
 
   const progressToNext = nextLevel
     ? ((views - currentLevel.viewsRequired) /
-        (nextLevel.viewsRequired - currentLevel.viewsRequired)) *
-      100
+      (nextLevel.viewsRequired - currentLevel.viewsRequired)) *
+    100
     : 100;
 
   return (
@@ -939,13 +994,12 @@ const RankingCard = ({ currentLevel, views }: { currentLevel: RankingLevel; view
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 + index * 0.05 }}
-              className={`flex items-center gap-3 p-3 rounded-[var(--border-radius-md)] border transition-all ${
-                isCurrent
+              className={`flex items-center gap-3 p-3 rounded-[var(--border-radius-md)] border transition-all ${isCurrent
                   ? "border-2"
                   : isUnlocked
-                  ? "border-[var(--color-border)] bg-[var(--color-surface)]"
-                  : "border-[var(--color-border)] bg-[var(--color-surface)] opacity-50"
-              }`}
+                    ? "border-[var(--color-border)] bg-[var(--color-surface)]"
+                    : "border-[var(--color-border)] bg-[var(--color-surface)] opacity-50"
+                }`}
               style={{
                 borderColor: isCurrent ? level.color : undefined,
                 background: isCurrent ? `${level.color}10` : undefined,
@@ -1046,7 +1100,7 @@ const PremiumSection = ({ isPremium }: { isPremium: boolean }) => {
           </div>
           <div className="flex-1">
             <h3 className="text-base font-semibold text-[var(--color-text)] flex items-center gap-2">
-              Você é Premium! 
+              Você é Premium!
               <PartyPopper size={18} className="text-amber-400" />
             </h3>
             <p className="text-sm text-[var(--color-text-muted)]">
@@ -1188,7 +1242,7 @@ const ActivityFeed = ({ receiveGifts, isPremium }: { receiveGifts: boolean; isPr
               transition={{ delay: 0.3 + index * 0.1 }}
               className="flex items-start gap-3 p-3 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)]"
             >
-              <div 
+              <div
                 className="p-2 rounded-[var(--border-radius-sm)] shrink-0"
                 style={{ backgroundColor: `${activity.color}15` }}
               >
@@ -1219,7 +1273,7 @@ const ActivityFeed = ({ receiveGifts, isPremium }: { receiveGifts: boolean; isPr
             <p className="text-sm font-medium text-[var(--color-text)]">Compartilhe seu perfil</p>
             <p className="text-xs text-[var(--color-text-muted)]">Ganhe mais visualizações</p>
           </div>
-        
+
         </div>
       </motion.div>
     </DashboardCard>
@@ -1232,7 +1286,7 @@ const ActivityFeed = ({ receiveGifts, isPremium }: { receiveGifts: boolean; isPr
 
 const DashboardStart = () => {
   const { profileData, isLoadingProfile, refreshProfile } = useProfile();
-  
+
   const [showNotifications, setShowNotifications] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -1242,7 +1296,7 @@ const DashboardStart = () => {
     return getLevelByApiKey(profileData.level);
   }, [profileData]);
 
-  
+
   const daysSinceCreation = useMemo(() => {
     if (!profileData) return 0;
     return getDaysSinceCreation(profileData.createdAt);
@@ -1251,7 +1305,7 @@ const DashboardStart = () => {
   // Stats dinâmicos baseados nos dados da API
   const stats: StatCard[] = useMemo(() => {
     if (!profileData) return [];
-    
+
     return [
       {
         id: "views",
@@ -1293,7 +1347,7 @@ const DashboardStart = () => {
   // Notificações dinâmicas
   const notifications: Notification[] = useMemo(() => {
     if (!profileData) return [];
-    
+
     const notifs: Notification[] = [
       {
         id: "1",
@@ -1459,7 +1513,7 @@ const DashboardStart = () => {
       </div>
 
       {/* Welcome Hero with Mascot */}
-      <WelcomeHero 
+      <WelcomeHero
         name={profileData.name}
         isPremium={profileData.isPremium}
         level={userLevel}
@@ -1483,7 +1537,7 @@ const DashboardStart = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
         {/* Left Column */}
         <div className="lg:col-span-4 space-y-4 sm:space-y-6">
-          <ProfileCard 
+          <ProfileCard
             name={profileData.name}
             slug={profileData.slug}
             isPremium={profileData.isPremium}
@@ -1495,7 +1549,7 @@ const DashboardStart = () => {
 
         {/* Center Column - Activity Feed (substituindo top links) */}
         <div className="lg:col-span-4 space-y-4 sm:space-y-6">
-          <ActivityFeed 
+          <ActivityFeed
             receiveGifts={profileData.receiveGifts}
             isPremium={profileData.isPremium}
           />

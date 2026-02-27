@@ -31,6 +31,7 @@ import {
   User,
   Loader2,
   Gift,
+  BookImage,
 } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════
@@ -286,6 +287,7 @@ const Sidebar = () => {
       '/dashboard/start': 'Início',
       '/dashboard/store': 'Loja',
       // '/dashboard/roulette': 'Giro Diário', // EM BREVE
+      // '/dashboard/album': 'Giro Diário', // EM BREVE
       '/dashboard/assets': 'Ativos',
       '/dashboard/customization': 'Customização',
       '/dashboard/tags': 'Tags',
@@ -333,6 +335,10 @@ const Sidebar = () => {
       title: "Perfil",
       items: [
         { icon: <Image size={20} />, label: "Ativos", href: "/dashboard/assets" },
+        { icon: <BookImage size={20} />, label: "Álbum", href: "/dashboard/album", highlight: true, // EM BREVE
+          isBlock: true,
+          blockReason: "Breve" },
+
         { icon: <Palette size={20} />, label: "Customização", href: "/dashboard/customization" },
         { icon: <Tags size={20} />, label: "Tags", href: "/dashboard/tags" },
       ],
