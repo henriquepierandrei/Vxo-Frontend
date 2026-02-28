@@ -359,53 +359,100 @@ const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyCol
     const badgeName = badge.name || extractBadgeName(badge.url);
     const isVerified = isVerifiedBadge(badge);
 
-    // ✅ Verifica se a cor é válida
     const isColorReady = useMemo(() => {
-        return biographyColor && 
-               biographyColor !== 'rgb(255, 255, 255)' && // cor padrão/fallback
+        return biographyColor &&
+               biographyColor !== 'rgb(255, 255, 255)' &&
                biographyColor !== 'transparent';
     }, [biographyColor]);
 
-    // ✅ Só calcula o filtro se a cor estiver pronta
     const colorFilter = useMemo(() => {
         if (!isColorReady) return 'none';
         return rgbToFilter(biographyColor);
     }, [biographyColor, isColorReady]);
 
     return (
-        <div
-            style={{ position: 'relative', cursor: 'pointer' }}
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
-        >
+        <>
+            <style>{`
+                @keyframes tooltip-pop {
+                    0%   { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.85); }
+                    70%  { transform: translateX(-50%) translateY(-3px) scale(1.04); }
+                    100% { opacity: 1; transform: translateX(-50%) translateY(-2px) scale(1); }
+                }
+
+                .badge-img-hover {
+                    animation: badge-spin-glow 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                }
+
+                .badge-tooltip {
+                    position: absolute;
+                    bottom: calc(100% + 10px);
+                    left: 50%;
+                    transform: translateX(-50%) translateY(-2px);
+                    white-space: nowrap;
+                    background: linear-gradient(135deg, rgba(30,30,40,0.97) 0%, rgba(50,50,70,0.97) 100%);
+                    color: #fff;
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: 0.04em;
+                    padding: 5px 10px;
+                    border-radius: 8px;
+                    box-shadow:
+                        0 4px 16px rgba(0,0,0,0.45),
+                        0 0 0 1px rgba(255,255,255,0.1) inset,
+                        0 0 12px rgba(255,255,255,0.08);
+                    pointer-events: none;
+                    animation: tooltip-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    z-index: 9999;
+                }
+
+                /* Setinha do balão */
+                .badge-tooltip::after {
+                    content: '';
+                    position: absolute;
+                    top: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    border: 5px solid transparent;
+                    border-top-color: rgba(50,50,70,0.97);
+                    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+                }
+            `}</style>
+
             <div
-                style={{
-                    transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: showTooltip ? 'scale(1.2)' : 'scale(1)',
-                }}
+                style={{ position: 'relative', cursor: 'pointer', display: 'inline-flex' }}
+                onMouseEnter={() => setShowTooltip(true)}
+                onMouseLeave={() => setShowTooltip(false)}
             >
                 <img
-                    // ✅ Key força re-render quando a cor muda
                     key={biographyColor}
                     src={badge.url}
                     alt={badgeName}
+                    className={showTooltip ? 'badge-img-hover' : ''}
                     style={{
                         width: 24,
                         height: 24,
                         objectFit: 'contain',
-                        // ✅ Transição suave quando a cor chega
-                        transition: 'filter 0.3s ease-in-out, opacity 0.3s ease-in-out',
+                        transition: showTooltip
+                            ? 'none'
+                            : 'filter 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease',
                         opacity: isColorReady ? 1 : 0.5,
-                        filter: isColorReady 
+                        filter: isColorReady
                             ? `${colorFilter} drop-shadow(0 0 1px ${biographyColor}80)`
-                            : 'grayscale(1)', // Fallback visual
+                            : 'grayscale(1)',
                     }}
                 />
+
+                {showTooltip && (
+                    <div className="badge-tooltip">
+                        {badgeName}
+                    </div>
+                )}
             </div>
-        </div>
+        </>
     );
 };
-
 /* ═══════════════════════════════════════════════════════════════════════════
    VOLUME SLIDER COMPONENT
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -973,9 +1020,7 @@ const SnapchatIcon: React.FC<IconProps> = ({ color }) => (
 );
 
 const YouTubeIcon: React.FC<IconProps> = ({ color }) => (
-    <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#FF0000"}>
-        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-    </svg>
+    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill={color || "#FFFC00"}><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill="red" d="M14.712 4.633a1.754 1.754 0 00-1.234-1.234C12.382 3.11 8 3.11 8 3.11s-4.382 0-5.478.289c-.6.161-1.072.634-1.234 1.234C1 5.728 1 8 1 8s0 2.283.288 3.367c.162.6.635 1.073 1.234 1.234C3.618 12.89 8 12.89 8 12.89s4.382 0 5.478-.289a1.754 1.754 0 001.234-1.234C15 10.272 15 8 15 8s0-2.272-.288-3.367z"></path><path fill="#ffffff" d="M6.593 10.11l3.644-2.098-3.644-2.11v4.208z"></path></g></svg>
 );
 
 const DiscordIcon: React.FC<IconProps> = ({ color }) => (
@@ -1237,7 +1282,7 @@ const globalStylesCSS = `
 .name-shiny-container {
     position: relative;
     display: inline-block;
-    padding: 6px 12px;
+    padding: 1px;
 }
 
 /* GIF ATRÁS do texto */
@@ -2151,8 +2196,9 @@ const CardContent: React.FC<CardContentProps> = ({
             {data.contentSettings.biography && (
                 <p
                     style={{
-                        fontSize: 15,
-                        color: linkColor,
+                        fontSize: 16,
+                        paddingTop: '15px',
+                        color: data.contentSettings.biographyColor || '#fff',
                         margin: 0,
                         maxWidth: 380,
                         lineHeight: 1.3,

@@ -11,8 +11,8 @@ interface APIStoreItem {
   itemUrl: string;
   itemName: string;
   itemDescription: string;
-  itemRarity: string | null; // ✅ Adicionado - vem da API
-  itemType: 'BADGE' | 'FRAME' | 'EFFECT' | 'BUNDLE';
+  itemRarity: string | null;
+  itemType: 'BADGE' | 'FRAME' | 'CARD_EFFECT' | 'BUNDLE';
   itemPrice: number;
   limited: boolean;
   itemQuantityAvailable: number | null;
@@ -48,7 +48,8 @@ export interface SendGiftResponse {
 // TIPOS DO FRONTEND
 // ═══════════════════════════════════════════════════════════
 
-export type StoreItemType = 'badge' | 'frame' | 'effect' | 'bundle';
+// ✅ CORRIGIDO: Agora inclui 'card_effect' como tipo separado
+export type StoreItemType = 'badge' | 'frame' | 'card_effect' | 'bundle';
 export type ItemRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
 export interface StoreItem {
@@ -89,15 +90,9 @@ interface StoreContextType {
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-/**
- * Normaliza a raridade vinda da API
- * Se for null/undefined, retorna 'common'
- */
 const normalizeRarity = (apiRarity: string | null | undefined): ItemRarity => {
   if (!apiRarity) return 'common';
-  
   const normalized = apiRarity.toLowerCase().trim();
-  
   switch (normalized) {
     case 'legendary':
     case 'lendario':
@@ -117,10 +112,6 @@ const normalizeRarity = (apiRarity: string | null | undefined): ItemRarity => {
   }
 };
 
-/**
- * Determina a raridade com base nos atributos do item
- * Usado como fallback se a API não enviar itemRarity
- */
 const determineRarityFallback = (item: APIStoreItem): ItemRarity => {
   if (item.limited && item.isPremium) return 'legendary';
   if (item.limited) return 'epic';
@@ -130,15 +121,10 @@ const determineRarityFallback = (item: APIStoreItem): ItemRarity => {
   return 'common';
 };
 
-/**
- * Obtém a raridade do item - prioriza API, usa fallback se necessário
- */
 const getRarity = (item: APIStoreItem): ItemRarity => {
-  // Se a API enviar itemRarity, usa ela
   if (item.itemRarity) {
     return normalizeRarity(item.itemRarity);
   }
-  // Caso contrário, calcula baseado nos atributos
   return determineRarityFallback(item);
 };
 
@@ -146,10 +132,10 @@ const mapItemType = (apiType: string): StoreItemType => {
   const typeMap: Record<string, StoreItemType> = {
     'BADGE': 'badge',
     'FRAME': 'frame',
-    'EFFECT': 'effect',
+    'CARD_EFFECT': 'card_effect',
     'BUNDLE': 'bundle',
   };
-  return typeMap[apiType] || 'badge';
+  return typeMap[apiType] || 'bundle';
 };
 
 const transformAPIItem = (
@@ -164,12 +150,12 @@ const transformAPIItem = (
   let imageUrl: string | undefined;
   let videoUrl: string | undefined;
 
-  // Normaliza a URL base
   const baseUrl = 'https://vxo.lat/';
-  const itemUrl = apiItem.itemUrl?.startsWith('http') 
-    ? apiItem.itemUrl 
+  const itemUrl = apiItem.itemUrl?.startsWith('http')
+    ? apiItem.itemUrl
     : `${baseUrl}${apiItem.itemUrl}`;
 
+  // ✅ CORRIGIDO: card_effect agora usa imageUrl (são PNGs), não videoUrl
   switch (type) {
     case 'badge':
       svgUrl = itemUrl;
@@ -177,8 +163,9 @@ const transformAPIItem = (
     case 'frame':
       imageUrl = itemUrl;
       break;
-    case 'effect':
-      videoUrl = itemUrl;
+    case 'card_effect':
+      // Efeitos de card são imagens (PNG/GIF)
+      imageUrl = itemUrl;
       break;
     case 'bundle':
       imageUrl = itemUrl;
@@ -190,7 +177,7 @@ const transformAPIItem = (
     name: apiItem.itemName,
     description: apiItem.itemDescription,
     type,
-    rarity: getRarity(apiItem), // ✅ Usa a nova função que considera itemRarity da API
+    rarity: getRarity(apiItem),
     price: apiItem.itemPrice,
     svgUrl,
     imageUrl,
@@ -229,11 +216,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoadingStore, setIsLoadingStore] = useState<boolean>(true);
   const [storeError, setStoreError] = useState<string | null>(null);
   const [equippedIds, setEquippedIds] = useState<string[]>([]);
-  
-  // Refs para controlar requests duplicados
+
   const hasFetchedRef = useRef(false);
   const isFetchingRef = useRef(false);
-  
+
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('store_favorites');
@@ -243,7 +229,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  // Salvar favoritos no localStorage
   useEffect(() => {
     try {
       localStorage.setItem('store_favorites', JSON.stringify(favoriteIds));
@@ -252,30 +237,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [favoriteIds]);
 
-  // ═══════════════════════════════════════════════════════════
-  // FETCH STORE ITEMS
-  // ═══════════════════════════════════════════════════════════
-
   const fetchStoreItems = useCallback(async (force = false) => {
-    // Evita requests duplicados
-    if (isFetchingRef.current) {
-      console.log('[Store] Request já em andamento, ignorando...');
-      return;
-    }
-
-    // Se já carregou e não é forçado, não refaz
-    if (hasFetchedRef.current && !force) {
-      console.log('[Store] Dados já carregados, usando cache...');
-      return;
-    }
+    if (isFetchingRef.current) return;
+    if (hasFetchedRef.current && !force) return;
 
     isFetchingRef.current = true;
     setIsLoadingStore(true);
     setStoreError(null);
 
     try {
-      console.log('[Store] Fazendo request para /user/store...');
-      
       const response = await api.get<APIStoreResponse>('/user/store');
       const { items: apiItems, alreadyOwnedItemIds, equippedItemIds, userCoins: coins } = response.data;
 
@@ -284,7 +254,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setEquippedIds(equippedItemIds);
       }
 
-      // Pegar favoritos atuais do localStorage
       let currentFavorites: string[] = [];
       try {
         currentFavorites = JSON.parse(localStorage.getItem('store_favorites') || '[]');
@@ -302,12 +271,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setUserCoins(coins);
       }
 
-      // Marca como carregado
       hasFetchedRef.current = true;
-      
-      console.log('[Store] Dados carregados com sucesso!', {
-        totalItems: transformedItems.length,
-        ownedCount: alreadyOwnedItemIds.length,
+
+      // ✅ Log melhorado para debug
+      const typeCounts = transformedItems.reduce((acc, item) => {
+        acc[item.type] = (acc[item.type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      console.log('[Store] Dados carregados:', {
+        total: transformedItems.length,
+        owned: alreadyOwnedItemIds.length,
+        porTipo: typeCounts,
       });
 
     } catch (err: any) {
@@ -319,114 +294,72 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [equippedIds]);
 
-  // ═══════════════════════════════════════════════════════════
-  // REFRESH STORE
-  // ═══════════════════════════════════════════════════════════
-
   const refreshStore = useCallback(async () => {
-    console.log('[Store] Refresh forçado...');
     await fetchStoreItems(true);
   }, [fetchStoreItems]);
 
-  // ═══════════════════════════════════════════════════════════
-  // PURCHASE ITEM
-  // ═══════════════════════════════════════════════════════════
-
   const purchaseItem = useCallback(async (itemId: string) => {
     try {
-      console.log('[Store] Comprando item:', itemId);
-      
       const response = await api.post(`/user/store/purchase/${itemId}`);
 
       setItems(prev => prev.map(item =>
         item.id === itemId ? { ...item, isOwned: true } : item
       ));
 
-      // Atualiza o saldo de moedas
       if (response.data?.userCoins !== undefined) {
         setUserCoins(response.data.userCoins);
       } else if (response.data?.remainingCoins !== undefined) {
         setUserCoins(response.data.remainingCoins);
       } else {
-        // Fallback: calcula localmente
         const item = items.find(i => i.id === itemId);
         if (item) {
-          const finalPrice = item.discount 
-            ? Math.floor(item.price * (1 - item.discount / 100)) 
+          const finalPrice = item.discount
+            ? Math.floor(item.price * (1 - item.discount / 100))
             : item.price;
           setUserCoins(prev => Math.max(0, prev - finalPrice));
         }
       }
-
-      console.log('[Store] Item comprado com sucesso!');
-
     } catch (err: any) {
       console.error('[Store] Erro ao comprar item:', err);
       throw err;
     }
   }, [items]);
 
-  // ═══════════════════════════════════════════════════════════
-  // SEND GIFT - ✅ NOVA FUNÇÃO
-  // ═══════════════════════════════════════════════════════════
-
   const sendGift = useCallback(async (request: SendGiftRequest): Promise<SendGiftResponse> => {
     try {
-      console.log('[Store] Enviando presente:', {
-        to: request.toUserSlug,
-        itemId: request.itemId,
-        hasMessage: !!request.message,
-      });
-
       const response = await api.post<SendGiftResponse>('/user/gift/send', request);
 
-      // Atualiza o saldo de moedas se retornado
       if (response.data?.remainingCoins !== undefined) {
         setUserCoins(response.data.remainingCoins);
       } else if (request.itemId) {
-        // Fallback: calcula localmente para item
         const item = items.find(i => i.id === request.itemId);
         if (item) {
-          const finalPrice = item.discount 
-            ? Math.floor(item.price * (1 - item.discount / 100)) 
+          const finalPrice = item.discount
+            ? Math.floor(item.price * (1 - item.discount / 100))
             : item.price;
           setUserCoins(prev => Math.max(0, prev - finalPrice));
         }
       }
-
-      console.log('[Store] Presente enviado com sucesso!');
 
       return {
         success: true,
         message: response.data?.message || 'Presente enviado com sucesso!',
         remainingCoins: response.data?.remainingCoins,
       };
-
     } catch (err: any) {
-      console.error('[Store] Erro ao enviar presente:', err);
-      
-      // Retorna erro formatado
-      const errorMessage = err.response?.data?.message 
-        || err.response?.data?.error 
+      const errorMessage = err.response?.data?.message
+        || err.response?.data?.error
         || 'Erro ao enviar presente. Verifique o nome de usuário e tente novamente.';
-      
       throw new Error(errorMessage);
     }
   }, [items]);
 
-  // ═══════════════════════════════════════════════════════════
-  // EQUIP ITEM
-  // ═══════════════════════════════════════════════════════════
-
   const equipItem = useCallback(async (itemId: string) => {
     try {
-      console.log('[Store] Equipando item:', itemId);
-      
       await api.post(`/user/store/equip/${itemId}`);
 
       const item = items.find(i => i.id === itemId);
       if (item) {
-        // Desequipa outros itens do mesmo tipo e equipa o novo
         setItems(prev => prev.map(i => {
           if (i.type === item.type && i.id !== itemId) {
             return { ...i, isEquipped: false };
@@ -445,23 +378,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return [...newIds, itemId];
         });
       }
-
-      console.log('[Store] Item equipado com sucesso!');
-
     } catch (err: any) {
       console.error('[Store] Erro ao equipar item:', err);
       throw err;
     }
   }, [items]);
 
-  // ═══════════════════════════════════════════════════════════
-  // UNEQUIP ITEM
-  // ═══════════════════════════════════════════════════════════
-
   const unequipItem = useCallback(async (itemId: string) => {
     try {
-      console.log('[Store] Desequipando item:', itemId);
-      
       await api.post(`/user/store/unequip/${itemId}`);
 
       setItems(prev => prev.map(item =>
@@ -469,18 +393,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ));
 
       setEquippedIds(prev => prev.filter(id => id !== itemId));
-
-      console.log('[Store] Item desequipado com sucesso!');
-
     } catch (err: any) {
       console.error('[Store] Erro ao desequipar item:', err);
       throw err;
     }
   }, []);
-
-  // ═══════════════════════════════════════════════════════════
-  // TOGGLE FAVORITE
-  // ═══════════════════════════════════════════════════════════
 
   const toggleFavorite = useCallback((itemId: string) => {
     setItems(prev => prev.map(item =>
@@ -495,27 +412,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, []);
 
-  // ═══════════════════════════════════════════════════════════
-  // CLEAR ERROR
-  // ═══════════════════════════════════════════════════════════
-
   const clearError = useCallback(() => {
     setStoreError(null);
   }, []);
-
-  // ═══════════════════════════════════════════════════════════
-  // INITIAL LOAD
-  // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
     if (!hasFetchedRef.current) {
       fetchStoreItems();
     }
   }, []);
-
-  // ═══════════════════════════════════════════════════════════
-  // PROVIDER VALUE
-  // ═══════════════════════════════════════════════════════════
 
   const contextValue: StoreContextType = {
     items,
@@ -527,7 +432,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     equipItem,
     unequipItem,
     toggleFavorite,
-    sendGift, // ✅ Adicionado
+    sendGift,
     clearError,
   };
 

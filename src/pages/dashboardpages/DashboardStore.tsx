@@ -33,8 +33,6 @@ import {
   Crown,
   Zap,
   Tag,
-  Video,
-  FileCode,
   User,
   Send,
   MessageSquare,
@@ -54,7 +52,8 @@ import {
   PartyPopper,
   KeyRound,
   Clock,
-  History,
+  Layers,
+  Eye
 } from "lucide-react";
 import React from "react";
 import { checkoutService } from "../../services/checkoutService";
@@ -86,11 +85,13 @@ interface VoucherResponse {
 // ═══════════════════════════════════════════════════════════
 
 const PREVIEW_PROFILE_IMAGE = "https://i.pravatar.cc/300?u=preview";
-const SLUG_CHANGE_COST = 500; // Custo em moedas para trocar o slug
+const SLUG_CHANGE_COST = 500;
 
-// ═══════════════════════════════════════════════════════════
-// UTILITÁRIOS - COM FALLBACK PARA RARIDADE NULA
-// ═══════════════════════════════════════════════════════════
+// ✅ Função para verificar se é card_effect (compatibilidade com backend)
+const isCardEffect = (item: StoreItem): boolean => {
+  const rawType = (item as any).rawType || (item as any).itemType || item.type;
+  return rawType === "CARD_EFFECT" || rawType === "card_effect";
+};
 
 const normalizeRarity = (rarity: string | null | undefined): ItemRarity => {
   if (!rarity) return "common";
@@ -102,7 +103,7 @@ const normalizeRarity = (rarity: string | null | undefined): ItemRarity => {
 };
 
 const getRarityColor = (rarity: ItemRarity): string => {
-  const colors = {
+  const colors: Record<ItemRarity, string> = {
     common: "#9CA3AF",
     rare: "#3B82F6",
     epic: "#A855F7",
@@ -112,7 +113,7 @@ const getRarityColor = (rarity: ItemRarity): string => {
 };
 
 const getRarityGradient = (rarity: ItemRarity): string => {
-  const gradients = {
+  const gradients: Record<ItemRarity, string> = {
     common: "from-gray-400/20 via-gray-500/10 to-transparent",
     rare: "from-blue-500/30 via-blue-400/15 to-transparent",
     epic: "from-purple-500/30 via-purple-400/15 to-transparent",
@@ -122,7 +123,7 @@ const getRarityGradient = (rarity: ItemRarity): string => {
 };
 
 const getRarityGlow = (rarity: ItemRarity): string => {
-  const glows = {
+  const glows: Record<ItemRarity, string> = {
     common: "0 0 20px rgba(156, 163, 175, 0.3)",
     rare: "0 0 25px rgba(59, 130, 246, 0.5), 0 0 50px rgba(59, 130, 246, 0.3)",
     epic: "0 0 25px rgba(168, 85, 247, 0.5), 0 0 50px rgba(168, 85, 247, 0.3)",
@@ -132,7 +133,7 @@ const getRarityGlow = (rarity: ItemRarity): string => {
 };
 
 const getRarityLabel = (rarity: ItemRarity): string => {
-  const labels = {
+  const labels: Record<ItemRarity, string> = {
     common: "Comum",
     rare: "Raro",
     epic: "Épico",
@@ -142,7 +143,7 @@ const getRarityLabel = (rarity: ItemRarity): string => {
 };
 
 const getRarityIcon = (rarity: ItemRarity) => {
-  const icons = {
+  const icons: Record<ItemRarity, React.ElementType | null> = {
     common: null,
     rare: Sparkle,
     epic: Zap,
@@ -151,21 +152,24 @@ const getRarityIcon = (rarity: ItemRarity) => {
   return icons[rarity];
 };
 
+// ✅ CORRIGIDO: Removido 'effect', mantendo apenas os tipos válidos
 const getTypeIcon = (type: StoreItemType) => {
-  const icons = {
+  const icons: Record<StoreItemType, React.ElementType> = {
     badge: Award,
     frame: Frame,
-    effect: Sparkles,
+    card_effect: Layers,
     bundle: Package,
   };
   return icons[type] || Package;
 };
 
-const getTypeLabel = (type: StoreItemType): string => {
-  const labels = {
+// ✅ CORRIGIDO: Removido 'effect'
+const getTypeLabel = (type: StoreItemType, item?: StoreItem): string => {
+  if (item && isCardEffect(item)) return "Efeito de Card";
+  const labels: Record<StoreItemType, string> = {
     badge: "Insígnia",
     frame: "Moldura",
-    effect: "Efeito",
+    card_effect: "Efeito de Card",
     bundle: "Pacote",
   };
   return labels[type] || "Item";
@@ -176,53 +180,41 @@ const calculateDiscount = (price: number, discount?: number): number => {
   return Math.floor(price * (1 - discount / 100));
 };
 
-// Validação do slug
 const validateSlug = (slug: string): { isValid: boolean; error?: string } => {
   if (!slug || slug.trim().length === 0) {
     return { isValid: false, error: "A URL não pode estar vazia" };
   }
-
   if (slug.length < 1) {
     return { isValid: false, error: "A URL deve ter no mínimo 1 caractér" };
   }
-
   if (slug.length > 30) {
     return { isValid: false, error: "A URL deve ter no máximo 30 caracteres" };
   }
-
-  // Apenas letras, números, underscores e hífens
   const slugRegex = /^[a-zA-Z0-9_-]+$/;
   if (!slugRegex.test(slug)) {
     return { isValid: false, error: "Use apenas letras, números, _ ou -" };
   }
-
-  // Não pode começar ou terminar com hífen/underscore
   if (/^[-_]|[-_]$/.test(slug)) {
     return { isValid: false, error: "Não pode começar ou terminar com - ou _" };
   }
-
   return { isValid: true };
 };
 
-// Validação do código do voucher
 const validateVoucherCode = (code: string): { isValid: boolean; error?: string } => {
   if (!code || code.trim().length === 0) {
     return { isValid: false, error: "Digite um código de voucher" };
   }
-
   if (code.length < 3) {
     return { isValid: false, error: "O código deve ter no mínimo 3 caracteres" };
   }
-
   if (code.length > 50) {
     return { isValid: false, error: "O código deve ter no máximo 50 caracteres" };
   }
-
   return { isValid: true };
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTE: Preview de Moldura (Melhorado)
+// COMPONENTE: Preview de Moldura
 // ═══════════════════════════════════════════════════════════
 
 const FramePreview = ({
@@ -268,17 +260,6 @@ const FramePreview = ({
     return () => clearTimeout(timeout);
   }, [isLoading, onLoadComplete]);
 
-  const handleImageLoad = () => {
-    setIsLoading(false);
-    onLoadComplete?.();
-  };
-
-  const handleImageError = () => {
-    setProfileError(true);
-    setIsLoading(false);
-    onLoadComplete?.();
-  };
-
   return (
     <motion.div
       className="relative flex items-center justify-center"
@@ -309,8 +290,8 @@ const FramePreview = ({
             src={profileImageUrl || PREVIEW_PROFILE_IMAGE}
             alt="Preview do perfil"
             className="w-full h-full object-cover"
-            onLoad={handleImageLoad}
-            onError={handleImageError}
+            onLoad={() => { setIsLoading(false); onLoadComplete?.(); }}
+            onError={() => { setProfileError(true); setIsLoading(false); onLoadComplete?.(); }}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-secondary)] flex items-center justify-center">
@@ -348,50 +329,301 @@ const FramePreview = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTE: Preview de Mídia (Melhorado)
+// COMPONENTE: Preview de Card Effect
+// ═══════════════════════════════════════════════════════════
+
+const CardEffectPreview = ({
+  item,
+  size = "medium",
+}: {
+  item: StoreItem;
+  size?: "small" | "medium" | "large";
+}) => {
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const normalizedRarity = normalizeRarity(item.rarity);
+  const rarityColor = getRarityColor(normalizedRarity);
+
+  const imageUrl = item.imageUrl || item.svgUrl || (item as any).itemUrl;
+
+  const sizeConfig = {
+    small: {
+      container: "w-20 h-20",
+      cardWidth: 60,
+      cardHeight: 84,
+      icon: "w-8 h-8"
+    },
+    medium: {
+      container: "w-full h-full absolute inset-0", // ← ocupa tudo
+      cardWidth: "100%",
+      cardHeight: "100%",
+      icon: "w-12 h-12"
+    },
+    large: {
+      container: "w-full h-full absolute inset-0", // ← ocupa tudo
+      cardWidth: "100%",
+      cardHeight: "100%",
+      icon: "w-16 h-16"
+    },
+  };
+
+  const config = sizeConfig[size];
+
+  if (imageUrl && !imageError) {
+    return (
+      <div
+        className={`${config.container} relative flex items-center justify-center overflow-visible p-4`}
+        style={{
+          background: `linear-gradient(135deg, ${rarityColor}15, ${rarityColor}05, transparent)`,
+        }}
+      >
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)]/50 z-20 backdrop-blur-sm rounded-xl">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
+          </div>
+        )}
+
+        {/* Background glow animado */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(ellipse at center, ${rarityColor}20, transparent 70%)`,
+          }}
+          animate={{ opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 3, repeat: Infinity }}
+        />
+
+        {/* Container do Card Mockup */}
+        <div className="relative z-10 flex items-center justify-center w-full h-full">
+          <motion.div
+            className="relative rounded-2xl overflow-hidden shadow-2xl"
+            style={{
+              width: config.cardWidth,
+              height: config.cardHeight,
+              boxShadow: `
+                0 10px 40px ${rarityColor}30,
+                0 0 60px ${rarityColor}15,
+                inset 0 0 30px ${rarityColor}10
+              `,
+              transform: "perspective(1000px) rotateY(0deg)",
+            }}
+            whileHover={{
+              scale: 1.08,
+              y: -8,
+              rotateY: 5,
+              transition: { type: "spring", stiffness: 300, damping: 20 }
+            }}
+          >
+            {/* Background do Card com gradiente */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `linear-gradient(145deg, 
+                  var(--color-surface) 0%, 
+                  ${rarityColor}15 30%,
+                  ${rarityColor}10 60%, 
+                  var(--color-background) 100%
+                )`,
+              }}
+            />
+
+            {/* Borda interna brilhante */}
+            <div
+              className="absolute inset-[1px] rounded-2xl pointer-events-none"
+              style={{
+                border: `1px solid ${rarityColor}40`,
+                boxShadow: `inset 0 0 20px ${rarityColor}20`
+              }}
+            />
+
+            {/* ✅ IMAGEM DO EFEITO - Ajustada para não cortar */}
+            <div className="absolute inset-1 rounded-2xl overflow-hidden">
+              <img
+                src={imageUrl}
+                alt={item.name}
+                className="w-full h-full object-cover"
+                style={{
+                  filter: "brightness(1.1) contrast(1.05)",
+                  mixBlendMode: "normal", // ← tirar o "screen" que deixa transparente
+                  opacity: 1, // ← era 0.85
+                  objectPosition: "center 0%", // ← muda aqui
+
+                }}
+                onLoad={() => setIsLoading(false)}
+                onError={() => { setImageError(true); setIsLoading(false); }}
+                loading="lazy"
+              />
+            </div>
+
+            {/* Overlay de conteúdo do card */}
+            <div className="absolute inset-0 flex flex-col justify-between p-3 pointer-events-none">
+
+
+              {/* Footer do card com nome */}
+              {size !== "small" && (
+                <div className="mt-auto">
+                  <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-lg px-3 py-2">
+                    <Layers size={12} className="text-white/80" />
+                    <span className="text-[10px] text-white font-semibold truncate">
+                      {item.name}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Efeito de brilho animado */}
+            <motion.div
+              className="absolute inset-0 pointer-events-none rounded-2xl"
+              style={{
+                background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.2) 45%, rgba(255,255,255,0.1) 50%, transparent 70%)",
+              }}
+              animate={{ x: ["-200%", "200%"] }}
+              transition={{ duration: 3, repeat: Infinity, repeatDelay: 3 }}
+            />
+
+          </motion.div>
+        </div>
+
+      </div>
+    );
+  }
+
+  // Fallback sem imagem
+  return (
+    <div
+      className={`${config.container} flex flex-col items-center justify-center gap-4 relative p-4`}
+      style={{
+        background: `linear-gradient(135deg, ${rarityColor}15, ${rarityColor}05, transparent)`,
+      }}
+    >
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at center, ${rarityColor}15, transparent 70%)`,
+        }}
+        animate={{ opacity: [0.3, 0.6, 0.3] }}
+        transition={{ duration: 3, repeat: Infinity }}
+      />
+
+      {/* Card mockup simples sem imagem */}
+      <motion.div
+        className="relative p-6 rounded-2xl shadow-2xl"
+        style={{
+          width: size === "small" ? 60 : size === "medium" ? 140 : 200,
+          height: size === "small" ? 84 : size === "medium" ? 196 : 280,
+          background: `linear-gradient(135deg, ${rarityColor}20, ${rarityColor}10)`,
+          boxShadow: `0 0 40px ${rarityColor}20`,
+        }}
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      >
+        <div className="w-full h-full flex items-center justify-center">
+          <Layers className={`${config.icon} text-white/60`} />
+        </div>
+      </motion.div>
+
+      {size !== "small" && (
+        <span
+          className="relative z-10 text-sm font-bold uppercase tracking-wide"
+          style={{ color: rarityColor }}
+        >
+          Efeito de Card
+        </span>
+      )}
+    </div>
+  );
+
+
+  // Fallback without image
+  return (
+    <div
+      className={`${config.container} flex flex-col items-center justify-center gap-3 relative`}
+      style={{
+        background: `linear-gradient(135deg, ${rarityColor}15, ${rarityColor}05, transparent)`,
+      }}
+    >
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at center, ${rarityColor}15, transparent 70%)`,
+        }}
+        animate={{ opacity: [0.3, 0.6, 0.3] }}
+        transition={{ duration: 3, repeat: Infinity }}
+      />
+
+      <motion.div
+        className="relative z-10 p-4 rounded-2xl"
+        style={{
+          background: `linear-gradient(135deg, ${rarityColor}20, ${rarityColor}10)`,
+          boxShadow: `0 0 30px ${rarityColor}20`,
+        }}
+        animate={{ y: [0, -4, 0] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      >
+        <Layers className={`${config.icon} text-white/80`} />
+      </motion.div>
+
+      {size !== "small" && (
+        <span
+          className="relative z-10 text-xs font-medium"
+          style={{ color: rarityColor }}
+        >
+          Efeito de Card
+        </span>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// COMPONENTE: Preview de Mídia (✅ CORRIGIDO - Sem 'effect')
 // ═══════════════════════════════════════════════════════════
 
 const ItemMediaPreview = ({
   item,
   size = "medium",
-  showPlayButton = false,
   userProfileImage,
 }: {
   item: StoreItem;
   size?: "small" | "medium" | "large";
-  showPlayButton?: boolean;
   userProfileImage?: string;
 }) => {
   const [imageError, setImageError] = useState(false);
-  const [videoError, setVideoError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const normalizedRarity = normalizeRarity(item.rarity);
+  const rarityColor = getRarityColor(normalizedRarity);
 
   const sizeConfig = {
     small: { container: "w-16 h-16", svg: "w-10 h-10", icon: "w-8 h-8" },
-    medium: { container: "w-full h-44", svg: "w-20 h-20", icon: "w-16 h-16" },
+    medium: { container: "w-full h-48", svg: "w-20 h-20", icon: "w-16 h-16" },
     large: { container: "w-full h-72", svg: "w-32 h-32", icon: "w-24 h-24" },
   };
-
   const config = sizeConfig[size];
 
-  useEffect(() => {
-    if (item.type === "effect" && videoRef.current && !videoError) {
-      videoRef.current.play().catch(() => { });
-    }
-  }, [item.type, videoError]);
-
-  const containerStyle = {
-    background: `linear-gradient(135deg, ${getRarityColor(normalizedRarity)}25, ${getRarityColor(normalizedRarity)}05)`,
-    contain: 'layout style paint'
+  const containerStyle: React.CSSProperties = {
+    background: `linear-gradient(135deg, ${rarityColor}25, ${rarityColor}05)`,
+    contain: "layout style paint",
   };
 
+  // ─── CARD EFFECT ──────────────────────────
+  if (item.type === "card_effect" || isCardEffect(item)) {
+    return (
+      <div className={`${config.container} overflow-hidden`}>
+        <CardEffectPreview item={item} size={size} />
+      </div>
+    );
+  }
+
+  // ─── BADGE ────────────────────────────────
   if (item.type === "badge") {
     if (item.svgUrl) {
       return (
-        <div className={`${config.container} flex items-center justify-center p-4 relative`} style={containerStyle}>
+        <div
+          className={`${config.container} flex items-center justify-center p-4 relative`}
+          style={containerStyle}
+        >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)]/50 z-20 backdrop-blur-sm">
               <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
@@ -403,16 +635,25 @@ const ItemMediaPreview = ({
             animate={{ scale: [1, 1.1, 1] }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(normalizedRarity) }} />
+            <div
+              className={`${config.svg} rounded-full`}
+              style={{ backgroundColor: rarityColor }}
+            />
           </motion.div>
           <motion.img
             src={item.svgUrl}
             alt={item.name}
             className={`${config.svg} relative z-10`}
-            style={{ filter: "invert(100%) sepia(100%) saturate(0%) hue-rotate(200deg)" }}
+            style={{
+              filter:
+                "invert(100%) sepia(100%) saturate(0%) hue-rotate(200deg)",
+            }}
             loading="lazy"
             onLoad={() => setIsLoading(false)}
-            onError={() => { setImageError(true); setIsLoading(false); }}
+            onError={() => {
+              setImageError(true);
+              setIsLoading(false);
+            }}
             whileHover={{ scale: 1.1, rotate: 5 }}
             transition={{ type: "spring", stiffness: 300 }}
           />
@@ -420,14 +661,20 @@ const ItemMediaPreview = ({
       );
     }
     return (
-      <div className={`${config.container} flex items-center justify-center relative`} style={containerStyle}>
+      <div
+        className={`${config.container} flex items-center justify-center relative`}
+        style={containerStyle}
+      >
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           style={{ filter: "blur(30px)", opacity: 0.3 }}
         >
-          <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(normalizedRarity) }} />
+          <div
+            className={`${config.svg} rounded-full`}
+            style={{ backgroundColor: rarityColor }}
+          />
         </motion.div>
-        <FileCode
+        <Award
           className={`${config.icon} relative z-10 text-white`}
           style={{ filter: `drop-shadow(${getRarityGlow(normalizedRarity)})` }}
         />
@@ -435,11 +682,15 @@ const ItemMediaPreview = ({
     );
   }
 
+  // ─── FRAME ────────────────────────────────
   if (item.type === "frame") {
     return (
-      <div className={`${config.container} flex items-center justify-center relative`} style={containerStyle}>
+      <div
+        className={`${config.container} flex items-center justify-center relative`}
+        style={containerStyle}
+      >
         <FramePreview
-          frameUrl={item.imageUrl || ''}
+          frameUrl={item.imageUrl || ""}
           size={size}
           profileImageUrl={userProfileImage || PREVIEW_PROFILE_IMAGE}
           rarity={normalizedRarity}
@@ -448,52 +699,14 @@ const ItemMediaPreview = ({
     );
   }
 
-  if (item.type === "effect") {
-    if (item.videoUrl && !videoError) {
-      return (
-        <div className={`${config.container} relative overflow-hidden bg-black/50`} style={{ contain: 'layout style paint' }}>
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 backdrop-blur-sm">
-              <Loader2 className="w-8 h-8 animate-spin text-white" />
-            </div>
-          )}
-          <video
-            ref={videoRef}
-            src={item.videoUrl}
-            className="w-full h-full object-cover"
-            loop muted playsInline
-            poster={item.thumbnailUrl}
-            onLoadedData={() => setIsLoading(false)}
-            onError={() => { setVideoError(true); setIsLoading(false); }}
-          />
-          {showPlayButton && (
-            <motion.div
-              className="absolute inset-0 flex items-center justify-center bg-black/20"
-              initial={{ opacity: 0 }}
-              whileHover={{ opacity: 1 }}
-            >
-              <motion.div
-                className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center shadow-xl"
-                whileHover={{ scale: 1.1 }}
-              >
-                <Video className="w-6 h-6 text-black ml-1" />
-              </motion.div>
-            </motion.div>
-          )}
-        </div>
-      );
-    }
-    return (
-      <div className={`${config.container} flex items-center justify-center`} style={containerStyle}>
-        <Video className={`${config.icon} text-white/50`} />
-      </div>
-    );
-  }
-
+  // ─── BUNDLE ───────────────────────────────
   if (item.type === "bundle") {
     if (item.imageUrl && !imageError) {
       return (
-        <div className={`${config.container} relative overflow-hidden`} style={{ contain: 'layout style paint' }}>
+        <div
+          className={`${config.container} relative overflow-hidden`}
+          style={{ contain: "layout style paint" }}
+        >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-surface)]/50 z-20 backdrop-blur-sm">
               <Loader2 className="w-8 h-8 animate-spin text-[var(--color-text-muted)]" />
@@ -505,18 +718,27 @@ const ItemMediaPreview = ({
             className="w-full h-full object-cover"
             loading="lazy"
             onLoad={() => setIsLoading(false)}
-            onError={() => { setImageError(true); setIsLoading(false); }}
+            onError={() => {
+              setImageError(true);
+              setIsLoading(false);
+            }}
           />
         </div>
       );
     }
     return (
-      <div className={`${config.container} flex items-center justify-center relative`} style={containerStyle}>
+      <div
+        className={`${config.container} flex items-center justify-center relative`}
+        style={containerStyle}
+      >
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           style={{ filter: "blur(30px)", opacity: 0.3 }}
         >
-          <div className={`${config.svg} rounded-full`} style={{ backgroundColor: getRarityColor(normalizedRarity) }} />
+          <div
+            className={`${config.svg} rounded-full`}
+            style={{ backgroundColor: rarityColor }}
+          />
         </motion.div>
         <Package
           className={`${config.icon} relative z-10 text-white`}
@@ -526,11 +748,19 @@ const ItemMediaPreview = ({
     );
   }
 
-  return null;
+  // ─── FALLBACK ─────────────────────────────
+  return (
+    <div
+      className={`${config.container} flex items-center justify-center`}
+      style={containerStyle}
+    >
+      <Package className={`${config.icon} text-white/50`} />
+    </div>
+  );
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE (Melhorados)
+// COMPONENTES BASE
 // ═══════════════════════════════════════════════════════════
 
 const StoreCard = ({ children, className = "", gradient = false }: {
@@ -541,10 +771,10 @@ const StoreCard = ({ children, className = "", gradient = false }: {
   <motion.div
     className={`
       relative overflow-hidden
-      bg-[var(--card-background-glass)] backdrop-blur-xl 
+      bg-[var(--color-surface)]/80 backdrop-blur-xl 
       border border-[var(--color-border)]
       rounded-2xl p-5 sm:p-6 
-      ${gradient ? 'bg-gradient-to-br from-[var(--color-surface)]/80 to-[var(--color-background)]/50' : ''}
+      ${gradient ? 'bg-gradient-to-br from-[var(--color-surface)]/90 to-[var(--color-background)]/60' : ''}
       ${className}
     `}
     initial={{ opacity: 0, y: 20 }}
@@ -606,7 +836,7 @@ const Modal = ({
               <div className="relative p-6 border-b border-[var(--color-border)] bg-gradient-to-r from-[var(--color-primary)]/5 to-transparent">
                 <div className="flex items-start gap-4">
                   {Icon && (
-                    <div className="p-3 rounded-2xl bg-[var(--color-primary)]/10 border border-[var(--color-primary)]">
+                    <div className="p-3 rounded-2xl bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30">
                       <Icon size={24} className="text-[var(--color-primary)]" />
                     </div>
                   )}
@@ -618,7 +848,7 @@ const Modal = ({
                   </div>
                   <motion.button
                     onClick={onClose}
-                    className="p-2 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all"
+                    className="p-2 rounded-xl bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all border border-[var(--color-border)]"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -652,9 +882,10 @@ const TabButton = ({
     onClick={onClick}
     className={`
       flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all whitespace-nowrap
+      border
       ${active
-        ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white shadow-lg shadow-[var(--color-primary)]/25"
-        : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+        ? "bg-[var(--color-primary)] text-white shadow-lg shadow-[var(--color-primary)]/25 border-[var(--color-primary)]"
+        : "bg-[var(--color-surface)]/60 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] border-[var(--color-border)]"
       }
     `}
     whileHover={{ scale: 1.02 }}
@@ -689,17 +920,18 @@ const MainTabButton = ({
   <motion.button
     onClick={onClick}
     className={`
-      relative flex items-center gap-3 px-3 py-2 rounded-2xl font-semibold text-base transition-all
+      relative flex items-center gap-2.5 px-4 py-3 rounded-2xl font-semibold text-sm transition-all
+      border
       ${active
-        ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white shadow-xl shadow-[var(--color-primary)]/30"
-        : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] border border-[var(--color-border)]"
+        ? "bg-[var(--color-primary)] text-white shadow-xl shadow-[var(--color-primary)]/30 border-[var(--color-primary)]"
+        : "bg-[var(--color-surface)]/60 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] border-[var(--color-border)]"
       }
     `}
-    whileHover={{ scale: 1.02, y: -2 }}
+    whileHover={{ scale: 1.02, y: -1 }}
     whileTap={{ scale: 0.98 }}
   >
-    <Icon size={22} />
-    <span>{label}</span>
+    <Icon size={20} />
+    <span className="hidden sm:inline">{label}</span>
     {badge && (
       <span className={`
         px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
@@ -716,15 +948,16 @@ const LoadingSkeleton = () => (
     {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
       <motion.div
         key={i}
-        className="h-[420px] bg-[var(--color-surface)]/50 rounded-2xl border border-[var(--color-border)] overflow-hidden"
+        className="h-[440px] bg-[var(--color-surface)]/50 rounded-2xl border border-[var(--color-border)] overflow-hidden"
         initial={{ opacity: 0.3 }}
         animate={{ opacity: [0.3, 0.6, 0.3] }}
         transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
       >
-        <div className="h-44 bg-[var(--color-surface)]" />
-        <div className="p-4 space-y-3">
+        <div className="h-48 bg-[var(--color-surface)]" />
+        <div className="p-5 space-y-4">
           <div className="h-5 bg-[var(--color-surface)] rounded-lg w-3/4" />
           <div className="h-3 bg-[var(--color-surface)] rounded w-1/2" />
+          <div className="h-3 bg-[var(--color-surface)] rounded w-2/3" />
           <div className="h-10 bg-[var(--color-surface)] rounded-lg" />
           <div className="h-12 bg-[var(--color-surface)] rounded-xl mt-4" />
         </div>
@@ -733,21 +966,22 @@ const LoadingSkeleton = () => (
   </div>
 );
 
+// ✅ CORRIGIDO: Removido 'effect' das mensagens
 const EmptyState = ({ type, searchQuery }: { type: StoreItemType | "all"; searchQuery?: string }) => {
-  const messages = {
+  const messages: Record<string, { title: string; description: string }> = {
     all: { title: "Nenhum item encontrado", description: "Não há itens disponíveis na loja no momento." },
     badge: { title: "Nenhuma insígnia encontrada", description: "Não há insígnias disponíveis no momento." },
     frame: { title: "Nenhuma moldura encontrada", description: "Não há molduras disponíveis no momento." },
-    effect: { title: "Nenhum efeito encontrado", description: "Não há efeitos disponíveis no momento." },
+    card_effect: { title: "Nenhum efeito de card encontrado", description: "Não há efeitos de card disponíveis no momento." },
     bundle: { title: "Nenhum pacote encontrado", description: "Não há pacotes disponíveis no momento." },
   };
 
-  const message = messages[type];
+  const message = messages[type] || messages.all;
   const Icon = type === "all" ? Store : getTypeIcon(type as StoreItemType);
 
   return (
     <motion.div
-      className="flex flex-col items-center justify-center py-16 min-h-[400px]"
+      className="flex flex-col items-center justify-center py-20 min-h-[400px]"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -797,18 +1031,18 @@ const CoinPackageCard = ({
         relative overflow-hidden rounded-2xl
         border-2 transition-all duration-300
         ${pkg.isBestValue
-          ? "border-yellow-500 bg-gradient-to-b from-yellow-500/10 via-amber-500/5 to-transparent"
+          ? "border-yellow-500/60 bg-gradient-to-b from-yellow-500/10 via-amber-500/5 to-[var(--color-surface)]"
           : pkg.isPopular
-            ? "border-[var(--color-primary)] bg-gradient-to-b from-[var(--color-primary)]/10 to-transparent"
+            ? "border-[var(--color-primary)]/50 bg-gradient-to-b from-[var(--color-primary)]/10 to-[var(--color-surface)]"
             : "border-[var(--color-border)] bg-[var(--color-surface)]"
         }
         ${isProcessing && !isThisProcessing ? "opacity-50 pointer-events-none" : ""}
       `}
       style={{
         boxShadow: pkg.isBestValue
-          ? "0 0 40px rgba(234, 179, 8, 0.2), 0 0 80px rgba(234, 179, 8, 0.1)"
+          ? "0 0 40px rgba(234, 179, 8, 0.15)"
           : pkg.isPopular
-            ? "0 0 30px rgba(var(--color-primary-rgb), 0.15)"
+            ? "0 0 30px rgba(var(--color-primary-rgb), 0.1)"
             : undefined
       }}
     >
@@ -826,14 +1060,14 @@ const CoinPackageCard = ({
             </motion.span>
           )}
           {pkg.isPopular && !pkg.isBestValue && (
-            <span className="px-3 py-1 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white text-[10px] font-bold flex items-center gap-1 shadow-lg">
+            <span className="px-3 py-1 rounded-full bg-[var(--color-primary)] text-white text-[10px] font-bold flex items-center gap-1 shadow-lg">
               <TrendingUp size={12} />
               POPULAR
             </span>
           )}
         </div>
         {savings > 0 && (
-          <span className="px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold flex items-center gap-1">
+          <span className="px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 text-[10px] font-bold flex items-center gap-1 border border-green-500/20">
             <Percent size={10} />
             {savings}% OFF
           </span>
@@ -858,7 +1092,6 @@ const CoinPackageCard = ({
 
       {/* Content */}
       <div className="p-6 pt-14">
-        {/* Coin Icon & Amount */}
         <div className="flex flex-col items-center mb-6">
           <motion.div
             className="relative mb-4"
@@ -880,16 +1113,6 @@ const CoinPackageCard = ({
             >
               <Coins size={40} className="text-white" />
             </div>
-            {pkg.isBestValue && (
-              <motion.div
-                className="absolute -inset-2 rounded-full"
-                style={{
-                  background: "radial-gradient(circle, rgba(234, 179, 8, 0.3), transparent 70%)"
-                }}
-                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
           </motion.div>
 
           <div className="text-center">
@@ -909,7 +1132,6 @@ const CoinPackageCard = ({
           </div>
         </div>
 
-        {/* Price */}
         <div className="text-center mb-6">
           <div className="flex items-baseline justify-center gap-1">
             <span className="text-sm text-[var(--color-text-muted)]">R$</span>
@@ -922,7 +1144,6 @@ const CoinPackageCard = ({
           </p>
         </div>
 
-        {/* Features */}
         {pkg.bonus && (
           <div className="mb-6 p-3 rounded-xl bg-green-500/10 border border-green-500/20">
             <div className="flex items-center justify-center gap-2 text-green-400 text-sm font-medium">
@@ -932,7 +1153,6 @@ const CoinPackageCard = ({
           </div>
         )}
 
-        {/* Purchase Button */}
         <motion.button
           onClick={() => onPurchase(pkg.amount)}
           disabled={isProcessing}
@@ -943,7 +1163,7 @@ const CoinPackageCard = ({
             ${pkg.isBestValue
               ? "bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-white shadow-lg shadow-yellow-500/25"
               : pkg.isPopular
-                ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] hover:shadow-lg hover:shadow-[var(--color-primary)]/25 text-white"
+                ? "bg-[var(--color-primary)] hover:shadow-lg hover:shadow-[var(--color-primary)]/25 text-white"
                 : "bg-[var(--color-surface-hover)] hover:bg-[var(--color-primary)]/10 text-[var(--color-text)] border border-[var(--color-border)]"
             }
           `}
@@ -973,31 +1193,22 @@ const CoinsPurchaseSection = ({
   const [processingAmount, setProcessingAmount] = useState<CoinAmount | null>(null);
 
   const handlePurchaseCoins = async (amount: CoinAmount) => {
-    console.log('[CoinsPurchase] Iniciando compra de moedas:', amount);
-
     setIsProcessing(true);
     setProcessingAmount(amount);
 
     try {
       onNotification('info', 'Preparando checkout...');
-
       const response = await checkoutService.checkoutCoins(amount);
-
-      console.log('[CoinsPurchase] Resposta do checkout:', response);
 
       if (response.success && response.checkoutUrl) {
         onNotification('success', 'Redirecionando para o pagamento...');
-
-        // Pequeno delay para mostrar a notificação
         setTimeout(() => {
           checkoutService.redirectToCheckout(response.checkoutUrl!);
         }, 500);
       } else {
         throw new Error(response.error || 'Erro ao criar checkout');
       }
-
     } catch (error: any) {
-      console.error('[CoinsPurchase] Erro ao processar compra:', error);
       onNotification('error', error.message || 'Erro ao processar compra. Tente novamente.');
       setIsProcessing(false);
       setProcessingAmount(null);
@@ -1006,7 +1217,6 @@ const CoinsPurchaseSection = ({
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <StoreCard gradient>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -1018,9 +1228,7 @@ const CoinsPurchaseSection = ({
               <Coins size={32} className="text-yellow-500" />
             </motion.div>
             <div>
-              <h2 className="text-xl font-bold text-[var(--color-text)]">
-                Comprar Moedas
-              </h2>
+              <h2 className="text-xl font-bold text-[var(--color-text)]">Comprar Moedas</h2>
               <p className="text-sm text-[var(--color-text-muted)] mt-1">
                 Adquira moedas para comprar itens exclusivos na loja
               </p>
@@ -1031,15 +1239,12 @@ const CoinsPurchaseSection = ({
             <Coins size={24} className="text-yellow-500" />
             <div>
               <p className="text-xs text-[var(--color-text-muted)]">Seu saldo atual</p>
-              <p className="text-xl font-bold text-[var(--color-text)]">
-                {userCoins.toLocaleString()}
-              </p>
+              <p className="text-xl font-bold text-[var(--color-text)]">{userCoins.toLocaleString()}</p>
             </div>
           </div>
         </div>
       </StoreCard>
 
-      {/* Packages Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {COIN_PACKAGES.map((pkg, index) => (
           <CoinPackageCard
@@ -1053,40 +1258,30 @@ const CoinsPurchaseSection = ({
         ))}
       </div>
 
-      {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StoreCard className="text-center">
           <div className="p-3 rounded-xl bg-green-500/10 w-fit mx-auto mb-3">
             <BadgeCheck size={24} className="text-green-400" />
           </div>
           <h4 className="font-semibold text-[var(--color-text)] mb-1">Pagamento Seguro</h4>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Processado pelo Mercado Pago com total segurança
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">Processado pelo Mercado Pago com total segurança</p>
         </StoreCard>
-
         <StoreCard className="text-center">
           <div className="p-3 rounded-xl bg-blue-500/10 w-fit mx-auto mb-3">
             <Zap size={24} className="text-blue-400" />
           </div>
           <h4 className="font-semibold text-[var(--color-text)] mb-1">Entrega Instantânea</h4>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Moedas creditadas imediatamente após a confirmação
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">Moedas creditadas imediatamente após a confirmação</p>
         </StoreCard>
-
         <StoreCard className="text-center">
           <div className="p-3 rounded-xl bg-purple-500/10 w-fit mx-auto mb-3">
             <Gift size={24} className="text-purple-400" />
           </div>
           <h4 className="font-semibold text-[var(--color-text)] mb-1">Bônus Exclusivos</h4>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Ganhe moedas extras em pacotes maiores
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">Ganhe moedas extras em pacotes maiores</p>
         </StoreCard>
       </div>
 
-      {/* Payment Methods */}
       <div className="text-center">
         <p className="text-xs text-[var(--color-text-muted)] flex items-center justify-center gap-2">
           <Lock size={12} />
@@ -1120,38 +1315,29 @@ const CustomizeSection = ({
   const canAfford = userCoins >= SLUG_CHANGE_COST;
   const hasChanged = newSlug !== currentSlug;
 
-  // Validação em tempo real
   useEffect(() => {
     if (newSlug === currentSlug) {
       setValidationError(null);
       return;
     }
-
     const validation = validateSlug(newSlug);
     setValidationError(validation.isValid ? null : validation.error || null);
   }, [newSlug, currentSlug]);
 
   const handleSlugChange = (value: string) => {
-    // Remove espaços e converte para minúsculas
     const sanitized = value.toLowerCase().replace(/\s/g, '');
     setNewSlug(sanitized);
   };
 
   const handleSubmit = async () => {
     if (!hasChanged || validationError || !canAfford) return;
-
     setIsProcessing(true);
-
     try {
       onNotification('info', 'Alterando sua URL...');
-
       await checkoutService.changeSlug(newSlug);
-
       onNotification('success', `URL alterada com sucesso para /${newSlug}!`);
       onSlugChanged();
-
     } catch (error: any) {
-      console.error('[CustomizeSection] Erro ao alterar slug:', error);
       onNotification('error', error.message || 'Erro ao alterar URL. Tente novamente.');
     } finally {
       setIsProcessing(false);
@@ -1169,7 +1355,6 @@ const CustomizeSection = ({
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <StoreCard gradient>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -1181,28 +1366,20 @@ const CustomizeSection = ({
               <Link2 size={32} className="text-purple-500" />
             </motion.div>
             <div>
-              <h2 className="text-xl font-bold text-[var(--color-text)]">
-                Personalizar URL
-              </h2>
-              <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                Altere a URL do seu perfil para algo mais pessoal
-              </p>
+              <h2 className="text-xl font-bold text-[var(--color-text)]">Personalizar URL</h2>
+              <p className="text-sm text-[var(--color-text-muted)] mt-1">Altere a URL do seu perfil para algo mais pessoal</p>
             </div>
           </div>
-
           <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-yellow-500/10 to-amber-500/5 border border-yellow-500/20">
             <Coins size={24} className="text-yellow-500" />
             <div>
               <p className="text-xs text-[var(--color-text-muted)]">Seu saldo atual</p>
-              <p className="text-xl font-bold text-[var(--color-text)]">
-                {userCoins.toLocaleString()}
-              </p>
+              <p className="text-xl font-bold text-[var(--color-text)]">{userCoins.toLocaleString()}</p>
             </div>
           </div>
         </div>
       </StoreCard>
 
-      {/* URL Atual */}
       <StoreCard>
         <div className="space-y-4">
           <div className="flex items-center gap-2">
@@ -1211,15 +1388,12 @@ const CustomizeSection = ({
             </div>
             <h3 className="font-semibold text-[var(--color-text)]">Sua URL Atual</h3>
           </div>
-
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
             <ExternalLink size={18} className="text-[var(--color-text-muted)]" />
-            <code className="flex-1 text-sm text-[var(--color-text)] font-mono">
-              vxo.lat/{currentSlug}
-            </code>
+            <code className="flex-1 text-sm text-[var(--color-text)] font-mono">vxo.lat/{currentSlug}</code>
             <motion.button
               onClick={handleCopyUrl}
-              className="p-2 rounded-lg bg-[var(--color-background)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all"
+              className="p-2 rounded-lg bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all border border-[var(--color-border)]"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -1229,7 +1403,6 @@ const CustomizeSection = ({
         </div>
       </StoreCard>
 
-      {/* Alterar URL */}
       <StoreCard>
         <div className="space-y-6">
           <div className="flex items-center gap-2">
@@ -1239,7 +1412,6 @@ const CustomizeSection = ({
             <h3 className="font-semibold text-[var(--color-text)]">Nova URL</h3>
           </div>
 
-          {/* Input */}
           <div className="space-y-3">
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[var(--color-text-muted)] text-sm">
@@ -1253,8 +1425,8 @@ const CustomizeSection = ({
                 placeholder="sua-nova-url"
                 maxLength={30}
                 className={`
-                  w-full pl-[140px] sm:pl-[200px] pr-4 py-4 rounded-xl
-                  bg-[var(--color-surface)] border-2 
+                  w-full pl-[80px] sm:pl-[100px] pr-4 py-4 rounded-xl
+                  bg-[var(--color-background)] border-2 
                   text-[var(--color-text)] placeholder-[var(--color-text-muted)]
                   focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 
                   transition-all font-mono
@@ -1268,7 +1440,6 @@ const CustomizeSection = ({
               />
             </div>
 
-            {/* Validation Message */}
             <AnimatePresence>
               {validationError && (
                 <motion.div
@@ -1283,25 +1454,18 @@ const CustomizeSection = ({
               )}
             </AnimatePresence>
 
-            {/* Character Count */}
             <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
               <span>Use letras, números, _ ou -</span>
-              <span className={newSlug.length > 25 ? "text-yellow-400" : ""}>
-                {newSlug.length}/30
-              </span>
+              <span className={newSlug.length > 25 ? "text-yellow-400" : ""}>{newSlug.length}/30</span>
             </div>
           </div>
 
-          {/* Preview */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/5 border border-purple-500/20">
             <p className="text-xs text-[var(--color-text-muted)] mb-2">Preview da URL:</p>
-            <code className="text-sm text-[var(--color-text)] font-mono break-all">
-              {previewUrl}
-            </code>
+            <code className="text-sm text-[var(--color-text)] font-mono break-all">{previewUrl}</code>
           </div>
 
-          {/* Cost Info */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)]">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-yellow-500/10">
                 <Coins size={20} className="text-yellow-500" />
@@ -1311,12 +1475,9 @@ const CustomizeSection = ({
                 <p className="text-xs text-[var(--color-text-muted)]">Cobrado ao confirmar</p>
               </div>
             </div>
-            <span className="text-2xl font-bold text-[var(--color-text)]">
-              {SLUG_CHANGE_COST.toLocaleString()}
-            </span>
+            <span className="text-2xl font-bold text-[var(--color-text)]">{SLUG_CHANGE_COST.toLocaleString()}</span>
           </div>
 
-          {/* Warning if insufficient coins */}
           {!canAfford && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -1333,33 +1494,26 @@ const CustomizeSection = ({
             </motion.div>
           )}
 
-          {/* Submit Button */}
           <motion.button
             onClick={handleSubmit}
             disabled={isProcessing || !hasChanged || !!validationError || !canAfford}
-            className="w-full py-4 rounded-xl bg-[var(--color-text)] text-[var(--color-background)] font-semibold text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-500/25"
+            className="w-full py-4 rounded-xl bg-[var(--color-primary)] text-white font-semibold text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[var(--color-primary)]/25"
             whileHover={!isProcessing && hasChanged && !validationError && canAfford ? { scale: 1.02 } : {}}
             whileTap={!isProcessing && hasChanged && !validationError && canAfford ? { scale: 0.98 } : {}}
           >
             {isProcessing ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                Alterando...
-              </>
+              <><Loader2 size={20} className="animate-spin" />Alterando...</>
             ) : (
               <>
                 <Check size={20} />
                 Confirmar Alteração
-                <span className="ml-2 px-2 py-0.5 rounded-full bg-white/20 text-xs">
-                  {SLUG_CHANGE_COST} moedas
-                </span>
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-white/20 text-xs">{SLUG_CHANGE_COST} moedas</span>
               </>
             )}
           </motion.button>
         </div>
       </StoreCard>
 
-      {/* Tips */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <StoreCard>
           <div className="flex items-start gap-3">
@@ -1374,7 +1528,6 @@ const CustomizeSection = ({
             </div>
           </div>
         </StoreCard>
-
         <StoreCard>
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-lg bg-yellow-500/10 flex-shrink-0">
@@ -1409,19 +1562,16 @@ const VoucherSection = ({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [redeemSuccess, setRedeemSuccess] = useState<VoucherResponse | null>(null);
 
-  // Validação em tempo real
   useEffect(() => {
     if (!voucherCode.trim()) {
       setValidationError(null);
       return;
     }
-
     const validation = validateVoucherCode(voucherCode);
     setValidationError(validation.isValid ? null : validation.error || null);
   }, [voucherCode]);
 
   const handleCodeChange = (value: string) => {
-    // Remove espaços extras e converte para maiúsculas
     const sanitized = value.toUpperCase().replace(/\s+/g, '');
     setVoucherCode(sanitized);
     setRedeemSuccess(null);
@@ -1439,7 +1589,6 @@ const VoucherSection = ({
 
     try {
       onNotification('info', 'Verificando Voucher...');
-
       const response = await checkoutService.useVoucher(voucherCode);
 
       if (response.success) {
@@ -1450,10 +1599,8 @@ const VoucherSection = ({
       } else {
         throw new Error(response.message || 'Erro ao ativar voucher');
       }
-
     } catch (error: any) {
-      console.error('[VoucherSection] Erro ao ativar voucher:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Erro ao ativar voucher. Verifique o código e tente novamente.';
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao ativar voucher.';
       onNotification('error', errorMessage);
       setValidationError(errorMessage);
     } finally {
@@ -1469,30 +1616,21 @@ const VoucherSection = ({
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <StoreCard gradient>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <motion.div
               className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30"
-              animate={{
-                rotate: [0, 5, -5, 0],
-                scale: [1, 1.05, 1]
-              }}
+              animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }}
               transition={{ duration: 3, repeat: Infinity, repeatDelay: 1 }}
             >
               <Ticket size={32} className="text-emerald-500" />
             </motion.div>
             <div>
-              <h2 className="text-xl font-bold text-[var(--color-text)]">
-                Ativar Voucher
-              </h2>
-              <p className="text-sm text-[var(--color-text-muted)] mt-1">
-                Resgate códigos promocionais e ganhe recompensas exclusivas
-              </p>
+              <h2 className="text-xl font-bold text-[var(--color-text)]">Ativar Voucher</h2>
+              <p className="text-sm text-[var(--color-text-muted)] mt-1">Resgate códigos promocionais e ganhe recompensas exclusivas</p>
             </div>
           </div>
-
           <motion.div
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/10 to-teal-500/5 border border-emerald-500/20"
             animate={{ opacity: [0.8, 1, 0.8] }}
@@ -1504,7 +1642,6 @@ const VoucherSection = ({
         </div>
       </StoreCard>
 
-      {/* Main Input Card */}
       <StoreCard>
         <div className="space-y-6">
           <div className="flex items-center gap-2">
@@ -1514,7 +1651,6 @@ const VoucherSection = ({
             <h3 className="font-semibold text-[var(--color-text)]">Digite seu código</h3>
           </div>
 
-          {/* Input */}
           <div className="space-y-3">
             <div className="relative">
               <Ticket size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
@@ -1527,8 +1663,8 @@ const VoucherSection = ({
                 maxLength={50}
                 disabled={isProcessing}
                 className={`
-                  w-full pl-12 pr-4 py-4 rounded-xl
-                  bg-[var(--color-surface)] border-2 
+                  w-full pl-12 pr-12 py-4 rounded-xl
+                  bg-[var(--color-background)] border-2 
                   text-[var(--color-text)] placeholder-[var(--color-text-muted)]
                   focus:outline-none focus:ring-2 focus:ring-emerald-500/30 
                   transition-all font-mono text-lg tracking-wider uppercase
@@ -1554,7 +1690,6 @@ const VoucherSection = ({
               )}
             </div>
 
-            {/* Validation Message */}
             <AnimatePresence>
               {validationError && (
                 <motion.div
@@ -1569,16 +1704,12 @@ const VoucherSection = ({
               )}
             </AnimatePresence>
 
-            {/* Character Count */}
             <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
               <span>Os códigos são case-insensitive</span>
-              <span className={voucherCode.length > 40 ? "text-yellow-400" : ""}>
-                {voucherCode.length}/50
-              </span>
+              <span className={voucherCode.length > 40 ? "text-yellow-400" : ""}>{voucherCode.length}/50</span>
             </div>
           </div>
 
-          {/* Submit Button */}
           <motion.button
             onClick={handleSubmit}
             disabled={isProcessing || !voucherCode.trim() || !!validationError}
@@ -1587,22 +1718,14 @@ const VoucherSection = ({
             whileTap={!isProcessing && voucherCode.trim() && !validationError ? { scale: 0.98 } : {}}
           >
             {isProcessing ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                Ativando...
-              </>
+              <><Loader2 size={20} className="animate-spin" />Ativando...</>
             ) : (
-              <>
-                <Check size={20} />
-                Ativar Voucher
-                <ArrowRight size={18} />
-              </>
+              <><Check size={20} />Ativar Voucher<ArrowRight size={18} /></>
             )}
           </motion.button>
         </div>
       </StoreCard>
 
-      {/* Success State */}
       <AnimatePresence>
         {redeemSuccess && (
           <motion.div
@@ -1621,23 +1744,10 @@ const VoucherSection = ({
                 >
                   <PartyPopper size={48} className="text-emerald-500" />
                 </motion.div>
-                <motion.h3
-                  className="text-2xl font-bold text-[var(--color-text)] mb-2"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  Voucher Ativado!
-                </motion.h3>
-                <motion.p
-                  className="text-[var(--color-text-muted)] mb-4"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                >
+                <h3 className="text-2xl font-bold text-[var(--color-text)] mb-2">Voucher Ativado!</h3>
+                <p className="text-[var(--color-text-muted)] mb-4">
                   {redeemSuccess.message || "Sua recompensa foi adicionada à sua conta"}
-                </motion.p>
-
+                </p>
                 {redeemSuccess.reward && (
                   <motion.div
                     className="flex items-center gap-3 px-6 py-3 rounded-xl bg-[var(--color-surface)] border border-emerald-500/20"
@@ -1669,40 +1779,30 @@ const VoucherSection = ({
         )}
       </AnimatePresence>
 
-      {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StoreCard className="text-center">
           <div className="p-3 rounded-xl bg-emerald-500/10 w-fit mx-auto mb-3">
             <Zap size={24} className="text-emerald-400" />
           </div>
           <h4 className="font-semibold text-[var(--color-text)] mb-1">Ativação Instantânea</h4>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            As recompensas são creditadas imediatamente na sua conta
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">As recompensas são creditadas imediatamente</p>
         </StoreCard>
-
         <StoreCard className="text-center">
           <div className="p-3 rounded-xl bg-blue-500/10 w-fit mx-auto mb-3">
             <Gift size={24} className="text-blue-400" />
           </div>
           <h4 className="font-semibold text-[var(--color-text)] mb-1">Diversas Recompensas</h4>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Moedas, itens exclusivos, molduras e muito mais
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">Moedas, itens exclusivos, molduras e mais</p>
         </StoreCard>
-
         <StoreCard className="text-center">
           <div className="p-3 rounded-xl bg-purple-500/10 w-fit mx-auto mb-3">
             <Clock size={24} className="text-purple-400" />
           </div>
           <h4 className="font-semibold text-[var(--color-text)] mb-1">Tempo Limitado</h4>
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Alguns códigos podem ter prazo de validade
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">Alguns códigos podem ter prazo de validade</p>
         </StoreCard>
       </div>
 
-      {/* Tips Section */}
       <StoreCard>
         <div className="flex items-start gap-4">
           <div className="p-3 rounded-xl bg-amber-500/10 flex-shrink-0">
@@ -1712,19 +1812,19 @@ const VoucherSection = ({
             <h4 className="font-semibold text-[var(--color-text)]">Onde encontrar códigos?</h4>
             <ul className="text-sm text-[var(--color-text-muted)] space-y-1.5">
               <li className="flex items-center gap-2">
-                <ChevronRight size={14} className="text-emerald-400" />
+                <ChevronRight size={14} className="text-emerald-400 flex-shrink-0" />
                 Promoções especiais nas redes sociais
               </li>
               <li className="flex items-center gap-2">
-                <ChevronRight size={14} className="text-emerald-400" />
+                <ChevronRight size={14} className="text-emerald-400 flex-shrink-0" />
                 Eventos e parcerias exclusivas
               </li>
               <li className="flex items-center gap-2">
-                <ChevronRight size={14} className="text-emerald-400" />
+                <ChevronRight size={14} className="text-emerald-400 flex-shrink-0" />
                 Recompensas por indicação de amigos
               </li>
               <li className="flex items-center gap-2">
-                <ChevronRight size={14} className="text-emerald-400" />
+                <ChevronRight size={14} className="text-emerald-400 flex-shrink-0" />
                 Brindes em lives e streams
               </li>
             </ul>
@@ -1736,7 +1836,7 @@ const VoucherSection = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTE: Card do Item (Redesenhado)
+// COMPONENTE: Card do Item (✅ CORRIGIDO - Sem 'effect')
 // ═══════════════════════════════════════════════════════════
 
 const StoreItemCard = ({
@@ -1760,13 +1860,15 @@ const StoreItemCard = ({
   disabled: boolean;
   index?: number;
 }) => {
-  const TypeIcon = getTypeIcon(item.type);
+  const isItemCardEffect = isCardEffect(item);
+  const TypeIcon = isItemCardEffect ? Layers : getTypeIcon(item.type);
   const normalizedRarity = normalizeRarity(item.rarity);
   const rarityColor = getRarityColor(normalizedRarity);
   const RarityIcon = getRarityIcon(normalizedRarity);
   const finalPrice = calculateDiscount(item.price, item.discount);
   const canAfford = userCoins >= finalPrice;
   const isLocked = !!(item.quantityAvailable !== undefined && item.quantityAvailable !== null && item.quantityAvailable <= 0);
+  const typeLabel = getTypeLabel(item.type, item);
 
   return (
     <motion.div
@@ -1776,23 +1878,22 @@ const StoreItemCard = ({
       whileHover={{ y: -4 }}
       className={`
         group relative overflow-hidden
-        bg-gradient-to-b from-[var(--color-surface)] to-[var(--color-surface)]/50
+        bg-[var(--color-surface)]
         border-2 rounded-2xl
-        transition-all duration-300
+        transition-all duration-300 flex flex-col
         ${disabled ? "opacity-50 pointer-events-none" : ""}
       `}
       style={{
         borderColor: item.isEquipped ? rarityColor : "var(--color-border)",
-        boxShadow: item.isEquipped ? `0 0 30px ${rarityColor}30` : undefined,
-        minHeight: '420px',
+        boxShadow: item.isEquipped ? `0 0 30px ${rarityColor}25` : undefined,
       }}
     >
-      {/* Glow Effect for Equipped Items */}
+      {/* Glow for equipped */}
       {item.isEquipped && (
         <motion.div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none z-0"
           style={{
-            background: `radial-gradient(ellipse at center, ${rarityColor}10, transparent 70%)`,
+            background: `radial-gradient(ellipse at center, ${rarityColor}08, transparent 70%)`,
           }}
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 2, repeat: Infinity }}
@@ -1802,6 +1903,12 @@ const StoreItemCard = ({
       {/* Top Badges */}
       <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2 z-20">
         <div className="flex flex-wrap gap-1.5">
+          {isItemCardEffect && (
+            <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-[10px] font-bold flex items-center gap-1 shadow-lg">
+              <Layers size={10} />
+              CARD
+            </span>
+          )}
           {item.isLimited && (
             <motion.span
               className="px-2.5 py-1 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white text-[10px] font-bold flex items-center gap-1 shadow-lg"
@@ -1841,7 +1948,7 @@ const StoreItemCard = ({
         <motion.button
           onClick={(e) => { e.stopPropagation(); onFavorite(); }}
           className={`
-            p-2 rounded-full backdrop-blur-md transition-all shadow-lg
+            p-2 rounded-full backdrop-blur-md transition-all shadow-lg flex-shrink-0
             ${item.isFavorite
               ? "bg-gradient-to-r from-yellow-500 to-amber-500 text-white"
               : "bg-black/30 text-white/70 hover:text-white hover:bg-black/50"
@@ -1857,7 +1964,7 @@ const StoreItemCard = ({
       {/* Preview Area */}
       <div
         className={`relative overflow-hidden bg-gradient-to-b ${getRarityGradient(normalizedRarity)}`}
-        style={{ height: '180px' }}
+        style={{ height: '192px' }}
       >
         {isLocked && (
           <motion.div
@@ -1866,61 +1973,61 @@ const StoreItemCard = ({
             animate={{ opacity: 1 }}
           >
             <div className="text-center">
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
+              <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
                 <Lock size={36} className="text-white/70 mx-auto mb-2" />
               </motion.div>
               <p className="text-white text-sm font-bold">Esgotado</p>
             </div>
           </motion.div>
         )}
+
         <ItemMediaPreview
           item={item}
           size="medium"
-          showPlayButton={item.type === "effect"}
           userProfileImage={userProfileImage}
         />
 
-        {/* Gradient Overlay */}
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[var(--color-surface)] to-transparent pointer-events-none" />
+        {/* Bottom gradient fade */}
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[var(--color-surface)] to-transparent pointer-events-none" />
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 flex flex-col flex-1">
         {/* Title & Type */}
-        <div>
+        <div className="mb-2">
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <h3 className="font-bold text-sm text-[var(--color-text)] line-clamp-1 flex-1">
               {item.name}
             </h3>
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--color-background)]/50">
-              <TypeIcon size={12} className="text-[var(--color-text-muted)]" />
-              <span className="text-[10px] text-[var(--color-text-muted)]">{getTypeLabel(item.type)}</span>
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] flex-shrink-0">
+              <TypeIcon size={11} className="text-[var(--color-text-muted)]" />
+              <span className="text-[10px] text-[var(--color-text-muted)] whitespace-nowrap">{typeLabel}</span>
             </div>
           </div>
 
-          {/* Rarity Badge */}
+          {/* Rarity */}
           <div className="flex items-center gap-1.5">
             {RarityIcon && <RarityIcon size={12} style={{ color: rarityColor }} />}
             <span className="text-xs font-bold uppercase tracking-wide" style={{ color: rarityColor }}>
               {getRarityLabel(normalizedRarity)}
             </span>
+            {normalizedRarity === "common" && !item.rarity && (
+              <span className="text-[10px] text-[var(--color-text-muted)] ml-1">(Sem raridade)</span>
+            )}
           </div>
         </div>
 
         {/* Description */}
-        <p className="text-xs text-[var(--color-text-muted)] line-clamp-2 leading-relaxed min-h-[32px]">
+        <p className="text-xs text-[var(--color-text-muted)] line-clamp-2 leading-relaxed mb-3 flex-1">
           {item.description}
         </p>
 
         {/* Availability */}
         {item.quantityAvailable !== null && item.quantityAvailable !== undefined && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--color-background)]/50">
-            <Package size={12} className="text-[var(--color-text-muted)]" />
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--color-background)] border border-[var(--color-border)] mb-3">
+            <Package size={12} className="text-[var(--color-text-muted)] flex-shrink-0" />
             <span className="text-[11px] text-[var(--color-text-muted)]">
-              <strong>{item.quantityAvailable.toLocaleString()}</strong> disponíveis
+              <strong className="text-[var(--color-text)]">{item.quantityAvailable.toLocaleString()}</strong> disponíveis
             </span>
             <div className="flex-1 h-1.5 rounded-full bg-[var(--color-border)] overflow-hidden">
               <motion.div
@@ -1938,10 +2045,10 @@ const StoreItemCard = ({
         )}
 
         {/* Price & Actions */}
-        <div className="pt-3 border-t border-[var(--color-border)] space-y-3">
+        <div className="pt-3 border-t border-[var(--color-border)] space-y-3 mt-auto">
           {!item.isOwned ? (
             <>
-              {/* Price Display */}
+              {/* Price */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <motion.div
@@ -1972,17 +2079,17 @@ const StoreItemCard = ({
                 {!canAfford && item.price > 0 && (
                   <span className="text-[10px] text-red-400 font-medium flex items-center gap-1">
                     <AlertCircle size={10} />
-                    Saldo insuficiente
+                    Insuficiente
                   </span>
                 )}
               </div>
 
-              {/* Action Buttons */}
+              {/* Buttons */}
               <div className="flex gap-2">
                 <motion.button
                   onClick={onGift}
                   disabled={disabled}
-                  className="flex-1 px-3 py-2.5 rounded-xl bg-gradient-to-r from-pink-500/10 to-rose-500/10 hover:from-pink-500/20 hover:to-rose-500/20 border border-pink-500/20 text-[var(--color-text)] text-xs font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 text-pink-400 text-xs font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -1996,8 +2103,8 @@ const StoreItemCard = ({
                   className={`
                     flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5
                     ${canAfford && !isLocked
-                      ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] hover:shadow-lg hover:shadow-[var(--color-primary)]/25 text-white"
-                      : "bg-[var(--color-surface)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
+                      ? "bg-[var(--color-primary)] hover:shadow-lg hover:shadow-[var(--color-primary)]/25 text-white"
+                      : "bg-[var(--color-background)] text-[var(--color-text-muted)] border border-[var(--color-border)]"
                     }
                   `}
                   whileHover={canAfford && !isLocked ? { scale: 1.02 } : {}}
@@ -2010,8 +2117,7 @@ const StoreItemCard = ({
             </>
           ) : (
             <div className="space-y-3">
-              {/* Owned Status */}
-              <div className="flex items-center justify-between p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-green-500/10 border border-green-500/20">
                 <span className="text-xs font-semibold text-green-400 flex items-center gap-1.5">
                   <Check size={14} />
                   Você possui este item
@@ -2023,12 +2129,11 @@ const StoreItemCard = ({
                 )}
               </div>
 
-              {/* Action Buttons for Owned Items */}
               <div className="flex gap-2">
                 <motion.button
                   onClick={onGift}
                   disabled={disabled}
-                  className="flex-1 px-3 py-2.5 rounded-xl bg-gradient-to-r from-pink-500/10 to-rose-500/10 hover:from-pink-500/20 hover:to-rose-500/20 border border-pink-500/20 text-pink-400 text-xs font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 text-pink-400 text-xs font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -2042,7 +2147,7 @@ const StoreItemCard = ({
                     flex-1 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5
                     ${item.isEquipped
                       ? "bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400"
-                      : "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white"
+                      : "bg-[var(--color-primary)] text-white"
                     }
                   `}
                   whileHover={{ scale: 1.02 }}
@@ -2051,7 +2156,7 @@ const StoreItemCard = ({
                   {item.isEquipped ? (
                     <><X size={14} />Desequipar</>
                   ) : (
-                    <><Check size={14} />Ver no Inventário</>
+                    <><Eye size={14} />Ver no Inventário</>
                   )}
                 </motion.button>
               </div>
@@ -2108,16 +2213,13 @@ const GiftModal = ({
 
   const handleSubmit = () => {
     const newErrors: Partial<GiftFormData> = {};
-
     if (!formData.recipientUsername.trim()) {
       newErrors.recipientUsername = "Digite o nome de usuário";
     }
-
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-
     onSendGift(formData);
   };
 
@@ -2137,17 +2239,17 @@ const GiftModal = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div
-            className="absolute inset-0 bg-gradient-to-br opacity-30"
-            style={{ background: `linear-gradient(135deg, ${rarityColor}40, transparent)` }}
-          />
-          <div className="relative flex items-center gap-4 p-4 bg-[var(--color-surface)]/50 backdrop-blur-sm border border-[var(--color-border)]">
-            <div
-              className="rounded-xl overflow-hidden flex-shrink-0 w-20 h-20 flex items-center justify-center"
-              style={{ background: `linear-gradient(135deg, ${rarityColor}30, ${rarityColor}10)` }}
-            >
-              <ItemMediaPreview item={item} size="small" userProfileImage={userProfileImage} />
-            </div>
+          <div className="relative flex items-center gap-4 p-4 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl">
+            {item.type !== "card_effect" ? (
+              <div
+                className="rounded-xl overflow-hidden flex-shrink-0 w-20 h-20 flex items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${rarityColor}25, ${rarityColor}08)` }}
+              >
+                <ItemMediaPreview item={item} size="small" userProfileImage={userProfileImage} />
+              </div>
+
+
+            ) : null}
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-[var(--color-text)] truncate">{item.name}</h3>
               <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">{item.description}</p>
@@ -2167,9 +2269,8 @@ const GiftModal = ({
           </div>
         </motion.div>
 
-        {/* Gift Form */}
+        {/* Form */}
         <div className="space-y-4">
-          {/* Recipient Input */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
               <AtSign size={16} className="text-[var(--color-primary)]" />
@@ -2187,7 +2288,7 @@ const GiftModal = ({
                 }}
                 className={`
                   w-full pl-12 pr-4 py-3.5 rounded-xl 
-                  bg-[var(--color-surface)] border-2 
+                  bg-[var(--color-background)] border-2 
                   text-[var(--color-text)] placeholder-[var(--color-text-muted)]
                   focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 
                   transition-all text-sm
@@ -2207,7 +2308,6 @@ const GiftModal = ({
             )}
           </div>
 
-          {/* Message Input */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
               <MessageSquare size={16} className="text-[var(--color-primary)]" />
@@ -2221,15 +2321,13 @@ const GiftModal = ({
               maxLength={200}
               className="
                 w-full px-4 py-3.5 rounded-xl 
-                bg-[var(--color-surface)] border-2 border-[var(--color-border)]
+                bg-[var(--color-background)] border-2 border-[var(--color-border)]
                 text-[var(--color-text)] placeholder-[var(--color-text-muted)]
                 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 
                 transition-all text-sm resize-none
               "
             />
-            <p className="text-xs text-[var(--color-text-muted)] text-right">
-              {formData.message.length}/200
-            </p>
+            <p className="text-xs text-[var(--color-text-muted)] text-right">{formData.message.length}/200</p>
           </div>
         </div>
 
@@ -2250,8 +2348,8 @@ const GiftModal = ({
           )}
         </AnimatePresence>
 
-        {/* Cost Summary */}
-        <div className="p-4 rounded-xl bg-gradient-to-r from-[var(--color-primary)]/10 to-transparent border border-[var(--color-primary)]">
+        {/* Cost */}
+        <div className="p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-[var(--color-text-muted)]">Custo do presente</span>
             <span className="text-lg font-bold text-[var(--color-text)] flex items-center gap-1">
@@ -2283,7 +2381,7 @@ const GiftModal = ({
           </motion.div>
         )}
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
           <motion.button
             onClick={onClose}
@@ -2297,18 +2395,14 @@ const GiftModal = ({
           <motion.button
             onClick={handleSubmit}
             disabled={isSubmitting || !canAfford || !formData.recipientUsername.trim()}
-            className="flex-1 px-4 py-3.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-pink-500/25"
+            className="flex-1 px-4 py-3.5 rounded-xl bg-[var(--color-primary)] text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[var(--color-primary)]/25"
             whileHover={!isSubmitting && canAfford ? { scale: 1.02 } : {}}
             whileTap={!isSubmitting && canAfford ? { scale: 0.98 } : {}}
           >
             {isSubmitting ? (
               <><Loader2 size={18} className="animate-spin" />Enviando...</>
             ) : (
-              <>
-                <Send size={18} />
-                Enviar Presente
-                <ArrowRight size={16} />
-              </>
+              <><Send size={18} />Enviar Presente<ArrowRight size={16} /></>
             )}
           </motion.button>
         </div>
@@ -2328,26 +2422,21 @@ const DashboardStore = () => {
     storeError,
     refreshStore,
     purchaseItem,
-    equipItem,
-    unequipItem,
     toggleFavorite,
     sendGift,
     clearError,
   } = useStore();
 
   const { profileData, refreshProfile } = useProfile();
+  const navigate = useNavigate();
   const [giftError, setGiftError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
-
-  // ✅ ATUALIZADO: Tab principal agora inclui voucher
   const [mainTab, setMainTab] = useState<MainTab>("store");
-
   const [activeTab, setActiveTab] = useState<StoreItemType | "all">("all");
   const [filterOwned, setFilterOwned] = useState<"all" | "owned" | "not_owned">("all");
   const [searchQuery, setSearchQuery] = useState("");
-
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<StoreItem | null>(null);
@@ -2358,7 +2447,14 @@ const DashboardStore = () => {
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      if (activeTab !== "all" && item.type !== activeTab) return false;
+      // ✅ Filtro por tipo (suporta card_effect)
+      if (activeTab !== "all") {
+        if (activeTab === "card_effect") {
+          if (!isCardEffect(item) && item.type !== "card_effect") return false;
+        } else {
+          if (item.type !== activeTab) return false;
+        }
+      }
       if (filterOwned === "owned" && !item.isOwned) return false;
       if (filterOwned === "not_owned" && item.isOwned) return false;
       if (searchQuery.trim()) {
@@ -2369,11 +2465,12 @@ const DashboardStore = () => {
     });
   }, [items, activeTab, filterOwned, searchQuery]);
 
+  // ✅ CORRIGIDO: Contagem sem 'effect'
   const counts = useMemo(() => ({
     all: items.length,
     badge: items.filter((i) => i.type === "badge").length,
     frame: items.filter((i) => i.type === "frame").length,
-    effect: items.filter((i) => i.type === "effect").length,
+    card_effect: items.filter((i) => i.type === "card_effect" || isCardEffect(i)).length,
     bundle: items.filter((i) => i.type === "bundle").length,
   }), [items]);
 
@@ -2385,28 +2482,22 @@ const DashboardStore = () => {
 
   const handleSendGift = async (formData: GiftFormData) => {
     if (!selectedItem) return;
-
     setIsSubmitting(true);
     setGiftError(null);
-
     try {
       const giftRequest: SendGiftRequest = {
         toUserSlug: formData.recipientUsername,
         itemId: selectedItem.id,
         message: formData.message || "",
       };
-
       await sendGift(giftRequest);
       await refreshProfile();
-
       setSuccessMessage(`🎁 Presente enviado com sucesso para @${formData.recipientUsername}!`);
       setIsGiftModalOpen(false);
       setSelectedItem(null);
       setGiftError(null);
       setTimeout(() => setSuccessMessage(""), 5000);
-
     } catch (err: any) {
-      console.error("Erro ao enviar presente:", err);
       setGiftError(err.message || "Erro ao enviar presente. Verifique o nome de usuário.");
     } finally {
       setIsSubmitting(false);
@@ -2418,33 +2509,24 @@ const DashboardStore = () => {
     setIsPurchaseModalOpen(true);
   };
 
-  const navigate = useNavigate();
-
-
   const handlePurchase = async () => {
     if (!selectedItem) return;
-
     const finalPrice = calculateDiscount(selectedItem.price, selectedItem.discount);
-
     if (userCoins < finalPrice) {
       setLocalError(`Moedas insuficientes. Você tem ${userCoins} moedas, mas precisa de ${finalPrice}.`);
       setIsPurchaseModalOpen(false);
       return;
     }
-
     setIsSubmitting(true);
     setLocalError(null);
-
     try {
       await purchaseItem(selectedItem.id);
       await refreshProfile();
-
       setSuccessMessage(`${selectedItem.name} adquirido com sucesso!`);
       setIsPurchaseModalOpen(false);
       setSelectedItem(null);
       setTimeout(() => setSuccessMessage(""), 5000);
     } catch (err: any) {
-      console.error("Erro ao comprar item:", err);
       setLocalError(err.response?.data?.message || "Erro ao comprar item. Tente novamente.");
       setIsPurchaseModalOpen(false);
     } finally {
@@ -2455,19 +2537,12 @@ const DashboardStore = () => {
   const handleEquip = async (item: StoreItem) => {
     setIsSubmitting(true);
     setLocalError(null);
-
     try {
-
-      // Pequeno delay pra UX não parecer bugado
       setTimeout(() => {
         navigate("/dashboard/inventory");
-      }, 1000);
-
+      }, 300);
     } catch (err: any) {
-
-      setLocalError(
-        err.response?.data?.message || "Erro ao ir para o inventário."
-      );
+      setLocalError(err.response?.data?.message || "Erro ao ir para o inventário.");
     } finally {
       setIsSubmitting(false);
     }
@@ -2482,7 +2557,6 @@ const DashboardStore = () => {
     clearError();
   };
 
-  // Função para notificações (usada pelo CoinsPurchaseSection, CustomizeSection e VoucherSection)
   const showNotification = (type: "success" | "error" | "info", message: string) => {
     if (type === "success") {
       setSuccessMessage(message);
@@ -2490,17 +2564,14 @@ const DashboardStore = () => {
     } else if (type === "error") {
       setLocalError(message);
     } else {
-      // Info - mostrar como success temporário
       setSuccessMessage(message);
     }
   };
 
-  // Callback quando o slug é alterado com sucesso
   const handleSlugChanged = () => {
     refreshProfile();
   };
 
-  // Callback quando o voucher é resgatado com sucesso
   const handleVoucherRedeemed = () => {
     refreshProfile();
   };
@@ -2522,24 +2593,21 @@ const DashboardStore = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <motion.div
-              className="p-3 rounded-2xl bg-gradient-to-br from-[var(--color-primary)]/20 to-[var(--color-primary)]/5 border border-[var(--color-primary)]"
+              className="p-3 rounded-2xl bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30"
               whileHover={{ scale: 1.05, rotate: 5 }}
             >
               <Store className="w-8 h-8 text-[var(--color-primary)]" />
             </motion.div>
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-[var(--color-text)]">
-                Loja
-              </h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-[var(--color-text)]">Loja</h1>
               <p className="text-sm text-[var(--color-text-muted)] mt-1">
                 Personalize seu perfil com itens exclusivos
               </p>
             </div>
           </div>
 
-          {/* Coins Display */}
           <motion.div
-            className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-yellow-500/20 via-amber-500/15 to-orange-500/10 border border-yellow-500/30 shadow-lg shadow-yellow-500/10 cursor-pointer"
+            className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-gradient-to-r from-yellow-500/15 to-amber-500/10 border border-yellow-500/25 cursor-pointer"
             whileHover={{ scale: 1.02 }}
             onClick={() => setMainTab("coins")}
           >
@@ -2550,45 +2618,20 @@ const DashboardStore = () => {
               <Coins size={28} className="text-yellow-500" />
             </motion.div>
             <div>
-              <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">
-                Suas Moedas
-              </p>
-              <p className="text-xl font-bold text-[var(--color-text)]">
-                {userCoins.toLocaleString()}
-              </p>
+              <p className="text-[10px] text-[var(--color-text-muted)] font-medium uppercase tracking-wider">Suas Moedas</p>
+              <p className="text-xl font-bold text-[var(--color-text)]">{userCoins.toLocaleString()}</p>
             </div>
             <ChevronRight size={16} className="text-[var(--color-text-muted)]" />
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Main Tabs (Loja / Comprar Moedas / Personalizar / Voucher) */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <MainTabButton
-          active={mainTab === "store"}
-          onClick={() => setMainTab("store")}
-          icon={Store}
-          label="Loja de Itens"
-        />
-        <MainTabButton
-          active={mainTab === "coins"}
-          onClick={() => setMainTab("coins")}
-          icon={Coins}
-          label="Comprar Moedas"
-        />
-        <MainTabButton
-          active={mainTab === "customize"}
-          onClick={() => setMainTab("customize")}
-          icon={Link2}
-          label="Personalizar URL"
-          badge={`${SLUG_CHANGE_COST}`}
-        />
-        <MainTabButton
-          active={mainTab === "voucher"}
-          onClick={() => setMainTab("voucher")}
-          icon={Ticket}
-          label="Ativar Voucher"
-        />
+      {/* Main Tabs */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <MainTabButton active={mainTab === "store"} onClick={() => setMainTab("store")} icon={Store} label="Loja de Itens" />
+        <MainTabButton active={mainTab === "coins"} onClick={() => setMainTab("coins")} icon={Coins} label="Comprar Moedas" />
+        <MainTabButton active={mainTab === "customize"} onClick={() => setMainTab("customize")} icon={Link2} label="Personalizar URL" badge={`${SLUG_CHANGE_COST}`} />
+        <MainTabButton active={mainTab === "voucher"} onClick={() => setMainTab("voucher")} icon={Ticket} label="Ativar Voucher" />
       </div>
 
       {/* Messages */}
@@ -2598,7 +2641,7 @@ const DashboardStore = () => {
             initial={{ opacity: 0, height: 0, marginBottom: 0 }}
             animate={{ opacity: 1, height: "auto", marginBottom: 24 }}
             exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-            className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-3"
+            className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3"
           >
             <div className="p-2 rounded-lg bg-red-500/20">
               <AlertCircle size={20} className="text-red-400" />
@@ -2620,7 +2663,7 @@ const DashboardStore = () => {
             initial={{ opacity: 0, height: 0, marginBottom: 0 }}
             animate={{ opacity: 1, height: "auto", marginBottom: 24 }}
             exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-            className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center gap-3"
+            className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center gap-3"
           >
             <div className="p-2 rounded-lg bg-green-500/20">
               <Check size={20} className="text-green-400" />
@@ -2630,7 +2673,7 @@ const DashboardStore = () => {
         )}
       </AnimatePresence>
 
-      {/* CONTEÚDO CONDICIONAL */}
+      {/* Content */}
       <AnimatePresence mode="wait">
         {mainTab === "coins" ? (
           <motion.div
@@ -2640,10 +2683,7 @@ const DashboardStore = () => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <CoinsPurchaseSection
-              userCoins={userCoins}
-              onNotification={showNotification}
-            />
+            <CoinsPurchaseSection userCoins={userCoins} onNotification={showNotification} />
           </motion.div>
         ) : mainTab === "customize" ? (
           <motion.div
@@ -2668,10 +2708,7 @@ const DashboardStore = () => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <VoucherSection
-              onNotification={showNotification}
-              onVoucherRedeemed={handleVoucherRedeemed}
-            />
+            <VoucherSection onNotification={showNotification} onVoucherRedeemed={handleVoucherRedeemed} />
           </motion.div>
         ) : (
           <motion.div
@@ -2692,7 +2729,7 @@ const DashboardStore = () => {
                     placeholder="Buscar itens por nome ou descrição..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]/50 transition-all"
+                    className="w-full pl-12 pr-10 py-3.5 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)] text-[var(--color-text)] placeholder-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]/50 transition-all"
                   />
                   {searchQuery && (
                     <motion.button
@@ -2706,12 +2743,12 @@ const DashboardStore = () => {
                   )}
                 </div>
 
-                {/* Category Tabs */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {/* Category Tabs - ✅ SEM 'effect' */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   <TabButton active={activeTab === "all"} onClick={() => setActiveTab("all")} icon={Store} label="Todos" count={counts.all} />
                   <TabButton active={activeTab === "badge"} onClick={() => setActiveTab("badge")} icon={Award} label="Insígnias" count={counts.badge} />
                   <TabButton active={activeTab === "frame"} onClick={() => setActiveTab("frame")} icon={Frame} label="Molduras" count={counts.frame} />
-                  <TabButton active={activeTab === "effect"} onClick={() => setActiveTab("effect")} icon={Sparkles} label="Efeitos" count={counts.effect} />
+                  <TabButton active={activeTab === "card_effect"} onClick={() => setActiveTab("card_effect")} icon={Layers} label="Efeitos de Card" count={counts.card_effect} />
                   <TabButton active={activeTab === "bundle"} onClick={() => setActiveTab("bundle")} icon={Package} label="Pacotes" count={counts.bundle} />
                 </div>
 
@@ -2720,7 +2757,7 @@ const DashboardStore = () => {
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
                       <Filter size={14} />
-                      <span className="font-medium">Filtrar por:</span>
+                      <span className="font-medium">Filtrar:</span>
                     </div>
                     <div className="flex gap-2">
                       {(["all", "owned", "not_owned"] as const).map((filter) => (
@@ -2728,10 +2765,10 @@ const DashboardStore = () => {
                           key={filter}
                           onClick={() => setFilterOwned(filter)}
                           className={`
-                            px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                            px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
                             ${filterOwned === filter
-                              ? "bg-[var(--color-primary)] text-white shadow-md shadow-[var(--color-primary)]/20"
-                              : "bg-[var(--color-background)]/50 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+                              ? "bg-[var(--color-primary)] text-white shadow-md shadow-[var(--color-primary)]/20 border-[var(--color-primary)]"
+                              : "bg-[var(--color-background)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] border-[var(--color-border)]"
                             }
                           `}
                           whileHover={{ scale: 1.02 }}
@@ -2750,7 +2787,7 @@ const DashboardStore = () => {
                     <motion.button
                       onClick={refreshStore}
                       disabled={isLoadingStore}
-                      className="p-2.5 rounded-xl bg-[var(--color-background)]/50 hover:bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all disabled:opacity-50"
+                      className="p-2.5 rounded-xl bg-[var(--color-background)] hover:bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all disabled:opacity-50"
                       title="Recarregar itens"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -2763,32 +2800,32 @@ const DashboardStore = () => {
             </StoreCard>
 
             {/* Items Grid */}
-            <StoreCard>
-              <div className="min-h-[400px]">
-                {isLoadingStore ? (
-                  <LoadingSkeleton />
-                ) : filteredItems.length === 0 ? (
+            <div className="min-h-[400px]">
+              {isLoadingStore ? (
+                <LoadingSkeleton />
+              ) : filteredItems.length === 0 ? (
+                <StoreCard>
                   <EmptyState type={activeTab} searchQuery={searchQuery} />
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                    {filteredItems.map((item, index) => (
-                      <StoreItemCard
-                        key={item.id}
-                        item={item}
-                        userCoins={userCoins}
-                        userProfileImage={profileData?.pageSettings?.mediaUrls?.profileImageUrl}
-                        onGift={() => handleGiftClick(item)}
-                        onPurchase={() => handlePurchaseClick(item)}
-                        onEquip={() => handleEquip(item)}
-                        onFavorite={() => handleFavorite(item)}
-                        disabled={isSubmitting}
-                        index={index}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </StoreCard>
+                </StoreCard>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {filteredItems.map((item, index) => (
+                    <StoreItemCard
+                      key={item.id}
+                      item={item}
+                      userCoins={userCoins}
+                      userProfileImage={profileData?.pageSettings?.mediaUrls?.profileImageUrl}
+                      onGift={() => handleGiftClick(item)}
+                      onPurchase={() => handlePurchaseClick(item)}
+                      onEquip={() => handleEquip(item)}
+                      onFavorite={() => handleFavorite(item)}
+                      disabled={isSubmitting}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -2827,37 +2864,48 @@ const DashboardStore = () => {
 
           return (
             <div className="space-y-6">
-              {/* Item Preview */}
               <motion.div
-                className="flex items-center gap-4 p-4 rounded-xl bg-[var(--color-surface)]/50 border border-[var(--color-border)]"
+                className="flex items-center gap-4 p-4 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
-                <div
-                  className="rounded-xl overflow-hidden flex-shrink-0 w-20 h-20 flex items-center justify-center"
-                  style={{ background: `linear-gradient(135deg, ${rarityColor}30, ${rarityColor}10)` }}
-                >
-                  <ItemMediaPreview
-                    item={selectedItem}
-                    size="small"
-                    userProfileImage={profileData?.pageSettings?.mediaUrls?.profileImageUrl}
-                  />
-                </div>
+                {selectedItem.type !== "card_effect" ? (
+                  <div
+                    className="rounded-xl overflow-hidden flex-shrink-0 w-20 h-20 flex items-center justify-center"
+                    style={{ background: `linear-gradient(135deg, ${rarityColor}25, ${rarityColor}08)` }}
+                  >
+                    <ItemMediaPreview
+                      item={selectedItem}
+                      size="small"
+                      userProfileImage={profileData?.pageSettings?.mediaUrls?.profileImageUrl}
+                    />
+                  </div>
+
+
+                ) : null}
+
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-[var(--color-text)] truncate">{selectedItem.name}</h3>
                   <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">{selectedItem.description}</p>
-                  <span
-                    className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
-                    style={{ backgroundColor: `${rarityColor}20`, color: rarityColor }}
-                  >
-                    {getRarityLabel(normalizedRarity)}
-                  </span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase"
+                      style={{ backgroundColor: `${rarityColor}20`, color: rarityColor }}
+                    >
+                      {getRarityLabel(normalizedRarity)}
+                    </span>
+                    {isCardEffect(selectedItem) && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase bg-cyan-500/20 text-cyan-400">
+                        <Layers size={10} />
+                        Card Effect
+                      </span>
+                    )}
+                  </div>
                 </div>
               </motion.div>
 
-              {/* Price Breakdown */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-surface)]/50">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--color-background)]">
                   <span className="text-sm text-[var(--color-text-muted)]">Preço original</span>
                   <span className="text-sm font-medium text-[var(--color-text)] flex items-center gap-1">
                     <Coins size={14} className="text-yellow-500" />
@@ -2881,7 +2929,7 @@ const DashboardStore = () => {
                   </motion.div>
                 )}
 
-                <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-[var(--color-primary)]/15 to-[var(--color-primary)]/5 border-2 border-[var(--color-primary)]">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30">
                   <span className="text-base font-bold text-[var(--color-text)]">Total a pagar</span>
                   <span className="text-xl font-bold text-[var(--color-primary)] flex items-center gap-2">
                     <Coins size={20} className="text-yellow-500" />
@@ -2890,14 +2938,14 @@ const DashboardStore = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-[var(--color-surface)]/50">
+                  <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
                     <p className="text-xs text-[var(--color-text-muted)] mb-1">Saldo atual</p>
                     <p className="text-sm font-bold text-[var(--color-text)] flex items-center gap-1">
                       <Coins size={14} className="text-yellow-500" />
                       {userCoins.toLocaleString()}
                     </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-[var(--color-surface)]/50">
+                  <div className="p-3 rounded-xl bg-[var(--color-background)] border border-[var(--color-border)]">
                     <p className="text-xs text-[var(--color-text-muted)] mb-1">Saldo após</p>
                     <p className={`text-sm font-bold flex items-center gap-1 ${balanceAfter < 0 ? "text-red-400" : "text-green-400"}`}>
                       <Coins size={14} className="text-yellow-500" />
@@ -2934,7 +2982,6 @@ const DashboardStore = () => {
                 </motion.div>
               )}
 
-              {/* Action Buttons */}
               <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
                 <motion.button
                   onClick={() => { setIsPurchaseModalOpen(false); setSelectedItem(null); }}
@@ -2948,7 +2995,7 @@ const DashboardStore = () => {
                 <motion.button
                   onClick={handlePurchase}
                   disabled={isSubmitting || !canAfford}
-                  className="flex-1 px-4 py-3.5 rounded-xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] hover:shadow-lg hover:shadow-[var(--color-primary)]/25 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3.5 rounded-xl bg-[var(--color-primary)] hover:shadow-lg hover:shadow-[var(--color-primary)]/25 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   whileHover={!isSubmitting && canAfford ? { scale: 1.02 } : {}}
                   whileTap={!isSubmitting && canAfford ? { scale: 0.98 } : {}}
                 >

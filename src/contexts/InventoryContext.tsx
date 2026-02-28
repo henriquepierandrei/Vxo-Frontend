@@ -178,7 +178,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [pendingGifts, setPendingGifts] = useState<PendingGift[]>([]);
   const [unviewedGiftsCount, setUnviewedGiftsCount] = useState(0);
   const [isLoadingInventory, setIsLoadingInventory] = useState(false);
-  const [equippedItemIds, setEquippedItemIds] = useState<Set<string>>(new Set());
+  const [, setEquippedItemIds] = useState<Set<string>>(new Set());
 
   const hasFetchedRef = useRef(false);
   const isFetchingRef = useRef(false);
