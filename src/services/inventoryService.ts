@@ -9,7 +9,7 @@ import type { DefaultResponse } from '../types/authtypes/auth.types';
 export const ItemType = {
   FRAME: 'FRAME',
   BADGE: 'BADGE',
-  EFFECT: 'EFFECT',
+  CARD_EFFECT: 'CARD_EFFECT',
   GIFT: 'GIFT',
 } as const;
 

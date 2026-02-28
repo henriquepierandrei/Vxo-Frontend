@@ -27,6 +27,7 @@ import {
   Video,
   Crown,
   Info,
+  Layers,
 } from "lucide-react";
 import { useInventory, type InventoryItem, type PendingGift, type Rarity } from "../../contexts/InventoryContext";
 import { useProfile } from "../../contexts/UserContext";
@@ -35,7 +36,7 @@ import { useProfile } from "../../contexts/UserContext";
 // TIPOS E INTERFACES
 // ═══════════════════════════════════════════════════════════
 
-type ItemType = "frame" | "badge" | "effect" | "gift";
+type ItemType = "frame" | "badge" | "card_effect" | "gift";
 type ItemStatus = "active" | "inactive" | "expired";
 
 // ═══════════════════════════════════════════════════════════
@@ -109,7 +110,7 @@ const ITEM_TYPE_CONFIG: Record<
 > = {
   frame: { label: "Moldura", icon: Frame, color: "text-pink-400" },
   badge: { label: "Insígnia", icon: BadgeCheck, color: "text-blue-400" },
-  effect: { label: "Efeito", icon: Zap, color: "text-yellow-400" },
+  card_effect: { label: "Efeito", icon: Zap, color: "text-yellow-400" },
   gift: { label: "Presente", icon: Gift, color: "text-red-400" },
 };
 
@@ -446,43 +447,88 @@ const ItemMediaPreview = ({
     );
   }
 
-  // Effect
-  if (item.type === "effect") {
-    if (item.imageUrl && !imageError) {
+  // Card Effect
+  if (item.type === "card_effect") {
+    const imageUrl = item.imageUrl || (item as any).svgUrl || (item as any).itemUrl;
+
+    if (imageUrl && !imageError) {
       return (
         <div
-          className={`${config.container} relative overflow-hidden bg-black`}
-          style={{ contain: 'layout style paint' }}
+          className={`${config.container} relative overflow-hidden`}
+          style={{ background: `linear-gradient(135deg, ${getRarityColor(item.rarity)}20, ${getRarityColor(item.rarity)}05)` }}
         >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
               <Loader2 className="w-8 h-8 animate-spin text-white" />
             </div>
           )}
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            className="w-full h-full object-cover"
-            loading="lazy"
-            onLoad={() => setIsLoading(false)}
-            onError={() => { setImageError(true); setIsLoading(false); }}
+
+          {/* Glow de fundo */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: `radial-gradient(ellipse at center, ${getRarityColor(item.rarity)}30, transparent 70%)` }}
           />
-          {showPlayButton && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
-              <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
-                <Video className="w-6 h-6 text-black" />
-              </div>
+
+          {/* Card mockup */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div
+              className="relative rounded-xl overflow-hidden shadow-2xl w-full h-full"
+              style={{
+                boxShadow: `0 10px 40px ${getRarityColor(item.rarity)}40, 0 0 60px ${getRarityColor(item.rarity)}20`,
+              }}
+            >
+              {/* Borda interna */}
+              <div
+                className="absolute inset-0 rounded-xl pointer-events-none z-10"
+                style={{ border: `1px solid ${getRarityColor(item.rarity)}50` }}
+              />
+
+              <img
+                  src={imageUrl}
+                  alt={item.name}
+                  className="w-full object-contain"
+                  style={{
+                    filter: "brightness(1.1) contrast(1.05)",
+                    transform: "translateY(0%)", // ← aumenta % pra descer mais
+                  }}
+                  loading="lazy"
+                  onLoad={() => setIsLoading(false)}
+                  onError={() => { setImageError(true); setIsLoading(false); }}
+                />
+
+              {/* Footer com nome (só no medium/large) */}
+              {size !== "small" && (
+                <div className="absolute bottom-0 left-0 right-0 z-20 p-2">
+                  <div className="flex items-center gap-1.5 bg-black/60 backdrop-blur-md rounded-lg px-2 py-1.5">
+                    <span className="text-[9px] text-white font-semibold truncate">{item.name}</span>
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* Brilho animado */}
+          {item.rarity === "legendary" && (
+            <motion.div
+              className="absolute inset-0 pointer-events-none z-30"
+              style={{
+                background: "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.15) 45%, transparent 70%)",
+              }}
+              animate={{ x: ["-200%", "200%"] }}
+              transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
+            />
           )}
         </div>
       );
     }
+
+    // Fallback sem imagem
     return (
       <div
-        className={`${config.container} flex items-center justify-center bg-black`}
-        style={{ contain: 'layout style paint' }}
+        className={`${config.container} flex items-center justify-center relative`}
+        style={{ background: `linear-gradient(135deg, ${getRarityColor(item.rarity)}20, transparent)` }}
       >
-        <Zap className={`${config.icon} text-white/50`} />
+        <Layers className={`${config.icon} text-white/50`} />
       </div>
     );
   }
@@ -856,7 +902,7 @@ const ItemCard = ({
           <ItemMediaPreview
             item={item}
             size="medium"
-            showPlayButton={item.type === "effect"}
+            showPlayButton={item.type === "card_effect"}
             userProfileImage={userProfileImage}
           />
         </div>
@@ -1129,7 +1175,7 @@ const ItemDetailModal = ({
         <ItemMediaPreview
           item={item}
           size="large"
-          showPlayButton={item.type === "effect"}
+          showPlayButton={item.type === "card_effect"}
           userProfileImage={userProfileImage}
         />
 
@@ -1629,7 +1675,7 @@ const DashboardInventory = () => {
       { key: "all", label: "Todos" },
       { key: "frame", label: "Molduras", icon: Frame },
       { key: "badge", label: "Insígnias", icon: BadgeCheck },
-      { key: "effect", label: "Efeitos", icon: Zap },
+      { key: "card_effect", label: "Efeitos", icon: Zap },
       { key: "gift", label: "Presentes", icon: Gift },
       { key: "expired", label: "Expirados", icon: Clock },
     ];
@@ -1662,9 +1708,9 @@ const DashboardInventory = () => {
       all: items.length,
       frame: items.filter((i) => i.type === "frame").length,
       badge: items.filter((i) => i.type === "badge").length,
-      effect: items.filter((i) => i.type === "effect").length,
       gift: items.filter((i) => i.type === "gift").length,
-      expired: items.filter((i) => i.status === "expired").length,
+      card_effect: items.filter((i) => i.type === "card_effect").length,
+      expired: items.filter((i) => i.status === "expired").length
     };
   }, [items]);
 

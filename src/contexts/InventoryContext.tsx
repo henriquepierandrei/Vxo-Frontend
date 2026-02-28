@@ -27,7 +27,7 @@ export interface InventoryItem {
   name: string;
   description: string;
   imageUrl: string;
-  type: "frame" | "badge" | "effect" | "gift";
+  type: "frame" | "badge" | "card_effect" | "gift";
   rarity: Rarity;
   status: ItemStatus;
   isLimited: boolean;
@@ -47,7 +47,7 @@ export interface PendingGift {
   itemName?: string;
   itemDescription?: string;
   itemUrl?: string;
-  itemType?: "frame" | "badge" | "effect" | "gift";
+  itemType?: "frame" | "badge" | "card_effect" | "gift";
   hasCoinOffered: boolean;
   amountCoinsOffered?: number;
   isLimited?: boolean;
@@ -78,11 +78,11 @@ interface InventoryContextData {
 // HELPERS
 // ═══════════════════════════════════════════════════════════
 
-function mapItemType(backendType: ItemType): "frame" | "badge" | "effect" | "gift" {
-  const mapping: Record<ItemType, "frame" | "badge" | "effect" | "gift"> = {
+function mapItemType(backendType: ItemType): "frame" | "badge" | "card_effect" | "gift" {
+  const mapping: Record<ItemType, "frame" | "badge" | "card_effect" | "gift"> = {
     [ItemType.FRAME]: "frame",
     [ItemType.BADGE]: "badge",
-    [ItemType.EFFECT]: "effect",
+    [ItemType.CARD_EFFECT]: "card_effect",
     [ItemType.GIFT]: "gift",
   };
   return mapping[backendType];
