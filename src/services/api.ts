@@ -13,6 +13,8 @@ export const api = axios.create({
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
+
   },
 });
 
@@ -53,6 +55,7 @@ export const publicApi = axios.create({
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    
   },
 });
 

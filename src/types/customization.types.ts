@@ -17,18 +17,23 @@ export interface CardSettings {
  */
 export interface ContentSettings {
   biography: string;
-  biographyColor: string;  // hex color
+  biographyColor: string;
   centerAlign: boolean;
+  viewColor: string;
+  badgeColor: string;
+  tagColor: string;
 }
+
 
 /**
  * Efeitos do nome
  */
 export interface NameEffects {
   name: string;
-  neon: boolean;     // PREMIUM
-  shiny: boolean;    // PREMIUM
-  rgb: boolean;      // PREMIUM
+  nameColor: string;
+  neon: boolean;
+  shiny: boolean;
+  rgb: boolean;
 }
 
 /**

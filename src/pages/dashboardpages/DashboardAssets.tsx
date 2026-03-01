@@ -182,8 +182,8 @@ const StatusBadge = ({ active }: { active: boolean }) => (
     className={`
       inline-flex items-center gap-1.5 px-2.5 py-1
       rounded-full text-xs font-medium
-      ${active 
-        ? 'bg-green-500/10 text-green-400 border border-green-500/30' 
+      ${active
+        ? 'bg-green-500/10 text-green-400 border border-green-500/30'
         : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] border border-[var(--color-border)]'
       }
     `}
@@ -624,10 +624,10 @@ const DashboardAssets = () => {
   // ═══════════════════════════════════════════════════════════
   // CONTEXTO DO PERFIL
   // ═══════════════════════════════════════════════════════════
-  const { 
-    profileData, 
-    isLoadingProfile, 
-    refreshProfile 
+  const {
+    profileData,
+    isLoadingProfile,
+    refreshProfile
   } = useProfile();
 
   // ✅ Verificar se usuário é Premium
@@ -680,7 +680,7 @@ const DashboardAssets = () => {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     setError(null);
-    
+
     try {
       await refreshProfile();
     } catch (err) {
@@ -712,8 +712,9 @@ const DashboardAssets = () => {
           profileImageUrl: type !== "avatar" ? assets.avatar?.url || "" : "",
           backgroundUrl: type !== "background" ? assets.background?.url || "" : "",
           musicUrl: type !== "audio" ? assets.audio?.url || "" : "",
-          faviconUrl: type !== "favicon" ? assets.favicon?.url || "" : "", // ✅ Adicionado favicon
+          faviconUrl: type !== "favicon" ? assets.favicon?.url || "" : ""
         },
+        staticBackgroundColor: "", // ← adiciona isso
       });
 
       // Atualizar o contexto global após a remoção
@@ -927,10 +928,9 @@ const DashboardAssets = () => {
             className={`
               p-4 rounded-[var(--border-radius-md)]
               border transition-all duration-300 relative
-              ${
-                item.locked
-                  ? "bg-[var(--color-surface)]/50 border-[var(--color-border)] opacity-75"
-                  : item.active
+              ${item.locked
+                ? "bg-[var(--color-surface)]/50 border-[var(--color-border)] opacity-75"
+                : item.active
                   ? "bg-[var(--color-primary)]/10 border-[var(--color-primary)]"
                   : "bg-[var(--color-surface)] border-[var(--color-border)]"
               }
@@ -951,16 +951,16 @@ const DashboardAssets = () => {
                 <Crown size={14} className="text-yellow-400" />
               </div>
             )}
-            
+
             <div className="flex items-center justify-between">
               <item.icon
                 size={20}
                 className={
-                  item.locked 
-                    ? "text-[var(--color-text-muted)]/50" 
-                    : item.active 
-                    ? "text-[var(--color-primary)]" 
-                    : "text-[var(--color-text-muted)]"
+                  item.locked
+                    ? "text-[var(--color-text-muted)]/50"
+                    : item.active
+                      ? "text-[var(--color-primary)]"
+                      : "text-[var(--color-text-muted)]"
                 }
               />
               {!item.locked && (
@@ -973,18 +973,17 @@ const DashboardAssets = () => {
               )}
             </div>
             <p className="text-sm font-medium text-[var(--color-text)] mt-2">{item.label}</p>
-            <p className={`text-xs ${
-              item.locked 
-                ? "text-[var(--color-text-muted)]/50" 
-                : item.active 
-                ? "text-green-400" 
-                : "text-[var(--color-text-muted)]"
-            }`}>
-              {item.locked 
-                ? (item.premium ? "Premium" : "Em breve") 
-                : item.active 
-                ? "Ativo" 
-                : "Não configurado"
+            <p className={`text-xs ${item.locked
+                ? "text-[var(--color-text-muted)]/50"
+                : item.active
+                  ? "text-green-400"
+                  : "text-[var(--color-text-muted)]"
+              }`}>
+              {item.locked
+                ? (item.premium ? "Premium" : "Em breve")
+                : item.active
+                  ? "Ativo"
+                  : "Não configurado"
               }
             </p>
           </motion.div>
@@ -1070,7 +1069,7 @@ const DashboardAssets = () => {
                       alt="Background"
                       className="w-full h-full object-cover"
                     />
-                  )}  
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                   <motion.button
                     onClick={() => setViewModal({ isOpen: true, type: "background" })}
@@ -1366,7 +1365,7 @@ const DashboardAssets = () => {
                 className="w-32 h-32 object-contain"
               />
             </div>
-            
+
             {/* Preview na aba do navegador simulada */}
             <div className="w-full max-w-md">
               <p className="text-xs text-[var(--color-text-muted)] mb-2 text-center">

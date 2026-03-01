@@ -23,10 +23,14 @@ interface ContentSettings {
   biography: string;
   biographyColor: string;
   centerAlign: boolean;
+  viewColor: string;
+  badgeColor: string;
+  tagColor: string;
 }
 
 interface NameEffects {
   name: string;
+  nameColor: string;
   neon: boolean;
   shiny: boolean;
   rgb: boolean;

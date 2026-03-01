@@ -28,10 +28,14 @@ interface ContentSettings {
     biography: string;
     biographyColor: string;
     centerAlign: boolean;
+    viewColor: string;
+    badgeColor: string;
+    tagColor: string;
 }
 
 interface NameEffects {
     name: string;
+    nameColor: string;
     neon: boolean;
     shiny: boolean;
     rgb: boolean;
@@ -2008,18 +2012,19 @@ const CardContent: React.FC<CardContentProps> = ({
     const profileSize = 90;
     const frameSize = profileSize + 20;
     const centered = data.contentSettings.centerAlign;
-    const linkColor = data.contentSettings.biographyColor;
 
     const biographyColor = data.contentSettings.biographyColor || '#fff';
 
+    const badgeColor = data.contentSettings.badgeColor || data.contentSettings.biographyColor;
+
     const badgeColorFilter = useMemo(() => {
-        const isReady = biographyColor &&
-            biographyColor !== 'rgb(255, 255, 255)' &&
-            biographyColor !== 'transparent';
+        const isReady = badgeColor &&
+            badgeColor !== 'rgb(255, 255, 255)' &&
+            badgeColor !== 'transparent';
 
         if (!isReady) return 'none';
-        return getCachedFilter(biographyColor);
-    }, [biographyColor]);
+        return getCachedFilter(badgeColor);
+    }, [badgeColor]);
 
 
     // LÓGICA CORRIGIDA: Usa hasLinkTyped como critério principal
@@ -2152,7 +2157,7 @@ const CardContent: React.FC<CardContentProps> = ({
                             letterSpacing: '-0.02em',
                             color:
                                 !data.nameEffects.neon && !data.nameEffects.rgb
-                                    ? data.contentSettings.biographyColor || '#fff'
+                                    ? data.nameEffects.nameColor || '#fff'  // ← troca biographyColor por nameColor
                                     : undefined,
                         }}
                     >
@@ -2195,8 +2200,8 @@ const CardContent: React.FC<CardContentProps> = ({
                         <BadgeWithTooltip
                             key={badge.id}
                             badge={badge}
-                            biographyColor={biographyColor}
-                            colorFilter={badgeColorFilter} // ← passa o filtro pré-calculado
+                            biographyColor={badgeColor}  // ← troca biographyColor por badgeColor
+                            colorFilter={badgeColorFilter}
                         />
                     ))}
                 </div>
@@ -2236,11 +2241,11 @@ const CardContent: React.FC<CardContentProps> = ({
                                 padding: '3px 5px',
                                 borderRadius: 14,
                                 border: '1px solid',
-                                borderColor: `${data.contentSettings.biographyColor}40`,
+                                borderColor: `${data.contentSettings.tagColor}80`,
                                 backgroundColor: 'transparent',
-                                color: data.contentSettings.biographyColor,
+                                color: data.contentSettings.tagColor,
                                 fontSize: 13,
-                                fontWeight: 500,
+                                fontWeight: 600,
                             }}
                         >
                             {tag.tagName}
@@ -2490,8 +2495,10 @@ const CardContent: React.FC<CardContentProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
-                    color: data.contentSettings.biographyColor,
+                    padding: '2%',
+                    color: data.contentSettings.viewColor || data.contentSettings.biographyColor,  // ← adiciona viewColor
                     fontSize: 13,
+                    fontWeight: 900,
                     position: 'relative',
                     opacity: 0.8,
                 }}
@@ -2502,7 +2509,7 @@ const CardContent: React.FC<CardContentProps> = ({
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
+                    strokeWidth="3.5"
                 >
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />

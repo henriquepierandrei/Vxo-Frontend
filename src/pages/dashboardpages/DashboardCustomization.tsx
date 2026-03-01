@@ -100,6 +100,11 @@ interface CustomizationSettings {
   thunderEffect: boolean;
   smokeEffect: boolean;
   starsEffect: boolean;
+
+  nameColor: string;
+  viewColor: string;
+  badgeColor: string;
+  tagColor: string;
 }
 
 interface FileUploads {
@@ -254,6 +259,10 @@ const profileDataToSettings = (
     thunderEffect: pageEffects?.thunder ?? false,
     smokeEffect: pageEffects?.smoke ?? false,
     starsEffect: pageEffects?.stars ?? false,
+    nameColor: nameEffects?.nameColor ?? "#ffffff",
+    viewColor: contentSettings?.viewColor ?? "#ffffff",
+    badgeColor: contentSettings?.badgeColor ?? "#ffffff",
+    tagColor: contentSettings?.tagColor ?? "#ffffff",
   };
 };
 
@@ -271,9 +280,13 @@ const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendReq
       biography: settings.biography,
       biographyColor: settings.biographyColor,
       centerAlign: settings.contentCenter,
+      viewColor: settings.viewColor,
+      badgeColor: settings.badgeColor,
+      tagColor: settings.tagColor
     },
     nameEffects: {
       name: settings.name,
+      nameColor: settings.nameColor,
       neon: settings.neonName,
       shiny: settings.shinyName,
       rgb: settings.rgbName,
@@ -1577,6 +1590,10 @@ const DashboardCustomization = () => {
     thunderEffect: false,
     smokeEffect: false,
     starsEffect: false,
+    nameColor: "#ffffff",
+    viewColor: "#ffffff",
+    badgeColor: "#ffffff",
+    tagColor: "#ffffff"
   };
 
   const [settings, setSettings] = useState<CustomizationSettings>(defaultSettings);
@@ -1620,7 +1637,7 @@ const DashboardCustomization = () => {
       setIsInitialized(true);
 
       if (finalSettings.profileImageUrl || finalSettings.backgroundUrl || finalSettings.faviconUrl) {
-        
+
       }
     }
   }, [profileData]);
@@ -1635,7 +1652,7 @@ const DashboardCustomization = () => {
   // Salva no localStorage
   useEffect(() => {
     if (isInitialized && (settings.profileImageUrl || settings.backgroundUrl || settings.faviconUrl || settings.staticBackgroundColor)) {
-      
+
     }
   }, [
     isInitialized,
@@ -1693,117 +1710,117 @@ const DashboardCustomization = () => {
     }
   };
   const handleSave = async () => {
-  setIsSubmitting(true);
-  setError(null);
-  setUploadProgress("");
+    setIsSubmitting(true);
+    setError(null);
+    setUploadProgress("");
 
-  try {
-    let updatedSettings = { ...settings };
+    try {
+      let updatedSettings = { ...settings };
 
-    const hasFilesToUpload = Object.values(fileUploads).some(file => file !== null);
+      const hasFilesToUpload = Object.values(fileUploads).some(file => file !== null);
 
-    if (hasFilesToUpload) {
-      setUploadProgress("Fazendo upload dos arquivos...");
+      if (hasFilesToUpload) {
+        setUploadProgress("Fazendo upload dos arquivos...");
 
-      const uploadResponse = await assetUploadService.uploadAssets({
-        avatar: fileUploads.avatar,
-        background: fileUploads.background,
-        music: fileUploads.music,
-        cursor: fileUploads.cursor,
-        favicon: fileUploads.favicon,
+        const uploadResponse = await assetUploadService.uploadAssets({
+          avatar: fileUploads.avatar,
+          background: fileUploads.background,
+          music: fileUploads.music,
+          cursor: fileUploads.cursor,
+          favicon: fileUploads.favicon,
+        });
+
+        console.log("📦 Upload response:", uploadResponse);
+
+        // ✅ Atualiza as URLs com as retornadas do backend
+        if (uploadResponse.success && uploadResponse.urls) {
+          if (uploadResponse.urls.avatarUrl) {
+            console.log("✅ Nova avatarUrl:", uploadResponse.urls.avatarUrl);
+            updatedSettings.profileImageUrl = uploadResponse.urls.avatarUrl;
+          }
+          if (uploadResponse.urls.backgroundUrl) {
+            console.log("✅ Nova backgroundUrl:", uploadResponse.urls.backgroundUrl);
+            updatedSettings.backgroundUrl = uploadResponse.urls.backgroundUrl;
+          }
+          if (uploadResponse.urls.musicUrl) {
+            console.log("✅ Nova musicUrl:", uploadResponse.urls.musicUrl);
+            updatedSettings.musicUrl = uploadResponse.urls.musicUrl;
+          }
+          if (uploadResponse.urls.cursorUrl) {
+            console.log("✅ Nova cursorUrl:", uploadResponse.urls.cursorUrl);
+            updatedSettings.cursorUrl = uploadResponse.urls.cursorUrl;
+          }
+          if (uploadResponse.urls.faviconUrl) {
+            console.log("✅ Nova faviconUrl:", uploadResponse.urls.faviconUrl);
+            updatedSettings.faviconUrl = uploadResponse.urls.faviconUrl;
+          }
+        } else if (!uploadResponse.success) {
+          // Se o upload falhou, mostra erro mas continua tentando salvar as outras configs
+          console.warn("⚠️ Upload falhou:", uploadResponse.message);
+        }
+      }
+
+      setUploadProgress("Salvando configurações...");
+
+      // ✅ Agora updatedSettings tem as URLs corretas!
+      const requestData = settingsToRequest(updatedSettings);
+      console.log("📤 Enviando para updatePageSettings:", requestData);
+
+      await customizationService.updatePageSettings(requestData);
+
+      // ✅ Atualiza o estado local com as novas configurações
+      setSettings(updatedSettings);
+      setOriginalSettings(updatedSettings);
+
+
+
+      // ✅ Atualiza o contexto do perfil
+      await refreshProfile();
+
+      // ✅ Limpa os arquivos selecionados
+      setFileUploads({
+        avatar: null,
+        background: null,
+        music: null,
+        cursor: null,
+        favicon: null
       });
 
-      console.log("📦 Upload response:", uploadResponse);
+      // ✅ Mostra mensagem de sucesso
+      setSuccessMessage("Configurações salvas com sucesso!");
+      setTimeout(() => setSuccessMessage(""), 3000);
 
-      // ✅ Atualiza as URLs com as retornadas do backend
-      if (uploadResponse.success && uploadResponse.urls) {
-        if (uploadResponse.urls.avatarUrl) {
-          console.log("✅ Nova avatarUrl:", uploadResponse.urls.avatarUrl);
-          updatedSettings.profileImageUrl = uploadResponse.urls.avatarUrl;
-        }
-        if (uploadResponse.urls.backgroundUrl) {
-          console.log("✅ Nova backgroundUrl:", uploadResponse.urls.backgroundUrl);
-          updatedSettings.backgroundUrl = uploadResponse.urls.backgroundUrl;
-        }
-        if (uploadResponse.urls.musicUrl) {
-          console.log("✅ Nova musicUrl:", uploadResponse.urls.musicUrl);
-          updatedSettings.musicUrl = uploadResponse.urls.musicUrl;
-        }
-        if (uploadResponse.urls.cursorUrl) {
-          console.log("✅ Nova cursorUrl:", uploadResponse.urls.cursorUrl);
-          updatedSettings.cursorUrl = uploadResponse.urls.cursorUrl;
-        }
-        if (uploadResponse.urls.faviconUrl) {
-          console.log("✅ Nova faviconUrl:", uploadResponse.urls.faviconUrl);
-          updatedSettings.faviconUrl = uploadResponse.urls.faviconUrl;
-        }
-      } else if (!uploadResponse.success) {
-        // Se o upload falhou, mostra erro mas continua tentando salvar as outras configs
-        console.warn("⚠️ Upload falhou:", uploadResponse.message);
-      }
-    }
+    } catch (err: unknown) {
+      console.error("❌ Erro ao salvar:", err);
 
-    setUploadProgress("Salvando configurações...");
-
-    // ✅ Agora updatedSettings tem as URLs corretas!
-    const requestData = settingsToRequest(updatedSettings);
-    console.log("📤 Enviando para updatePageSettings:", requestData);
-
-    await customizationService.updatePageSettings(requestData);
-
-    // ✅ Atualiza o estado local com as novas configurações
-    setSettings(updatedSettings);
-    setOriginalSettings(updatedSettings);
-
-    
-
-    // ✅ Atualiza o contexto do perfil
-    await refreshProfile();
-
-    // ✅ Limpa os arquivos selecionados
-    setFileUploads({ 
-      avatar: null, 
-      background: null, 
-      music: null, 
-      cursor: null, 
-      favicon: null 
-    });
-
-    // ✅ Mostra mensagem de sucesso
-    setSuccessMessage("Configurações salvas com sucesso!");
-    setTimeout(() => setSuccessMessage(""), 3000);
-
-  } catch (err: unknown) {
-    console.error("❌ Erro ao salvar:", err);
-    
-    const axiosError = err as { 
-      response?: { 
-        status?: number; 
-        data?: { message?: string } 
+      const axiosError = err as {
+        response?: {
+          status?: number;
+          data?: { message?: string }
+        };
+        message?: string;
       };
-      message?: string;
-    };
 
-    if (axiosError.response?.status === 403) {
-      setError(axiosError.response.data?.message || "Você não tem permissão para usar este recurso.");
-    } else if (axiosError.response?.status === 401) {
-      setError("Sessão expirada. Faça login novamente.");
-    } else if (axiosError.response?.status === 413) {
-      setError("Arquivo muito grande. Reduza o tamanho e tente novamente.");
-    } else if (axiosError.response?.status === 400) {
-      setError(axiosError.response.data?.message || "Dados inválidos. Verifique os campos e tente novamente.");
-    } else {
-      setError(
-        axiosError.response?.data?.message || 
-        axiosError.message || 
-        "Erro ao salvar configurações. Tente novamente."
-      );
+      if (axiosError.response?.status === 403) {
+        setError(axiosError.response.data?.message || "Você não tem permissão para usar este recurso.");
+      } else if (axiosError.response?.status === 401) {
+        setError("Sessão expirada. Faça login novamente.");
+      } else if (axiosError.response?.status === 413) {
+        setError("Arquivo muito grande. Reduza o tamanho e tente novamente.");
+      } else if (axiosError.response?.status === 400) {
+        setError(axiosError.response.data?.message || "Dados inválidos. Verifique os campos e tente novamente.");
+      } else {
+        setError(
+          axiosError.response?.data?.message ||
+          axiosError.message ||
+          "Erro ao salvar configurações. Tente novamente."
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress("");
     }
-  } finally {
-    setIsSubmitting(false);
-    setUploadProgress("");
-  }
-};
+  };
 
   const handleReset = () => {
     setSettings(originalSettings);
@@ -2036,6 +2053,24 @@ const DashboardCustomization = () => {
                 onChange={(value) => updateSetting("rgbBorder", value)}
                 icon={Sparkles}
               />
+              <ColorPicker
+                label="Cor das Badges"
+                value={settings.badgeColor}
+                onChange={(value) => updateSetting("badgeColor", value)}
+                icon={Sparkles}
+              />
+              <ColorPicker
+                label="Cor das Tags"
+                value={settings.tagColor}
+                onChange={(value) => updateSetting("tagColor", value)}
+                icon={Sparkles}
+              />
+              <ColorPicker
+                label="Cor das Views"
+                value={settings.viewColor}
+                onChange={(value) => updateSetting("viewColor", value)}
+                icon={Eye}
+              />
             </div>
           </div>
         </CustomizationCard>
@@ -2101,6 +2136,12 @@ const DashboardCustomization = () => {
                 icon={Palette}
                 isPremiumFeature={true}
                 userIsPremium={userIsPremium}
+              />
+              <ColorPicker
+                label="Cor do Nome"
+                value={settings.nameColor}
+                onChange={(value) => updateSetting("nameColor", value)}
+                icon={Type}
               />
             </div>
             <Textarea
