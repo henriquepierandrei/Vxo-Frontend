@@ -47,7 +47,7 @@ interface MediaUrls {
 interface InventoryItem {
     id: string;
     url: string;
-    type: 'FRAME' | 'BADGE';
+    type: 'FRAME' | 'BADGE' | 'CARD_EFFECT';
     isPremium: boolean;
     equipped: boolean;
     name?: string;
@@ -207,6 +207,16 @@ const VerifiedIcon: React.FC<{ size?: number }> = ({ size = 22 }) => {
     );
 };
 
+// Fora dos componentes - cache global
+const filterCache = new Map<string, string>();
+
+const getCachedFilter = (color: string): string => {
+    if (filterCache.has(color)) return filterCache.get(color)!;
+    const filter = rgbToFilter(color);
+    filterCache.set(color, filter);
+    return filter;
+};
+
 /* ═══════════════════════════════════════════════════════════════════════════
    RGB TO FILTER - Função completa restaurada
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -216,7 +226,7 @@ function rgbToFilter(c: string): string {
         if (c.startsWith('#')) {
             const h = c.replace('#', '');
             const f = h.length === 3;
-            return [0, 1, 2].map(i => parseInt(f ? h[i]+h[i] : h.slice(i*2, i*2+2), 16));
+            return [0, 1, 2].map(i => parseInt(f ? h[i] + h[i] : h.slice(i * 2, i * 2 + 2), 16));
         }
         return (c.match(/\d+/g) || []).map(Number);
     };
@@ -225,18 +235,18 @@ function rgbToFilter(c: string): string {
     const clamp = (v: number) => Math.max(0, Math.min(255, v));
 
     const toHSL = (r: number, g: number, b: number) => {
-        const [nr, ng, nb] = [r/255, g/255, b/255];
+        const [nr, ng, nb] = [r / 255, g / 255, b / 255];
         const max = Math.max(nr, ng, nb), min = Math.min(nr, ng, nb);
         let h = 0, s = 0;
         const l = (max + min) / 2;
         if (max !== min) {
             const d = max - min;
-            s = l > 0.5 ? d/(2-max-min) : d/(max+min);
-            h = max === nr ? ((ng-nb)/d + (ng<nb?6:0))/6
-              : max === ng ? ((nb-nr)/d+2)/6
-              : ((nr-ng)/d+4)/6;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            h = max === nr ? ((ng - nb) / d + (ng < nb ? 6 : 0)) / 6
+                : max === ng ? ((nb - nr) / d + 2) / 6
+                    : ((nr - ng) / d + 4) / 6;
         }
-        return [h*360, s*100, l*100];
+        return [h * 360, s * 100, l * 100];
     };
 
     const targetHSL = toHSL(tr, tg, tb);
@@ -244,44 +254,44 @@ function rgbToFilter(c: string): string {
     const applyFilters = (f: number[]) => {
         let r = 0, g = 0, b = 0;
         const linear = (slope: number, int: number) => {
-            r = clamp(r*slope+int*255); g = clamp(g*slope+int*255); b = clamp(b*slope+int*255);
+            r = clamp(r * slope + int * 255); g = clamp(g * slope + int * 255); b = clamp(b * slope + int * 255);
         };
         // invert
-        const iv = f[0]/100;
-        r = clamp((iv+(r/255)*(1-2*iv))*255);
-        g = clamp((iv+(g/255)*(1-2*iv))*255);
-        b = clamp((iv+(b/255)*(1-2*iv))*255);
+        const iv = f[0] / 100;
+        r = clamp((iv + (r / 255) * (1 - 2 * iv)) * 255);
+        g = clamp((iv + (g / 255) * (1 - 2 * iv)) * 255);
+        b = clamp((iv + (b / 255) * (1 - 2 * iv)) * 255);
         // sepia
-        const sv = f[1]/100;
-        const [sr,sg,sb] = [r,g,b];
-        r = clamp(sr*(1-.607*sv)+sg*.769*sv+sb*.189*sv);
-        g = clamp(sr*.349*sv+sg*(1-.314*sv)+sb*.168*sv);
-        b = clamp(sr*.272*sv+sg*.534*sv+sb*(1-.869*sv));
+        const sv = f[1] / 100;
+        const [sr, sg, sb] = [r, g, b];
+        r = clamp(sr * (1 - .607 * sv) + sg * .769 * sv + sb * .189 * sv);
+        g = clamp(sr * .349 * sv + sg * (1 - .314 * sv) + sb * .168 * sv);
+        b = clamp(sr * .272 * sv + sg * .534 * sv + sb * (1 - .869 * sv));
         // saturate
-        const stv = f[2]/100;
-        const [sa,sag,sab] = [r,g,b];
-        r = clamp(sa*(.213+.787*stv)+sag*(.715-.715*stv)+sab*(.072-.072*stv));
-        g = clamp(sa*(.213-.213*stv)+sag*(.715+.285*stv)+sab*(.072-.072*stv));
-        b = clamp(sa*(.213-.213*stv)+sag*(.715-.715*stv)+sab*(.072+.928*stv));
+        const stv = f[2] / 100;
+        const [sa, sag, sab] = [r, g, b];
+        r = clamp(sa * (.213 + .787 * stv) + sag * (.715 - .715 * stv) + sab * (.072 - .072 * stv));
+        g = clamp(sa * (.213 - .213 * stv) + sag * (.715 + .285 * stv) + sab * (.072 - .072 * stv));
+        b = clamp(sa * (.213 - .213 * stv) + sag * (.715 - .715 * stv) + sab * (.072 + .928 * stv));
         // hue-rotate
-        const rad = (f[3]*3.6/180)*Math.PI;
+        const rad = (f[3] * 3.6 / 180) * Math.PI;
         const cos = Math.cos(rad), sin = Math.sin(rad);
-        const [hr,hg,hb] = [r,g,b];
-        r = clamp(hr*(.213+cos*.787-sin*.213)+hg*(.715-cos*.715-sin*.715)+hb*(.072-cos*.072+sin*.928));
-        g = clamp(hr*(.213-cos*.213+sin*.143)+hg*(.715+cos*.285+sin*.14)+hb*(.072-cos*.072-sin*.283));
-        b = clamp(hr*(.213-cos*.213-sin*.787)+hg*(.715-cos*.715+sin*.715)+hb*(.072+cos*.928+sin*.072));
+        const [hr, hg, hb] = [r, g, b];
+        r = clamp(hr * (.213 + cos * .787 - sin * .213) + hg * (.715 - cos * .715 - sin * .715) + hb * (.072 - cos * .072 + sin * .928));
+        g = clamp(hr * (.213 - cos * .213 + sin * .143) + hg * (.715 + cos * .285 + sin * .14) + hb * (.072 - cos * .072 - sin * .283));
+        b = clamp(hr * (.213 - cos * .213 - sin * .787) + hg * (.715 - cos * .715 + sin * .715) + hb * (.072 + cos * .928 + sin * .072));
         // brightness & contrast
-        linear(f[4]/100, 0);
-        linear(f[5]/100, -(0.5*f[5]/100)+0.5);
+        linear(f[4] / 100, 0);
+        linear(f[5] / 100, -(0.5 * f[5] / 100) + 0.5);
 
         const hsl = toHSL(r, g, b);
-        return Math.abs(r-tr)+Math.abs(g-tg)+Math.abs(b-tb)
-             + Math.abs(hsl[0]-targetHSL[0])+Math.abs(hsl[1]-targetHSL[1])+Math.abs(hsl[2]-targetHSL[2]);
+        return Math.abs(r - tr) + Math.abs(g - tg) + Math.abs(b - tb)
+            + Math.abs(hsl[0] - targetHSL[0]) + Math.abs(hsl[1] - targetHSL[1]) + Math.abs(hsl[2] - targetHSL[2]);
     };
 
     const fix = (v: number, i: number) => {
-        const max = [100,100,7500,350,100,100][i];
-        if (i===2) v = v%7500; else if (i===4) v = v%360;
+        const max = [100, 100, 7500, 350, 100, 100][i];
+        if (i === 2) v = v % 7500; else if (i === 4) v = v % 360;
         return Math.max(0, Math.min(v, max));
     };
 
@@ -289,15 +299,15 @@ function rgbToFilter(c: string): string {
         let best = { loss: Infinity, values: vals.slice() };
         const deltas = Array(6), high = Array(6), low = Array(6);
         for (let k = 0; k < iters; k++) {
-            const ck = c / Math.pow(k+1, 0.16667);
+            const ck = c / Math.pow(k + 1, 0.16667);
             for (let i = 0; i < 6; i++) {
                 deltas[i] = Math.random() > 0.5 ? 1 : -1;
-                high[i] = vals[i]+ck*deltas[i];
-                low[i] = vals[i]-ck*deltas[i];
+                high[i] = vals[i] + ck * deltas[i];
+                low[i] = vals[i] - ck * deltas[i];
             }
             const diff = applyFilters(high) - applyFilters(low);
             for (let i = 0; i < 6; i++) {
-                vals[i] = fix(vals[i] - (a[i]/Math.pow(A+k+1, 1)) * (diff/(2*ck)) * deltas[i], i);
+                vals[i] = fix(vals[i] - (a[i] / Math.pow(A + k + 1, 1)) * (diff / (2 * ck)) * deltas[i], i);
             }
             const loss = applyFilters(vals);
             if (loss < best.loss) best = { loss, values: vals.slice() };
@@ -306,16 +316,16 @@ function rgbToFilter(c: string): string {
     };
 
     let best = { loss: Infinity, values: [] as number[] };
-    const a = [60,180,18000,600,1.2,1.2];
+    const a = [60, 180, 18000, 600, 1.2, 1.2];
     for (let i = 0; i < 3; i++) {
-        const r = spsa(5, a, 15, [50,20,3750,50,100,100], 1000);
+        const r = spsa(5, a, 15, [50, 20, 3750, 50, 100, 100], 1000);
         if (r.loss < best.loss) best = r;
     }
     const A5 = best.loss + 1;
-    const narrow = spsa(best.loss, [.25*A5,.25*A5,A5,.25*A5,.2*A5,.2*A5], 2, best.values, 500);
+    const narrow = spsa(best.loss, [.25 * A5, .25 * A5, A5, .25 * A5, .2 * A5, .2 * A5], 2, best.values, 500);
     const f = narrow.values;
 
-    return `invert(${Math.round(f[0])}%) sepia(${Math.round(f[1])}%) saturate(${Math.round(f[2])}%) hue-rotate(${Math.round(f[3]*3.6)}deg) brightness(${Math.round(f[4])}%) contrast(${Math.round(f[5])}%)`;
+    return `invert(${Math.round(f[0])}%) sepia(${Math.round(f[1])}%) saturate(${Math.round(f[2])}%) hue-rotate(${Math.round(f[3] * 3.6)}deg) brightness(${Math.round(f[4])}%) contrast(${Math.round(f[5])}%)`;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -351,24 +361,14 @@ const invertColor = (hex: string): string => {
 ═══════════════════════════════════════════════════════════════════════════ */
 interface BadgeWithTooltipProps {
     badge: InventoryItem;
-    biographyColor: string; // ← Mudou de cardColor para biographyColor
+    biographyColor: string;
+    colorFilter: string; // ← novo prop
 }
 
-const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyColor }) => {
+const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyColor, colorFilter }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const badgeName = badge.name || extractBadgeName(badge.url);
-    const isVerified = isVerifiedBadge(badge);
-
-    const isColorReady = useMemo(() => {
-        return biographyColor &&
-               biographyColor !== 'rgb(255, 255, 255)' &&
-               biographyColor !== 'transparent';
-    }, [biographyColor]);
-
-    const colorFilter = useMemo(() => {
-        if (!isColorReady) return 'none';
-        return rgbToFilter(biographyColor);
-    }, [biographyColor, isColorReady]);
+    const isColorReady = colorFilter !== 'none';
 
     return (
         <>
@@ -1200,9 +1200,6 @@ const NameMCIcon: React.FC<IconProps> = ({ color }) => (
     </svg>
 );
 
-
-// ... Adicione todos os outros ícones ...
-
 /* ═══════════════════════════════════════════════════════════════════════════
    ICON MAP (PREENCHA MANUALMENTE)
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -2013,6 +2010,18 @@ const CardContent: React.FC<CardContentProps> = ({
     const centered = data.contentSettings.centerAlign;
     const linkColor = data.contentSettings.biographyColor;
 
+    const biographyColor = data.contentSettings.biographyColor || '#fff';
+
+    const badgeColorFilter = useMemo(() => {
+        const isReady = biographyColor &&
+            biographyColor !== 'rgb(255, 255, 255)' &&
+            biographyColor !== 'transparent';
+
+        if (!isReady) return 'none';
+        return getCachedFilter(biographyColor);
+    }, [biographyColor]);
+
+
     // LÓGICA CORRIGIDA: Usa hasLinkTyped como critério principal
     const sortedLinks = useMemo(() => {
         return data.userLinksResponse.links
@@ -2186,7 +2195,8 @@ const CardContent: React.FC<CardContentProps> = ({
                         <BadgeWithTooltip
                             key={badge.id}
                             badge={badge}
-                            biographyColor={data.contentSettings.biographyColor || '#fff'}  // ← Passa a cor da biography
+                            biographyColor={biographyColor}
+                            colorFilter={badgeColorFilter} // ← passa o filtro pré-calculado
                         />
                     ))}
                 </div>
@@ -2354,7 +2364,7 @@ const CardContent: React.FC<CardContentProps> = ({
                                 rel="noopener noreferrer"
                                 style={{
                                     width: '100%',
-                                    padding: '12px 16px',  
+                                    padding: '12px 16px',
                                     borderRadius: 16,
                                     backgroundColor: data.contentSettings.biographyColor + "1A",
                                     border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -2686,8 +2696,13 @@ const UserPublicPage: React.FC = () => {
     }, [isPlaying, volume]);
 
     /* EQUIPPED ITEMS & VERIFIED CHECK */
-    const { badges, frame, hasVerifiedBadge } = useMemo(() => {
-        if (!data?.inventoryResponse?.equipped) return { badges: [], frame: null, hasVerifiedBadge: false };
+    const { badges, frame, cardEffect, hasVerifiedBadge } = useMemo(() => {
+        if (!data?.inventoryResponse?.equipped) return {
+            badges: [],
+            frame: null,
+            cardEffect: null,  // ← Adicionado
+            hasVerifiedBadge: false
+        };
 
         const eq = data.inventoryResponse.equipped;
         const isPremium = data.isPremium;
@@ -2705,6 +2720,7 @@ const UserPublicPage: React.FC = () => {
         return {
             badges: allBadges,
             frame: validItems.find((i) => i.type === 'FRAME')?.url || null,
+            cardEffect: validItems.find((i) => i.type === 'CARD_EFFECT')?.url || null,  // ← Adicionado
             hasVerifiedBadge: hasVerified,
         };
     }, [data]);
@@ -2722,6 +2738,44 @@ const UserPublicPage: React.FC = () => {
                 console.error('Erro ao iniciar música:', err);
             }
         }
+    };
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+   CARD EFFECT OVERLAY - Efeito visual sobre o card
+═══════════════════════════════════════════════════════════════════════════ */
+
+    interface CardEffectOverlayProps {
+        url: string;
+    }
+
+    const CardEffectOverlay: React.FC<CardEffectOverlayProps> = ({ url }) => {
+        return (
+            <div
+                style={{
+                    position: 'absolute',
+                    inset: 0,  // ← Cobre 100% do card pai
+                    pointerEvents: 'none',
+                    borderRadius: 28,
+                    zIndex: 100,
+                    overflow: 'hidden',
+                }}
+            >
+                <img
+                    src={url}
+                    alt="Card Effect"
+                    style={{
+                        width: '100%',
+                        transform: 'translateY(0%)', // Pequeno ajuste para melhor posicionamento
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'top',
+
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                    }}
+                />
+            </div>
+        );
     };
 
     /* LOADING */
@@ -3104,12 +3158,13 @@ const UserPublicPage: React.FC = () => {
                 )}
 
                 {/* CARD - WIDTH MAIOR */}
+
                 <div
                     style={{
                         position: 'relative',
                         zIndex: 10,
                         width: '100%',
-                        maxWidth: 480,
+                        maxWidth: 440,
                         animation: 'slideUp 0.6s ease-out',
                     }}
                 >
@@ -3117,9 +3172,13 @@ const UserPublicPage: React.FC = () => {
                         <div className="rgb-border-wrapper">
                             <div
                                 ref={cardRef}
-                                style={cardStyle}
+                                style={{
+                                    ...cardStyle,
+                                    position: 'relative',
+                                    overflow: 'visible',  // ← Importante para o efeito sair do card
+                                }}
                                 onMouseMove={handleMouseMove}
-                                onMouseEnter={handleMouseEnter} // ✅ USAR NOVO HANDLER
+                                onMouseEnter={handleMouseEnter}
                                 onMouseLeave={handleMouseLeave}
                             >
                                 <CardContent
@@ -3130,14 +3189,23 @@ const UserPublicPage: React.FC = () => {
                                     getNameClass={getNameClass}
                                     hasVerifiedBadge={hasVerifiedBadge}
                                 />
+
+                                {/* CARD EFFECT OVERLAY */}
+                                {cardEffect && data.isPremium && (
+                                    <CardEffectOverlay url={cardEffect} />
+                                )}
                             </div>
                         </div>
                     ) : (
                         <div
                             ref={cardRef}
-                            style={cardStyle}
+                            style={{
+                                ...cardStyle,
+                                position: 'relative',
+                                overflow: 'visible',  // ← Importante para o efeito sair do card
+                            }}
                             onMouseMove={handleMouseMove}
-                            onMouseEnter={handleMouseEnter} // ✅ USAR NOVO HANDLER
+                            onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
                         >
                             <CardContent
@@ -3148,6 +3216,11 @@ const UserPublicPage: React.FC = () => {
                                 getNameClass={getNameClass}
                                 hasVerifiedBadge={hasVerifiedBadge}
                             />
+
+                            {/* CARD EFFECT OVERLAY */}
+                            {cardEffect && data.isPremium && (
+                                <CardEffectOverlay url={cardEffect} />
+                            )}
                         </div>
                     )}
                 </div>
