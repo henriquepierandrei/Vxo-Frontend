@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicApi } from '../services/api';
 import { Turnstile } from '@marsidev/react-turnstile';
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -108,115 +107,72 @@ interface IconProps {
     color?: string;
 }
 
-// ID do badge de verificado
 const VERIFIED_BADGE_ID = "vxo_badge_e01uyc9s2xkpvz";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   HELPER: Extrair nome do badge da URL
+   HELPERS - Movidos para fora, sem recriação
 ═══════════════════════════════════════════════════════════════════════════ */
+
 const extractBadgeName = (url: string): string => {
     try {
         const pathname = new URL(url).pathname;
         const filename = pathname.split('/').pop() || '';
         const name = filename.replace(/\.(svg|png|jpg|jpeg|gif|webp)$/i, '');
-        const formatted = name
+        return name
             .replace(/[-_]/g, ' ')
             .split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-        return formatted || 'Badge';
+            .join(' ') || 'Badge';
     } catch {
         return 'Badge';
     }
 };
 
-// Verificar se é badge de verificado
-const isVerifiedBadge = (badge: InventoryItem): boolean => {
-    return badge.id === VERIFIED_BADGE_ID || badge.url.toLowerCase().includes('verificado');
+const isVerifiedBadge = (badge: InventoryItem): boolean =>
+    badge.id === VERIFIED_BADGE_ID || badge.url.toLowerCase().includes('verificado');
+
+const hexToRgba = (hex: string, alpha: number): string => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha / 100})`;
+};
+
+// Cache de favicon URLs
+const faviconCache = new Map<string, string>();
+const getFaviconUrl = (url: string): string => {
+    if (faviconCache.has(url)) return faviconCache.get(url)!;
+    try {
+        const domain = new URL(url).origin;
+        const result = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+        faviconCache.set(url, result);
+        return result;
+    } catch {
+        return '';
+    }
+};
+
+const VIDEO_EXTENSIONS = new Set(['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.m3u8']);
+const isVideoUrl = (url: string): boolean => {
+    try {
+        const pathname = new URL(url).pathname.toLowerCase();
+        for (const ext of VIDEO_EXTENSIONS) {
+            if (pathname.endsWith(ext)) return true;
+        }
+        return false;
+    } catch {
+        const clean = url.toLowerCase().split('?')[0].split('#')[0];
+        for (const ext of VIDEO_EXTENSIONS) {
+            if (clean.endsWith(ext)) return true;
+        }
+        return false;
+    }
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VERIFIED ICON COMPONENT - Ícone de verificado azul
+   RGB TO FILTER - Com cache global
 ═══════════════════════════════════════════════════════════════════════════ */
 
-const VerifiedIcon: React.FC<{ size?: number }> = ({ size = 22 }) => {
-    const iconPath =
-        "M21.007 8.27C22.194 9.125 23 10.45 23 12c0 1.55-.806 2.876-1.993 3.73.24 1.442-.134 2.958-1.227 4.05-1.095 1.095-2.61 1.459-4.046 1.225C14.883 22.196 13.546 23 12 23c-1.55 0-2.878-.807-3.731-1.996-1.438.235-2.954-.128-4.05-1.224-1.095-1.095-1.459-2.611-1.217-4.05C1.816 14.877 1 13.551 1 12s.816-2.878 2.002-3.73c-.242-1.439.122-2.955 1.218-4.05 1.093-1.094 2.61-1.467 4.057-1.227C9.125 1.804 10.453 1 12 1c1.545 0 2.88.803 3.732 1.993 1.442-.24 2.956.135 4.048 1.227 1.093 1.092 1.468 2.608 1.227 4.05Zm-4.426-.084a1 1 0 0 1 .233 1.395l-5 7a1 1 0 0 1-1.521.126l-3-3a1 1 0 0 1 1.414-1.414l2.165 2.165 4.314-6.04a1 1 0 0 1 1.395-.232Z";
-
-    return (
-        <svg
-            width={size}
-            height={size}
-            viewBox="0 0 24 24"
-            fill="none"
-            style={{ flexShrink: 0, overflow: "visible" }}
-        >
-            <defs>
-                {/* Gradiente de preenchimento */}
-                <linearGradient id="vGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stopColor="#2563EB" />
-                    <stop offset="100%" stopColor="#3B82F6" />
-                </linearGradient>
-
-                {/* Filtro de glow — segue a FORMA, sem quadrado */}
-                <filter id="vGlow" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur" />
-                    <feColorMatrix
-                        in="blur"
-                        type="matrix"
-                        values="0 0 0 0 0.15
-                    0 0 0 0 0.39
-                    0 0 0 0 0.92
-                    0 0 0 0.6 0"
-                        result="glow"
-                    />
-                    <feMerge>
-                        <feMergeNode in="glow" />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-
-                {/* Clip recorta o brilho na forma do ícone */}
-                <clipPath id="vClip">
-                    <path d={iconPath} />
-                </clipPath>
-
-                {/* Gradiente do brilho (bordas suaves) */}
-                <linearGradient id="vShine" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="white" stopOpacity="0" />
-                    <stop offset="50%" stopColor="white" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="white" stopOpacity="0" />
-                </linearGradient>
-            </defs>
-
-            {/* Ícone com glow */}
-            <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d={iconPath}
-                fill="url(#vGrad)"
-                filter="url(#vGlow)"
-            />
-
-            {/* Faixa de brilho animada (presa à forma) */}
-            <g clipPath="url(#vClip)">
-                <g transform="rotate(30 12 12)">
-                    <rect y="-5" width="8" height="35" fill="url(#vShine)">
-                        <animate
-                            attributeName="x"
-                            values="-12; 28; 28"
-                            keyTimes="0; 0.4; 1"
-                            dur="3s"
-                            repeatCount="indefinite"
-                        />
-                    </rect>
-                </g>
-            </g>
-        </svg>
-    );
-};
-
-// Fora dos componentes - cache global
 const filterCache = new Map<string, string>();
 
 const getCachedFilter = (color: string): string => {
@@ -225,10 +181,6 @@ const getCachedFilter = (color: string): string => {
     filterCache.set(color, filter);
     return filter;
 };
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   RGB TO FILTER - Função completa restaurada
-═══════════════════════════════════════════════════════════════════════════ */
 
 function rgbToFilter(c: string): string {
     const parse = (c: string) => {
@@ -263,33 +215,30 @@ function rgbToFilter(c: string): string {
     const applyFilters = (f: number[]) => {
         let r = 0, g = 0, b = 0;
         const linear = (slope: number, int: number) => {
-            r = clamp(r * slope + int * 255); g = clamp(g * slope + int * 255); b = clamp(b * slope + int * 255);
+            r = clamp(r * slope + int * 255);
+            g = clamp(g * slope + int * 255);
+            b = clamp(b * slope + int * 255);
         };
-        // invert
         const iv = f[0] / 100;
         r = clamp((iv + (r / 255) * (1 - 2 * iv)) * 255);
         g = clamp((iv + (g / 255) * (1 - 2 * iv)) * 255);
         b = clamp((iv + (b / 255) * (1 - 2 * iv)) * 255);
-        // sepia
         const sv = f[1] / 100;
         const [sr, sg, sb] = [r, g, b];
         r = clamp(sr * (1 - .607 * sv) + sg * .769 * sv + sb * .189 * sv);
         g = clamp(sr * .349 * sv + sg * (1 - .314 * sv) + sb * .168 * sv);
         b = clamp(sr * .272 * sv + sg * .534 * sv + sb * (1 - .869 * sv));
-        // saturate
         const stv = f[2] / 100;
         const [sa, sag, sab] = [r, g, b];
         r = clamp(sa * (.213 + .787 * stv) + sag * (.715 - .715 * stv) + sab * (.072 - .072 * stv));
         g = clamp(sa * (.213 - .213 * stv) + sag * (.715 + .285 * stv) + sab * (.072 - .072 * stv));
         b = clamp(sa * (.213 - .213 * stv) + sag * (.715 - .715 * stv) + sab * (.072 + .928 * stv));
-        // hue-rotate
         const rad = (f[3] * 3.6 / 180) * Math.PI;
         const cos = Math.cos(rad), sin = Math.sin(rad);
         const [hr, hg, hb] = [r, g, b];
         r = clamp(hr * (.213 + cos * .787 - sin * .213) + hg * (.715 - cos * .715 - sin * .715) + hb * (.072 - cos * .072 + sin * .928));
         g = clamp(hr * (.213 - cos * .213 + sin * .143) + hg * (.715 + cos * .285 + sin * .14) + hb * (.072 - cos * .072 - sin * .283));
         b = clamp(hr * (.213 - cos * .213 - sin * .787) + hg * (.715 - cos * .715 + sin * .715) + hb * (.072 + cos * .928 + sin * .072));
-        // brightness & contrast
         linear(f[4] / 100, 0);
         linear(f[5] / 100, -(0.5 * f[5] / 100) + 0.5);
 
@@ -338,108 +287,164 @@ function rgbToFilter(c: string): string {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BADGE TOOLTIP COMPONENT - Com filtro de cor restaurado
+   VERIFIED ICON - Memoizado
 ═══════════════════════════════════════════════════════════════════════════ */
+
+const VERIFIED_ICON_PATH = "M21.007 8.27C22.194 9.125 23 10.45 23 12c0 1.55-.806 2.876-1.993 3.73.24 1.442-.134 2.958-1.227 4.05-1.095 1.095-2.61 1.459-4.046 1.225C14.883 22.196 13.546 23 12 23c-1.55 0-2.878-.807-3.731-1.996-1.438.235-2.954-.128-4.05-1.224-1.095-1.095-1.459-2.611-1.217-4.05C1.816 14.877 1 13.551 1 12s.816-2.878 2.002-3.73c-.242-1.439.122-2.955 1.218-4.05 1.093-1.094 2.61-1.467 4.057-1.227C9.125 1.804 10.453 1 12 1c1.545 0 2.88.803 3.732 1.993 1.442-.24 2.956.135 4.048 1.227 1.093 1.092 1.468 2.608 1.227 4.05Zm-4.426-.084a1 1 0 0 1 .233 1.395l-5 7a1 1 0 0 1-1.521.126l-3-3a1 1 0 0 1 1.414-1.414l2.165 2.165 4.314-6.04a1 1 0 0 1 1.395-.232Z";
+
+const VerifiedIcon: React.FC<{ size?: number }> = React.memo(({ size = 22 }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        style={{ flexShrink: 0, overflow: "visible" }}
+    >
+        <defs>
+            <linearGradient id="vGrad" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#2563EB" />
+                <stop offset="100%" stopColor="#3B82F6" />
+            </linearGradient>
+            <filter id="vGlow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur" />
+                <feColorMatrix
+                    in="blur"
+                    type="matrix"
+                    values="0 0 0 0 0.15 0 0 0 0 0.39 0 0 0 0 0.92 0 0 0 0.6 0"
+                    result="glow"
+                />
+                <feMerge>
+                    <feMergeNode in="glow" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+            <clipPath id="vClip">
+                <path d={VERIFIED_ICON_PATH} />
+            </clipPath>
+            <linearGradient id="vShine" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="white" stopOpacity="0" />
+                <stop offset="50%" stopColor="white" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </linearGradient>
+        </defs>
+        <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d={VERIFIED_ICON_PATH}
+            fill="url(#vGrad)"
+            filter="url(#vGlow)"
+        />
+        <g clipPath="url(#vClip)">
+            <g transform="rotate(30 12 12)">
+                <rect y="-5" width="8" height="35" fill="url(#vShine)">
+                    <animate
+                        attributeName="x"
+                        values="-12; 28; 28"
+                        keyTimes="0; 0.4; 1"
+                        dur="3s"
+                        repeatCount="indefinite"
+                    />
+                </rect>
+            </g>
+        </g>
+    </svg>
+));
+VerifiedIcon.displayName = 'VerifiedIcon';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGE TOOLTIP - Memoizado
+═══════════════════════════════════════════════════════════════════════════ */
+
+const BADGE_TOOLTIP_STYLES = `
+@keyframes tooltip-pop {
+    0%   { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.85); }
+    70%  { transform: translateX(-50%) translateY(-3px) scale(1.04); }
+    100% { opacity: 1; transform: translateX(-50%) translateY(-2px) scale(1); }
+}
+.badge-img-hover {
+    animation: badge-spin-glow 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.badge-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(-2px);
+    white-space: nowrap;
+    background: linear-gradient(135deg, rgba(30,30,40,0.97) 0%, rgba(50,50,70,0.97) 100%);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 5px 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.1) inset, 0 0 12px rgba(255,255,255,0.08);
+    pointer-events: none;
+    animation: tooltip-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 9999;
+}
+.badge-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(50,50,70,0.97);
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+}
+`;
+
 interface BadgeWithTooltipProps {
     badge: InventoryItem;
     biographyColor: string;
-    colorFilter: string; // ← novo prop
+    colorFilter: string;
 }
 
-const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = ({ badge, biographyColor, colorFilter }) => {
+const BadgeWithTooltip: React.FC<BadgeWithTooltipProps> = React.memo(({ badge, biographyColor, colorFilter }) => {
     const [showTooltip, setShowTooltip] = useState(false);
-    const badgeName = badge.name || extractBadgeName(badge.url);
+    const badgeName = useMemo(() => badge.name || extractBadgeName(badge.url), [badge.name, badge.url]);
     const isColorReady = colorFilter !== 'none';
 
+    const imgStyle = useMemo((): React.CSSProperties => ({
+        width: 24,
+        height: 24,
+        objectFit: 'contain',
+        transition: showTooltip
+            ? 'none'
+            : 'filter 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease',
+        opacity: isColorReady ? 1 : 0.5,
+        filter: isColorReady
+            ? `${colorFilter} drop-shadow(0 0 1px ${biographyColor}80)`
+            : 'grayscale(1)',
+    }), [showTooltip, isColorReady, colorFilter, biographyColor]);
+
+    const onEnter = useCallback(() => setShowTooltip(true), []);
+    const onLeave = useCallback(() => setShowTooltip(false), []);
+
     return (
-        <>
-            <style>{`
-                @keyframes tooltip-pop {
-                    0%   { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.85); }
-                    70%  { transform: translateX(-50%) translateY(-3px) scale(1.04); }
-                    100% { opacity: 1; transform: translateX(-50%) translateY(-2px) scale(1); }
-                }
-
-                .badge-img-hover {
-                    animation: badge-spin-glow 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-                }
-
-                .badge-tooltip {
-                    position: absolute;
-                    bottom: calc(100% + 10px);
-                    left: 50%;
-                    transform: translateX(-50%) translateY(-2px);
-                    white-space: nowrap;
-                    background: linear-gradient(135deg, rgba(30,30,40,0.97) 0%, rgba(50,50,70,0.97) 100%);
-                    color: #fff;
-                    font-size: 11px;
-                    font-weight: 600;
-                    letter-spacing: 0.04em;
-                    padding: 5px 10px;
-                    border-radius: 8px;
-                    box-shadow:
-                        0 4px 16px rgba(0,0,0,0.45),
-                        0 0 0 1px rgba(255,255,255,0.1) inset,
-                        0 0 12px rgba(255,255,255,0.08);
-                    pointer-events: none;
-                    animation: tooltip-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-                    backdrop-filter: blur(8px);
-                    -webkit-backdrop-filter: blur(8px);
-                    z-index: 9999;
-                }
-
-                /* Setinha do balão */
-                .badge-tooltip::after {
-                    content: '';
-                    position: absolute;
-                    top: 100%;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    border: 5px solid transparent;
-                    border-top-color: rgba(50,50,70,0.97);
-                    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
-                }
-            `}</style>
-
-            <div
-                style={{ position: 'relative', cursor: 'pointer', display: 'inline-flex' }}
-                onMouseEnter={() => setShowTooltip(true)}
-                onMouseLeave={() => setShowTooltip(false)}
-            >
-                <img
-                    key={biographyColor}
-                    src={badge.url}
-                    alt={badgeName}
-                    className={showTooltip ? 'badge-img-hover' : ''}
-                    style={{
-                        width: 24,
-                        height: 24,
-                        objectFit: 'contain',
-                        transition: showTooltip
-                            ? 'none'
-                            : 'filter 0.3s ease-in-out, opacity 0.3s ease-in-out, transform 0.3s ease',
-                        opacity: isColorReady ? 1 : 0.5,
-                        filter: isColorReady
-                            ? `${colorFilter} drop-shadow(0 0 1px ${biographyColor}80)`
-                            : 'grayscale(1)',
-                    }}
-                />
-
-                {showTooltip && (
-                    <div className="badge-tooltip">
-                        {badgeName}
-                    </div>
-                )}
-            </div>
-        </>
+        <div
+            style={{ position: 'relative', cursor: 'pointer', display: 'inline-flex' }}
+            onMouseEnter={onEnter}
+            onMouseLeave={onLeave}
+        >
+            <img
+                key={biographyColor}
+                src={badge.url}
+                alt={badgeName}
+                className={showTooltip ? 'badge-img-hover' : undefined}
+                style={imgStyle}
+                loading="lazy"
+            />
+            {showTooltip && <div className="badge-tooltip">{badgeName}</div>}
+        </div>
     );
-};
-/* ═══════════════════════════════════════════════════════════════════════════
-   VOLUME SLIDER COMPONENT
-═══════════════════════════════════════════════════════════════════════════ */
+});
+BadgeWithTooltip.displayName = 'BadgeWithTooltip';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VOLUME SLIDER COMPONENT - PREMIUM VERSION
+   VOLUME SLIDER - Memoizado com useCallback
 ═══════════════════════════════════════════════════════════════════════════ */
 
 interface VolumeSliderProps {
@@ -450,7 +455,7 @@ interface VolumeSliderProps {
     onToggleMute: () => void;
 }
 
-const VolumeSlider: React.FC<VolumeSliderProps> = ({
+const VolumeSlider: React.FC<VolumeSliderProps> = React.memo(({
     volume,
     onChange,
     isPlaying,
@@ -464,48 +469,47 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
     const sliderRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Simular níveis de áudio quando tocando
     useEffect(() => {
         if (!isPlaying) {
             setAudioLevels([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
             return;
         }
-
         const interval = setInterval(() => {
             setAudioLevels(prev =>
                 prev.map(() => 0.2 + Math.random() * 0.8 * volume)
             );
         }, 100);
-
         return () => clearInterval(interval);
     }, [isPlaying, volume]);
 
-    // Fechar ao clicar fora
     useEffect(() => {
+        if (!isExpanded) return;
         const handleClickOutside = (e: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
                 setIsExpanded(false);
             }
         };
-
-        if (isExpanded) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
-        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [isExpanded]);
 
-    const handleSliderInteraction = (e: React.MouseEvent | MouseEvent) => {
+    const handleSliderInteraction = useCallback((e: React.MouseEvent | MouseEvent) => {
         if (!sliderRef.current) return;
         const rect = sliderRef.current.getBoundingClientRect();
         const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
         onChange(Math.round(y * 100) / 100);
-    };
+    }, [onChange]);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
         setIsDragging(true);
         handleSliderInteraction(e);
 
-        const handleMouseMove = (e: MouseEvent) => handleSliderInteraction(e);
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!sliderRef.current) return;
+            const rect = sliderRef.current.getBoundingClientRect();
+            const y = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+            onChange(Math.round(y * 100) / 100);
+        };
         const handleMouseUp = () => {
             setIsDragging(false);
             document.removeEventListener('mousemove', handleMouseMove);
@@ -514,130 +518,58 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    };
+    }, [handleSliderInteraction, onChange]);
 
-    // Ícone de volume dinâmico
-    const VolumeIcon = () => {
-        const getIcon = () => {
-            if (volume === 0) {
-                return (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <path
-                            d="M11 5L6 9H2V15H6L11 19V5Z"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        />
-                        <line
-                            x1="22"
-                            y1="9"
-                            x2="16"
-                            y2="15"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                        />
-                        <line
-                            x1="16"
-                            y1="9"
-                            x2="22"
-                            y2="15"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                        />
-                    </svg>
-                );
-            }
+    const handleMainClick = useCallback(() => {
+        if (isExpanded) {
+            onTogglePlay();
+        } else {
+            setIsExpanded(true);
+        }
+    }, [isExpanded, onTogglePlay]);
 
+    const handleContextMenu = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsExpanded(prev => !prev);
+    }, []);
+
+    const onHoverEnter = useCallback(() => setIsHovering(true), []);
+    const onHoverLeave = useCallback(() => setIsHovering(false), []);
+
+    const VolumeIcon = useMemo(() => {
+        if (volume === 0) {
             return (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path
-                        d="M11 5L6 9H2V15H6L11 19V5Z"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="currentColor"
-                        fillOpacity="0.2"
-                    />
-                    {volume > 0 && (
-                        <path
-                            d="M15.54 8.46C16.48 9.4 17 10.67 17 12C17 13.33 16.48 14.6 15.54 15.54"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            style={{
-                                opacity: volume > 0.3 ? 1 : 0.4,
-                                transition: 'opacity 0.2s'
-                            }}
-                        />
-                    )}
-                    {volume > 0.5 && (
-                        <path
-                            d="M18.07 5.93C19.78 7.64 20.75 9.78 20.75 12C20.75 14.22 19.78 16.36 18.07 18.07"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            style={{
-                                opacity: volume > 0.6 ? 1 : 0.4,
-                                transition: 'opacity 0.2s'
-                            }}
-                        />
-                    )}
+                    <path d="M11 5L6 9H2V15H6L11 19V5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <line x1="22" y1="9" x2="16" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="16" y1="9" x2="22" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
             );
-        };
-
+        }
         return (
-            <div style={{ color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {getIcon()}
-            </div>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M11 5L6 9H2V15H6L11 19V5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2" />
+                {volume > 0 && (
+                    <path d="M15.54 8.46C16.48 9.4 17 10.67 17 12C17 13.33 16.48 14.6 15.54 15.54" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ opacity: volume > 0.3 ? 1 : 0.4, transition: 'opacity 0.2s' }} />
+                )}
+                {volume > 0.5 && (
+                    <path d="M18.07 5.93C19.78 7.64 20.75 9.78 20.75 12C20.75 14.22 19.78 16.36 18.07 18.07" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ opacity: volume > 0.6 ? 1 : 0.4, transition: 'opacity 0.2s' }} />
+                )}
+            </svg>
         );
-    };
+    }, [volume]);
 
-    // Ícone de Play/Pause animado
-    const PlayPauseIcon = () => (
-        <div
-            style={{
-                width: 20,
-                height: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-            }}
-        >
+    const PlayPauseIcon = useMemo(() => (
+        <div style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
             {isPlaying ? (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="6" y="4" width="4" height="16" rx="1">
-                        <animate
-                            attributeName="height"
-                            values="16;12;16"
-                            dur="0.5s"
-                            repeatCount="indefinite"
-                        />
-                        <animate
-                            attributeName="y"
-                            values="4;6;4"
-                            dur="0.5s"
-                            repeatCount="indefinite"
-                        />
+                        <animate attributeName="height" values="16;12;16" dur="0.5s" repeatCount="indefinite" />
+                        <animate attributeName="y" values="4;6;4" dur="0.5s" repeatCount="indefinite" />
                     </rect>
                     <rect x="14" y="4" width="4" height="16" rx="1">
-                        <animate
-                            attributeName="height"
-                            values="12;16;12"
-                            dur="0.5s"
-                            repeatCount="indefinite"
-                        />
-                        <animate
-                            attributeName="y"
-                            values="6;4;6"
-                            dur="0.5s"
-                            repeatCount="indefinite"
-                        />
+                        <animate attributeName="height" values="12;16;12" dur="0.5s" repeatCount="indefinite" />
+                        <animate attributeName="y" values="6;4;6" dur="0.5s" repeatCount="indefinite" />
                     </rect>
                 </svg>
             ) : (
@@ -646,13 +578,15 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
                 </svg>
             )}
         </div>
-    );
+    ), [isPlaying]);
+
+    const volumeDasharray = useMemo(() => `${volume * 150.8} 150.8`, [volume]);
 
     return (
         <div
             ref={containerRef}
-            onMouseEnter={() => setIsHovering(true)}
-            onMouseLeave={() => setIsHovering(false)}
+            onMouseEnter={onHoverEnter}
+            onMouseLeave={onHoverLeave}
             style={{
                 position: 'fixed',
                 bottom: 24,
@@ -664,7 +598,7 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
                 gap: 8,
             }}
         >
-            {/* ══════ SLIDER EXPANDIDO ══════ */}
+            {/* SLIDER EXPANDIDO */}
             <div
                 style={{
                     position: 'relative',
@@ -686,11 +620,7 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
                         WebkitBackdropFilter: 'blur(20px)',
                         borderRadius: 28,
                         border: '1px solid rgba(255,255,255,0.1)',
-                        boxShadow: `
-                            0 20px 60px rgba(0,0,0,0.5),
-                            0 0 0 1px rgba(255,255,255,0.05) inset,
-                            0 -20px 40px rgba(255,255,255,0.02) inset
-                        `,
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset, 0 -20px 40px rgba(255,255,255,0.02) inset',
                         padding: '16px 12px',
                         display: 'flex',
                         flexDirection: 'column',
@@ -698,286 +628,134 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
                         gap: 12,
                     }}
                 >
-                    {/* Porcentagem de volume */}
-                    <div
-                        style={{
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: '#fff',
-                            opacity: 0.9,
-                            letterSpacing: '0.05em',
-                            fontFamily: 'SF Mono, Monaco, monospace',
-                        }}
-                    >
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', opacity: 0.9, letterSpacing: '0.05em', fontFamily: 'SF Mono, Monaco, monospace' }}>
                         {Math.round(volume * 100)}%
                     </div>
 
-                    {/* Slider Track */}
                     <div
                         ref={sliderRef}
                         onMouseDown={handleMouseDown}
-                        style={{
-                            position: 'relative',
-                            width: 32,
-                            height: 100,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            justifyContent: 'center',
-                        }}
+                        style={{ position: 'relative', width: 32, height: 100, cursor: 'pointer', display: 'flex', justifyContent: 'center' }}
                     >
-                        {/* Background Track */}
-                        <div
-                            style={{
-                                position: 'absolute',
-                                width: 6,
-                                height: '100%',
-                                background: 'rgba(255,255,255,0.1)',
+                        <div style={{ position: 'absolute', width: 6, height: '100%', background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{
+                                position: 'absolute', bottom: 0, left: 0, right: 0,
+                                height: `${volume * 100}%`,
+                                background: 'linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%)',
                                 borderRadius: 3,
-                                overflow: 'hidden',
-                            }}
-                        >
-                            {/* Filled Track */}
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    height: `${volume * 100}%`,
-                                    background: 'linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%)',
-                                    borderRadius: 3,
-                                    transition: isDragging ? 'none' : 'height 0.15s ease-out',
-                                    boxShadow: '0 0 12px rgba(255,255,255,0.3)',
-                                }}
-                            />
+                                transition: isDragging ? 'none' : 'height 0.15s ease-out',
+                                boxShadow: '0 0 12px rgba(255,255,255,0.3)',
+                            }} />
                         </div>
 
-                        {/* Audio Visualizer Bars */}
-                        <div
-                            style={{
-                                position: 'absolute',
-                                inset: 0,
-                                display: 'flex',
-                                alignItems: 'flex-end',
-                                justifyContent: 'center',
-                                gap: 2,
-                                padding: '0 2px',
-                                opacity: isPlaying ? 0.6 : 0,
-                                transition: 'opacity 0.3s',
-                            }}
-                        >
+                        <div style={{
+                            position: 'absolute', inset: 0,
+                            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                            gap: 2, padding: '0 2px',
+                            opacity: isPlaying ? 0.6 : 0, transition: 'opacity 0.3s',
+                        }}>
                             {audioLevels.map((level, i) => (
-                                <div
-                                    key={i}
-                                    style={{
-                                        width: 2,
-                                        height: `${level * 100}%`,
-                                        background: `linear-gradient(180deg, 
-                                            rgba(255,255,255,0.9) 0%, 
-                                            rgba(255,255,255,0.3) 100%
-                                        )`,
-                                        borderRadius: 1,
-                                        transition: 'height 0.1s ease-out',
-                                    }}
-                                />
+                                <div key={i} style={{
+                                    width: 2,
+                                    height: `${level * 100}%`,
+                                    background: 'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.3) 100%)',
+                                    borderRadius: 1, transition: 'height 0.1s ease-out',
+                                }} />
                             ))}
                         </div>
 
-                        {/* Thumb/Handle */}
-                        <div
-                            style={{
-                                position: 'absolute',
-                                left: '50%',
-                                bottom: `calc(${volume * 100}% - 8px)`,
-                                transform: `translateX(-50%) scale(${isDragging ? 1.2 : 1})`,
-                                width: 16,
-                                height: 16,
-                                background: '#fff',
+                        <div style={{
+                            position: 'absolute', left: '50%',
+                            bottom: `calc(${volume * 100}% - 8px)`,
+                            transform: `translateX(-50%) scale(${isDragging ? 1.2 : 1})`,
+                            width: 16, height: 16, background: '#fff', borderRadius: '50%',
+                            boxShadow: `0 2px 8px rgba(0,0,0,0.3), 0 0 0 ${isDragging ? '8px' : '0px'} rgba(255,255,255,0.1)`,
+                            transition: isDragging ? 'transform 0.1s, box-shadow 0.2s' : 'all 0.15s ease-out',
+                            cursor: 'grab',
+                        }}>
+                            <div style={{
+                                position: 'absolute', top: '50%', left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: 6, height: 6,
+                                background: 'linear-gradient(135deg, #333 0%, #000 100%)',
                                 borderRadius: '50%',
-                                boxShadow: `
-                                    0 2px 8px rgba(0,0,0,0.3),
-                                    0 0 0 ${isDragging ? '8px' : '0px'} rgba(255,255,255,0.1)
-                                `,
-                                transition: isDragging
-                                    ? 'transform 0.1s, box-shadow 0.2s'
-                                    : 'all 0.15s ease-out',
-                                cursor: 'grab',
-                            }}
-                        >
-                            {/* Inner dot */}
-                            <div
-                                style={{
-                                    position: 'absolute',
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    width: 6,
-                                    height: 6,
-                                    background: 'linear-gradient(135deg, #333 0%, #000 100%)',
-                                    borderRadius: '50%',
-                                }}
-                            />
+                            }} />
                         </div>
                     </div>
 
-                    {/* Mute Button */}
                     <button
                         onClick={onToggleMute}
                         style={{
-                            width: 32,
-                            height: 32,
-                            background: volume === 0
-                                ? 'rgba(255,59,48,0.2)'
-                                : 'rgba(255,255,255,0.1)',
-                            border: 'none',
-                            borderRadius: '50%',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            width: 32, height: 32,
+                            background: volume === 0 ? 'rgba(255,59,48,0.2)' : 'rgba(255,255,255,0.1)',
+                            border: 'none', borderRadius: '50%', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
                             transition: 'all 0.2s',
                             color: volume === 0 ? '#ff3b30' : '#fff',
                         }}
                     >
-                        <VolumeIcon />
+                        <div style={{ color: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {VolumeIcon}
+                        </div>
                     </button>
                 </div>
             </div>
 
-            {/* ══════ BOTÃO PRINCIPAL (PLAY/PAUSE) ══════ */}
+            {/* BOTÃO PRINCIPAL */}
             <button
-                onClick={() => {
-                    if (isExpanded) {
-                        onTogglePlay();
-                    } else {
-                        setIsExpanded(true);
-                    }
-                }}
-                onContextMenu={(e) => {
-                    e.preventDefault();
-                    setIsExpanded(!isExpanded);
-                }}
+                onClick={handleMainClick}
+                onContextMenu={handleContextMenu}
                 style={{
-                    position: 'relative',
-                    width: 56,
-                    height: 56,
-                    borderRadius: '50%',
-                    border: 'none',
-                    cursor: 'pointer',
+                    position: 'relative', width: 56, height: 56, borderRadius: '50%',
+                    border: 'none', cursor: 'pointer',
                     background: 'linear-gradient(135deg, rgba(30,30,30,0.98) 0%, rgba(10,10,10,0.98) 100%)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                    boxShadow: `
-                        0 8px 32px rgba(0,0,0,0.4),
-                        0 0 0 1px rgba(255,255,255,0.1) inset,
-                        ${isPlaying ? '0 0 20px rgba(255,255,255,0.1)' : 'none'}
-                    `,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset${isPlaying ? ', 0 0 20px rgba(255,255,255,0.1)' : ''}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     transform: isHovering ? 'scale(1.05)' : 'scale(1)',
                     overflow: 'hidden',
                 }}
             >
-                {/* Animated Ring quando tocando */}
                 {isPlaying && (
-                    <>
-                        <div
-                            style={{
-                                position: 'absolute',
-                                inset: -2,
-                                borderRadius: '50%',
-                                border: '2px solid transparent',
-                                borderTopColor: 'rgba(255,255,255,0.5)',
-                                animation: 'spin 2s linear infinite',
-                            }}
-                        />
-                        <style>
-                            {`
-                                @keyframes spin {
-                                    to { transform: rotate(360deg); }
-                                }
-                            `}
-                        </style>
-                    </>
+                    <div style={{
+                        position: 'absolute', inset: -2, borderRadius: '50%',
+                        border: '2px solid transparent', borderTopColor: 'rgba(255,255,255,0.5)',
+                        animation: 'spin 2s linear infinite',
+                    }} />
                 )}
-
-                {/* Glow effect */}
-                <div
-                    style={{
-                        position: 'absolute',
-                        inset: 0,
-                        borderRadius: '50%',
-                        background: `radial-gradient(circle at 30% 30%, 
-                            rgba(255,255,255,0.15) 0%, 
-                            transparent 60%
-                        )`,
-                    }}
-                />
-
-                {/* Volume Level Indicator Ring */}
-                <svg
-                    style={{
-                        position: 'absolute',
-                        width: 52,
-                        height: 52,
-                        transform: 'rotate(-90deg)',
-                    }}
-                >
-                    <circle
-                        cx="26"
-                        cy="26"
-                        r="24"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.1)"
-                        strokeWidth="2"
-                    />
-                    <circle
-                        cx="26"
-                        cy="26"
-                        r="24"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.6)"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeDasharray={`${volume * 150.8} 150.8`}
-                        style={{
-                            transition: 'stroke-dasharray 0.2s ease-out',
-                        }}
-                    />
+                <div style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 60%)',
+                }} />
+                <svg style={{ position: 'absolute', width: 52, height: 52, transform: 'rotate(-90deg)' }}>
+                    <circle cx="26" cy="26" r="24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2" />
+                    <circle cx="26" cy="26" r="24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2"
+                        strokeLinecap="round" strokeDasharray={volumeDasharray}
+                        style={{ transition: 'stroke-dasharray 0.2s ease-out' }} />
                 </svg>
-
-                {/* Icon */}
-                <PlayPauseIcon />
+                {PlayPauseIcon}
             </button>
 
-            {/* ══════ HINT TOOLTIP ══════ */}
-            <div
-                style={{
-                    position: 'absolute',
-                    right: 70,
-                    bottom: 14,
-                    padding: '6px 12px',
-                    background: 'rgba(0,0,0,0.9)',
-                    borderRadius: 8,
-                    fontSize: 12,
-                    color: '#fff',
-                    whiteSpace: 'nowrap',
-                    opacity: isHovering && !isExpanded ? 1 : 0,
-                    transform: isHovering && !isExpanded ? 'translateX(0)' : 'translateX(10px)',
-                    transition: 'all 0.2s',
-                    pointerEvents: 'none',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                }}
-            >
+            {/* HINT TOOLTIP */}
+            <div style={{
+                position: 'absolute', right: 70, bottom: 14, padding: '6px 12px',
+                background: 'rgba(0,0,0,0.9)', borderRadius: 8, fontSize: 12, color: '#fff',
+                whiteSpace: 'nowrap',
+                opacity: isHovering && !isExpanded ? 1 : 0,
+                transform: isHovering && !isExpanded ? 'translateX(0)' : 'translateX(10px)',
+                transition: 'all 0.2s', pointerEvents: 'none',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            }}>
                 {isPlaying ? 'Tocando' : 'Pausado'} • Clique para {isPlaying ? 'pausar' : 'tocar'}
             </div>
         </div>
     );
-};
+});
+VolumeSlider.displayName = 'VolumeSlider';
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   SOCIAL ICONS (COLOQUE SEUS ÍCONES AQUI MANUALMENTE)
+   SOCIAL ICONS - (mantidos como no original)
 ═══════════════════════════════════════════════════════════════════════════ */
 const InstagramIcon: React.FC<IconProps> = ({ color }) => (
     <svg viewBox="0 0 24 24" width="30" height="30">
@@ -1094,11 +872,14 @@ const PayPalIcon: React.FC<IconProps> = ({ color }) => (
 );
 
 const XboxIcon: React.FC<IconProps> = ({ color }) => (
-    <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#107C10"}>
-        <path d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417z" />
-    </svg>
+  <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#107C10"}>
+    <path d="M5.112 3.4C6.88 1.983 9.14 1.04 11.999 1c2.86.04 5.12.983 6.889 2.4C17.362 1.862 15.03 1.207 12 1.207S6.638 1.862 5.112 3.4z" />
+    <path d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417z" />
+    <path d="M4.012 4.108C2.272 5.836.879 8.222.879 11.4c0 2.548.801 5.131 2.209 7.052C2.088 14.364 4.771 9.4 7.577 6.8c-.975-.876-2.375-1.9-3.565-2.692z" />
+    <path d="M16.423 6.8c2.806 2.6 5.489 7.564 4.489 11.652 1.408-1.921 2.209-4.504 2.209-7.052 0-3.178-1.393-5.564-3.133-7.292-1.19.792-2.59 1.816-3.565 2.692z" />
+    <path d="M15.904 6.205C14.354 4.962 13.04 4.17 12 3.873c-1.04.297-2.354 1.089-3.904 2.332C9.398 7.62 10.745 8.95 12 10.05c1.255-1.1 2.602-2.43 3.904-3.845z" />
+  </svg>
 );
-
 const PinterestIcon: React.FC<IconProps> = ({ color }) => (
     <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#BD081C"}>
         <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.92-7.252 4.158 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.39 18.592.026 11.985.026L12.017 0z" />
@@ -1181,10 +962,6 @@ const NameMCIcon: React.FC<IconProps> = ({ color }) => (
     </svg>
 );
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   ICON MAP (PREENCHA MANUALMENTE)
-═══════════════════════════════════════════════════════════════════════════ */
-
 const ICON_MAP: Record<number, React.FC<IconProps>> = {
     1: InstagramIcon,
     2: SnapchatIcon,
@@ -1220,8 +997,9 @@ const ICON_MAP: Record<number, React.FC<IconProps>> = {
     32: GmailIcon,
     33: NameMCIcon,
 };
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   GLOBAL STYLES
+   GLOBAL STYLES - String estática, nunca recriada
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const globalStylesCSS = `
@@ -1233,159 +1011,76 @@ const globalStylesCSS = `
 .animate-float-up {
     animation: float-up 2s ease-out forwards;
 }
-
 @keyframes neon-flicker {
     0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
-        text-shadow:
-            0 0 5px #fff, 0 0 10px #fff,
-            0 0 20px #ff00de, 0 0 30px #ff00de,
-            0 0 40px #ff00de, 0 0 55px #ff00de, 0 0 75px #ff00de;
+        text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 30px #ff00de, 0 0 40px #ff00de, 0 0 55px #ff00de, 0 0 75px #ff00de;
     }
     20%, 24%, 55% { text-shadow: none; }
 }
 .name-neon {
     color: #fff;
-    text-shadow:
-        0 0 5px #fff, 0 0 10px #fff,
-        0 0 20px #ff00de, 0 0 30px #ff00de, 0 0 40px #ff00de;
+    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 30px #ff00de, 0 0 40px #ff00de;
     animation: neon-flicker 1.5s infinite alternate;
 }
-
-@keyframes shiny-move {
-    0% { background-position: 200% center; }
-    100% { background-position: -200% center; }
-}
-
-/* Container com GIF de fundo */
-.name-shiny-container {
-    position: relative;
-    display: inline-block;
-    padding: 1px;
-}
-
-/* GIF ATRÁS do texto */
+@keyframes shiny-move { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
+.name-shiny-container { position: relative; display: inline-block; padding: 1px; }
 .name-shiny-container::before {
-    content: '';
-    position: absolute;
-    inset: 0;
+    content: ''; position: absolute; inset: 0;
     background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto;
-    opacity: 1;
-    border-radius: 12px;
-    z-index: 0;
-    pointer-events: none;
+    opacity: 1; border-radius: 12px; z-index: 0; pointer-events: none;
 }
-
-/* GIF NA FRENTE do texto também (dobra o efeito) */
 .name-shiny-container::after {
-    content: '';
-    position: absolute;
-    inset: 0;
+    content: ''; position: absolute; inset: 0;
     background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto;
-    opacity: 0.7;
-    border-radius: 12px;
-    z-index: 2;
-    pointer-events: none;
-    mix-blend-mode: screen; /* faz o preto ficar transparente, só partículas aparecem */
+    opacity: 0.7; border-radius: 12px; z-index: 2; pointer-events: none; mix-blend-mode: screen;
 }
-
-/* Texto no meio */
 .name-shiny {
-    position: relative;
-    z-index: 1;
-    color: #ffffff;
-    font-weight: bold;
+    position: relative; z-index: 1; color: #ffffff; font-weight: bold;
     -webkit-text-fill-color: #ffffff;
     text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5);
-    background: none;
-    background-image: none;
-    animation: none;
+    background: none; background-image: none; animation: none;
 }
-
 @keyframes rgb-cycle {
-    0% { color: #ff0000; }
-    16.67% { color: #ff8000; }
-    33.33% { color: #ffff00; }
-    50% { color: #00ff00; }
-    66.67% { color: #0080ff; }
-    83.33% { color: #8000ff; }
-    100% { color: #ff0000; }
+    0% { color: #ff0000; } 16.67% { color: #ff8000; } 33.33% { color: #ffff00; }
+    50% { color: #00ff00; } 66.67% { color: #0080ff; } 83.33% { color: #8000ff; } 100% { color: #ff0000; }
 }
-.name-rgb {
-    animation: rgb-cycle 3s linear infinite;
-}
-
+.name-rgb { animation: rgb-cycle 3s linear infinite; }
 @keyframes text-glow-pulse {
-    0%, 100% { 
-        text-shadow: 0 0 4px rgba(255,255,255,0.3), 0 0 12px rgba(255,255,255,0.15); 
-    }
-    50% { 
-        text-shadow: 0 0 8px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.25), 0 0 40px rgba(255,255,255,0.1); 
-    }
+    0%, 100% { text-shadow: 0 0 4px rgba(255,255,255,0.3), 0 0 12px rgba(255,255,255,0.15); }
+    50% { text-shadow: 0 0 8px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.25), 0 0 40px rgba(255,255,255,0.1); }
 }
 .name-glow {
     text-shadow: 0 0 6px rgba(255,255,255,0.35), 0 0 16px rgba(255,255,255,0.15);
     animation: text-glow-pulse 3s ease-in-out infinite;
 }
-
-@keyframes rgb-border-animation {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
+@keyframes rgb-border-animation { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 .rgb-border-wrapper {
-    position: relative;
-    padding: 3px;
-    border-radius: 36px;
-    background: linear-gradient(45deg,
-        #ff0000, #ff8000, #ffff00, #00ff00,
-        #0080ff, #8000ff, #ff0080, #ff0000);
-    background-size: 400% 400%;
-    animation: rgb-border-animation 3s linear infinite;
+    position: relative; padding: 3px; border-radius: 36px;
+    background: linear-gradient(45deg, #ff0000, #ff8000, #ffff00, #00ff00, #0080ff, #8000ff, #ff0080, #ff0000);
+    background-size: 400% 400%; animation: rgb-border-animation 3s linear infinite;
 }
-
-@keyframes money-fall {
-    0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-}
-
-@keyframes thunder-flash {
-    0%, 100% { opacity: 0; }
-    10%, 30% { opacity: 0.3; }
-    20% { opacity: 0.8; }
-}
-.thunder-overlay {
-    animation: thunder-flash 4s infinite;
-}
-
-@keyframes smoke-rise {
-    0% { transform: translateY(100%) scale(1); opacity: 0.6; }
-    100% { transform: translateY(-100vh) scale(2); opacity: 0; }
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+@keyframes money-fall { 0% { transform: translateY(-100px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+@keyframes thunder-flash { 0%, 100% { opacity: 0; } 10%, 30% { opacity: 0.3; } 20% { opacity: 0.8; } }
+.thunder-overlay { animation: thunder-flash 4s infinite; }
+@keyframes smoke-rise { 0% { transform: translateY(100%) scale(1); opacity: 0.6; } 100% { transform: translateY(-100vh) scale(2); opacity: 0; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 `;
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   EFFECTS COMPONENTS
+   EFFECTS COMPONENTS - Otimizados com React.memo e cleanup melhorado
 ═══════════════════════════════════════════════════════════════════════════ */
 
-const SnowEffect: React.FC = () => {
+const CANVAS_STYLE: React.CSSProperties = {
+    position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999,
+};
+
+// Hook reutilizável para canvas com resize
+const useCanvasEffect = (
+    drawFn: (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) => (() => void) | void
+) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
@@ -1394,9 +1089,26 @@ const SnowEffect: React.FC = () => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const updateSize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+        updateSize();
 
+        const cleanup = drawFn(ctx, canvas);
+
+        window.addEventListener('resize', updateSize);
+        return () => {
+            window.removeEventListener('resize', updateSize);
+            cleanup?.();
+        };
+    }, []);
+
+    return canvasRef;
+};
+
+const SnowEffect: React.FC = React.memo(() => {
+    const canvasRef = useCanvasEffect((ctx, canvas) => {
         const flakes = Array.from({ length: 150 }, () => ({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
@@ -1409,55 +1121,30 @@ const SnowEffect: React.FC = () => {
         let animId: number;
         const draw = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            flakes.forEach((f) => {
+            for (let i = 0; i < flakes.length; i++) {
+                const f = flakes[i];
                 ctx.beginPath();
                 ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(255,255,255,${f.opacity})`;
                 ctx.fill();
                 f.y += f.speed;
                 f.x += f.wind;
-                if (f.y > canvas.height) {
-                    f.y = -5;
-                    f.x = Math.random() * canvas.width;
-                }
+                if (f.y > canvas.height) { f.y = -5; f.x = Math.random() * canvas.width; }
                 if (f.x > canvas.width) f.x = 0;
                 if (f.x < 0) f.x = canvas.width;
-            });
+            }
             animId = requestAnimationFrame(draw);
         };
         draw();
+        return () => cancelAnimationFrame(animId);
+    });
 
-        const onResize = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        };
-        window.addEventListener('resize', onResize);
-        return () => {
-            cancelAnimationFrame(animId);
-            window.removeEventListener('resize', onResize);
-        };
-    }, []);
+    return <canvas ref={canvasRef} style={CANVAS_STYLE} />;
+});
+SnowEffect.displayName = 'SnowEffect';
 
-    return (
-        <canvas
-            ref={canvasRef}
-            style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999 }}
-        />
-    );
-};
-
-const RainEffect: React.FC = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
+const RainEffect: React.FC = React.memo(() => {
+    const canvasRef = useCanvasEffect((ctx, canvas) => {
         const drops = Array.from({ length: 200 }, () => ({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
@@ -1469,43 +1156,28 @@ const RainEffect: React.FC = () => {
         let animId: number;
         const draw = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drops.forEach((d) => {
+            ctx.lineWidth = 1;
+            for (let i = 0; i < drops.length; i++) {
+                const d = drops[i];
                 ctx.beginPath();
                 ctx.moveTo(d.x, d.y);
                 ctx.lineTo(d.x + 1, d.y + d.len);
                 ctx.strokeStyle = `rgba(174,194,224,${d.opacity})`;
-                ctx.lineWidth = 1;
                 ctx.stroke();
                 d.y += d.speed;
-                if (d.y > canvas.height) {
-                    d.y = -d.len;
-                    d.x = Math.random() * canvas.width;
-                }
-            });
+                if (d.y > canvas.height) { d.y = -d.len; d.x = Math.random() * canvas.width; }
+            }
             animId = requestAnimationFrame(draw);
         };
         draw();
+        return () => cancelAnimationFrame(animId);
+    });
 
-        const onResize = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        };
-        window.addEventListener('resize', onResize);
-        return () => {
-            cancelAnimationFrame(animId);
-            window.removeEventListener('resize', onResize);
-        };
-    }, []);
+    return <canvas ref={canvasRef} style={CANVAS_STYLE} />;
+});
+RainEffect.displayName = 'RainEffect';
 
-    return (
-        <canvas
-            ref={canvasRef}
-            style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999 }}
-        />
-    );
-};
-
-const MoneyRainEffect: React.FC = () => {
+const MoneyRainEffect: React.FC = React.memo(() => {
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -1518,16 +1190,7 @@ const MoneyRainEffect: React.FC = () => {
         const create = () => {
             const el = document.createElement('span');
             el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
-            el.style.cssText = [
-                'position:fixed',
-                `left:${Math.random() * 100}vw`,
-                'top:-50px',
-                `font-size:${Math.random() * 20 + 20}px`,
-                'pointer-events:none',
-                'z-index:9999',
-                `animation:money-fall ${Math.random() * 3 + 3}s linear forwards`,
-                `transform:rotate(${Math.random() * 360}deg)`,
-            ].join(';');
+            el.style.cssText = `position:fixed;left:${Math.random() * 100}vw;top:-50px;font-size:${Math.random() * 20 + 20}px;pointer-events:none;z-index:9999;animation:money-fall ${Math.random() * 3 + 3}s linear forwards;transform:rotate(${Math.random() * 360}deg)`;
             container.appendChild(el);
             els.push(el);
             setTimeout(() => {
@@ -1540,25 +1203,15 @@ const MoneyRainEffect: React.FC = () => {
         const interval = setInterval(create, 150);
         return () => {
             clearInterval(interval);
-            els.forEach((e) => e.remove());
+            els.forEach(e => e.remove());
         };
     }, []);
 
-    return (
-        <div
-            ref={ref}
-            style={{
-                position: 'fixed',
-                inset: 0,
-                pointerEvents: 'none',
-                overflow: 'hidden',
-                zIndex: 9999,
-            }}
-        />
-    );
-};
+    return <div ref={ref} style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 9999 }} />;
+});
+MoneyRainEffect.displayName = 'MoneyRainEffect';
 
-const ThunderEffect: React.FC = () => {
+const ThunderEffect: React.FC = React.memo(() => {
     const [flash, setFlash] = useState(false);
 
     useEffect(() => {
@@ -1573,87 +1226,47 @@ const ThunderEffect: React.FC = () => {
 
     return (
         <>
-            <div
-                style={{
-                    position: 'fixed',
-                    inset: 0,
-                    backgroundColor: 'white',
-                    opacity: flash ? 0.8 : 0,
-                    pointerEvents: 'none',
-                    zIndex: 9999,
-                    transition: 'opacity 0.1s',
-                }}
-            />
-            <div
-                className="thunder-overlay"
-                style={{
-                    position: 'fixed',
-                    inset: 0,
-                    backgroundColor: 'rgba(100,100,150,0.3)',
-                    pointerEvents: 'none',
-                    zIndex: 9998,
-                }}
-            />
+            <div style={{
+                position: 'fixed', inset: 0, backgroundColor: 'white',
+                opacity: flash ? 0.8 : 0, pointerEvents: 'none', zIndex: 9999, transition: 'opacity 0.1s',
+            }} />
+            <div className="thunder-overlay" style={{
+                position: 'fixed', inset: 0, backgroundColor: 'rgba(100,100,150,0.3)',
+                pointerEvents: 'none', zIndex: 9998,
+            }} />
         </>
     );
-};
+});
+ThunderEffect.displayName = 'ThunderEffect';
 
-const SmokeEffect: React.FC = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
+const SmokeEffect: React.FC = React.memo(() => {
+    const canvasRef = useCanvasEffect((ctx, canvas) => {
         interface SmokeParticle {
-            x: number;
-            y: number;
-            vx: number;
-            vy: number;
-            size: number;
-            maxSize: number;
-            growRate: number;
-            opacity: number;
-            fadeRate: number;
-            turbulenceX: number;
-            turbulenceY: number;
-            turbulenceSpeed: number;
-            turbulenceOffset: number;
-            rotation: number;
-            rotationSpeed: number;
-            life: number;
-            maxLife: number;
+            x: number; y: number; vx: number; vy: number;
+            size: number; maxSize: number; growRate: number;
+            opacity: number; fadeRate: number;
+            turbulenceX: number; turbulenceY: number;
+            turbulenceSpeed: number; turbulenceOffset: number;
+            rotation: number; rotationSpeed: number;
+            life: number; maxLife: number;
             color: { r: number; g: number; b: number };
         }
 
         const particles: SmokeParticle[] = [];
         let time = 0;
 
-        // Pontos de emissão na base da tela
         const emitters = [
-            { x: 0.15, spread: 60 },
-            { x: 0.35, spread: 80 },
-            { x: 0.5, spread: 100 },
-            { x: 0.65, spread: 80 },
-            { x: 0.85, spread: 60 },
+            { x: 0.15, spread: 60 }, { x: 0.35, spread: 80 },
+            { x: 0.5, spread: 100 }, { x: 0.65, spread: 80 }, { x: 0.85, spread: 60 },
         ];
 
         const createParticle = (): SmokeParticle => {
             const emitter = emitters[Math.floor(Math.random() * emitters.length)];
             const baseX = canvas.width * emitter.x;
-            const spread = emitter.spread;
-
-            // Tons de cinza com leve variação azulada
             const brightness = Math.random() * 40 + 180;
             const blueTint = Math.random() * 15;
-
             return {
-                x: baseX + (Math.random() - 0.5) * spread,
+                x: baseX + (Math.random() - 0.5) * emitter.spread,
                 y: canvas.height + 20 + Math.random() * 40,
                 vx: (Math.random() - 0.5) * 0.3,
                 vy: -(Math.random() * 0.6 + 0.3),
@@ -1668,17 +1281,11 @@ const SmokeEffect: React.FC = () => {
                 turbulenceOffset: Math.random() * Math.PI * 2,
                 rotation: Math.random() * Math.PI * 2,
                 rotationSpeed: (Math.random() - 0.5) * 0.005,
-                life: 0,
-                maxLife: Math.random() * 600 + 400,
-                color: {
-                    r: brightness,
-                    g: brightness,
-                    b: brightness + blueTint,
-                },
+                life: 0, maxLife: Math.random() * 600 + 400,
+                color: { r: brightness, g: brightness, b: brightness + blueTint },
             };
         };
 
-        // Pré-popular com partículas
         for (let i = 0; i < 15; i++) {
             const p = createParticle();
             p.life = Math.random() * p.maxLife * 0.5;
@@ -1696,132 +1303,72 @@ const SmokeEffect: React.FC = () => {
             time++;
             spawnTimer++;
 
-            // Spawn gradual
             if (spawnTimer % 8 === 0 && particles.length < 60) {
                 particles.push(createParticle());
             }
 
-            // Vento global suave
             const globalWindX = Math.sin(time * 0.002) * 0.15;
             const globalWindY = Math.cos(time * 0.0015) * 0.05;
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.life++;
-
-                // Progresso de vida normalizado (0 a 1)
                 const lifeProgress = p.life / p.maxLife;
 
-                // Fase de aparição (fade in suave nos primeiros 15%)
-                if (lifeProgress < 0.15) {
-                    p.opacity = (lifeProgress / 0.15) * 0.12;
-                }
-                // Fase estável (15% a 50%)
-                else if (lifeProgress < 0.5) {
-                    p.opacity = 0.12;
-                }
-                // Fase de dissipação (50% a 100%)
+                if (lifeProgress < 0.15) p.opacity = (lifeProgress / 0.15) * 0.12;
+                else if (lifeProgress < 0.5) p.opacity = 0.12;
                 else {
                     const fadeProgress = (lifeProgress - 0.5) / 0.5;
                     p.opacity = 0.12 * (1 - fadeProgress * fadeProgress);
                 }
 
-                // Crescimento com desaceleração
-                if (p.size < p.maxSize) {
-                    const growFactor = 1 - (p.size / p.maxSize);
-                    p.size += p.growRate * growFactor;
-                }
+                if (p.size < p.maxSize) p.size += p.growRate * (1 - (p.size / p.maxSize));
 
-                // Turbulência orgânica (Perlin-like com múltiplas frequências)
                 const turb1 = Math.sin(time * p.turbulenceSpeed + p.turbulenceOffset) * p.turbulenceX;
                 const turb2 = Math.sin(time * p.turbulenceSpeed * 0.7 + p.turbulenceOffset * 1.3) * p.turbulenceX * 0.5;
                 const turb3 = Math.cos(time * p.turbulenceSpeed * 1.3 + p.turbulenceOffset * 0.7) * p.turbulenceY;
 
-                // Aplicar física
                 p.x += p.vx + turb1 + turb2 + globalWindX;
                 p.y += p.vy + turb3 + globalWindY;
-
-                // Desacelerar subida gradualmente
                 p.vy *= 0.999;
-
-                // Rotação
                 p.rotation += p.rotationSpeed;
 
-                // Desenhar partícula com gradiente radial suave
                 ctx.save();
                 ctx.translate(p.x, p.y);
                 ctx.rotate(p.rotation);
 
-                // Gradiente radial com múltiplas camadas para suavidade
                 const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 0.5);
-
                 const { r, g, b } = p.color;
-                gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.8})`);
-                gradient.addColorStop(0.2, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.6})`);
-                gradient.addColorStop(0.4, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.35})`);
-                gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.15})`);
-                gradient.addColorStop(0.8, `rgba(${r}, ${g}, ${b}, ${p.opacity * 0.05})`);
-                gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+                gradient.addColorStop(0, `rgba(${r},${g},${b},${p.opacity * 0.8})`);
+                gradient.addColorStop(0.2, `rgba(${r},${g},${b},${p.opacity * 0.6})`);
+                gradient.addColorStop(0.4, `rgba(${r},${g},${b},${p.opacity * 0.35})`);
+                gradient.addColorStop(0.6, `rgba(${r},${g},${b},${p.opacity * 0.15})`);
+                gradient.addColorStop(0.8, `rgba(${r},${g},${b},${p.opacity * 0.05})`);
+                gradient.addColorStop(1, `rgba(${r},${g},${b},0)`);
 
                 ctx.fillStyle = gradient;
-
-                // Forma levemente oval para parecer mais natural
                 ctx.scale(1, 0.85 + Math.sin(p.rotation) * 0.15);
                 ctx.beginPath();
                 ctx.arc(0, 0, p.size * 0.5, 0, Math.PI * 2);
                 ctx.fill();
-
                 ctx.restore();
 
-                // Remover partículas mortas
                 if (p.life >= p.maxLife || p.opacity <= 0.001 || p.y < -p.size) {
                     particles.splice(i, 1);
                 }
             }
-
             animId = requestAnimationFrame(draw);
         };
-
         draw();
+        return () => cancelAnimationFrame(animId);
+    });
 
-        const onResize = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        };
-        window.addEventListener('resize', onResize);
+    return <canvas ref={canvasRef} style={{ ...CANVAS_STYLE, mixBlendMode: 'screen' }} />;
+});
+SmokeEffect.displayName = 'SmokeEffect';
 
-        return () => {
-            cancelAnimationFrame(animId);
-            window.removeEventListener('resize', onResize);
-        };
-    }, []);
-
-    return (
-        <canvas
-            ref={canvasRef}
-            style={{
-                position: 'fixed',
-                inset: 0,
-                pointerEvents: 'none',
-                zIndex: 9999,
-                mixBlendMode: 'screen',
-            }}
-        />
-    );
-};
-
-const StarsEffect: React.FC = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
+const StarsEffect: React.FC = React.memo(() => {
+    const canvasRef = useCanvasEffect((ctx, canvas) => {
         const stars = Array.from({ length: 100 }, () => ({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
@@ -1834,7 +1381,8 @@ const StarsEffect: React.FC = () => {
         let animId: number;
         const draw = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            stars.forEach((s) => {
+            for (let i = 0; i < stars.length; i++) {
+                const s = stars[i];
                 if (s.inc) {
                     s.opacity += s.speed;
                     if (s.opacity >= 1) s.inc = false;
@@ -1850,31 +1398,18 @@ const StarsEffect: React.FC = () => {
                 ctx.arc(s.x, s.y, s.r * 2, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(255,255,255,${s.opacity * 0.3})`;
                 ctx.fill();
-            });
+            }
             animId = requestAnimationFrame(draw);
         };
         draw();
+        return () => cancelAnimationFrame(animId);
+    });
 
-        const onResize = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        };
-        window.addEventListener('resize', onResize);
-        return () => {
-            cancelAnimationFrame(animId);
-            window.removeEventListener('resize', onResize);
-        };
-    }, []);
+    return <canvas ref={canvasRef} style={CANVAS_STYLE} />;
+});
+StarsEffect.displayName = 'StarsEffect';
 
-    return (
-        <canvas
-            ref={canvasRef}
-            style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999 }}
-        />
-    );
-};
-
-const PageEffectsManager: React.FC<{ effects: PageEffects }> = ({ effects }) => (
+const PageEffectsManager: React.FC<{ effects: PageEffects }> = React.memo(({ effects }) => (
     <>
         {effects.snow && <SnowEffect />}
         {effects.rain && <RainEffect />}
@@ -1883,91 +1418,61 @@ const PageEffectsManager: React.FC<{ effects: PageEffects }> = ({ effects }) => 
         {effects.smoke && <SmokeEffect />}
         {effects.stars && <StarsEffect />}
     </>
-);
+));
+PageEffectsManager.displayName = 'PageEffectsManager';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   HELPERS
+   BACKGROUND COMPONENT - Memoizado
 ═══════════════════════════════════════════════════════════════════════════ */
 
-const hexToRgba = (hex: string, alpha: number): string => {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha / 100})`;
+const backgroundOverlayStyle: React.CSSProperties = {
+    position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)',
 };
 
-const getFaviconUrl = (url: string): string => {
-    try {
-        const domain = new URL(url).origin;
-        return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-    } catch {
-        return '';
-    }
+const bgMediaStyle: React.CSSProperties = {
+    position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
 };
 
-const isVideoUrl = (url: string): boolean => {
-    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.m3u8'];
-    try {
-        const pathname = new URL(url).pathname.toLowerCase();
-        return videoExtensions.some((ext) => pathname.endsWith(ext));
-    } catch {
-        const clean = url.toLowerCase().split('?')[0].split('#')[0];
-        return videoExtensions.some((ext) => clean.endsWith(ext));
-    }
-};
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   BACKGROUND COMPONENT
-═══════════════════════════════════════════════════════════════════════════ */
-
-const BackgroundMedia: React.FC<{ url: string }> = ({ url }) => {
-    const isVideo = isVideoUrl(url);
+const BackgroundMedia: React.FC<{ url: string }> = React.memo(({ url }) => {
+    const isVideo = useMemo(() => isVideoUrl(url), [url]);
 
     return (
         <>
             {isVideo ? (
-                <video
-                    src={url}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                    }}
-                />
+                <video src={url} autoPlay loop muted playsInline style={bgMediaStyle} />
             ) : (
-                <img
-                    src={url}
-                    alt="Background"
-                    style={{
-                        position: 'absolute',
-                        inset: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                    }}
-                />
+                <img src={url} alt="Background" style={bgMediaStyle} />
             )}
-            <div
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundColor: 'rgba(0,0,0,0.3)',
-                }}
-            />
+            <div style={backgroundOverlayStyle} />
         </>
     );
-};
-
-
+});
+BackgroundMedia.displayName = 'BackgroundMedia';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CARD CONTENT - Lógica corrigida para hasLinkTyped
+   CARD EFFECT OVERLAY - Memoizado
+═══════════════════════════════════════════════════════════════════════════ */
+
+const cardEffectContainerStyle: React.CSSProperties = {
+    position: 'absolute', inset: 0, pointerEvents: 'none',
+    borderRadius: 28, zIndex: 100, overflow: 'hidden',
+};
+
+const cardEffectImgStyle: React.CSSProperties = {
+    width: '100%', transform: 'translateY(0%)', height: '100%',
+    objectFit: 'cover', objectPosition: 'top',
+    pointerEvents: 'none', userSelect: 'none',
+};
+
+const CardEffectOverlay: React.FC<{ url: string }> = React.memo(({ url }) => (
+    <div style={cardEffectContainerStyle}>
+        <img src={url} alt="Card Effect" style={cardEffectImgStyle} loading="lazy" />
+    </div>
+));
+CardEffectOverlay.displayName = 'CardEffectOverlay';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARD CONTENT - Memoizado
 ═══════════════════════════════════════════════════════════════════════════ */
 
 interface CardContentProps {
@@ -1979,7 +1484,7 @@ interface CardContentProps {
     hasVerifiedBadge: boolean;
 }
 
-const CardContent: React.FC<CardContentProps> = ({
+const CardContent: React.FC<CardContentProps> = React.memo(({
     data,
     frame,
     badges,
@@ -1992,26 +1497,19 @@ const CardContent: React.FC<CardContentProps> = ({
     const badgeColor = data.contentSettings.badgeColor || data.contentSettings.biographyColor;
 
     const badgeColorFilter = useMemo(() => {
-        const isReady = badgeColor &&
-            badgeColor !== 'rgb(255, 255, 255)' &&
-            badgeColor !== 'transparent';
-
+        const isReady = badgeColor && badgeColor !== 'rgb(255, 255, 255)' && badgeColor !== 'transparent';
         if (!isReady) return 'none';
         return getCachedFilter(badgeColor);
     }, [badgeColor]);
 
-
-    // LÓGICA CORRIGIDA: Usa hasLinkTyped como critério principal
     const sortedLinks = useMemo(() => {
         return data.userLinksResponse.links
             .sort((a, b) => a.order - b.order)
             .reduce(
                 (acc, link) => {
-                    // Se hasLinkTyped é true E tem linkTypeId válido no ICON_MAP
                     if (link.hasLinkTyped && link.linkTypeId && ICON_MAP[link.linkTypeId]) {
                         acc.typed.push(link);
                     } else {
-                        // Caso contrário, exibe como link genérico (card retangular)
                         acc.generic.push(link);
                     }
                     return acc;
@@ -2020,43 +1518,59 @@ const CardContent: React.FC<CardContentProps> = ({
             );
     }, [data.userLinksResponse.links]);
 
-    // Filtrar badges que não são de verificado para exibição na lista de badges
-    const displayBadges = badges.filter(badge => !isVerifiedBadge(badge));
+    const displayBadges = useMemo(
+        () => badges.filter(badge => !isVerifiedBadge(badge)),
+        [badges]
+    );
+
+    const containerStyle = useMemo((): React.CSSProperties => ({
+        display: 'flex', flexDirection: 'column', padding: 14, gap: 6,
+        alignItems: centered ? 'center' : 'flex-start',
+        textAlign: centered ? 'center' : 'left',
+    }), [centered]);
+
+    const profileContainerStyle = useMemo((): React.CSSProperties => ({
+        position: 'relative', width: frameSize, height: frameSize,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }), [frameSize]);
+
+    const profileImageContainerStyle = useMemo((): React.CSSProperties => ({
+        position: 'absolute', width: profileSize, height: profileSize,
+        borderRadius: '50%', overflow: 'hidden', backgroundColor: '#374151',
+        zIndex: 1, boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+    }), [profileSize]);
+
+    const embedStyle = useMemo((): React.CSSProperties | null => {
+        if (!data.embedUrl) return null;
+        const base: React.CSSProperties = {
+            width: '100%', borderRadius: 16, overflow: 'hidden',
+            marginTop: 4, boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+        };
+        if (data.embedUrl.includes('spotify.com')) {
+            const isCompact = data.embedUrl.includes('/track/') || data.embedUrl.includes('/episode/');
+            return { ...base, height: isCompact ? 152 : 352, minHeight: isCompact ? 152 : 352 };
+        }
+        return { ...base, aspectRatio: '16/9' };
+    }, [data.embedUrl]);
+
+    const viewsFormatted = useMemo(() => data.views.toLocaleString(), [data.views]);
+
+    // Estilos estáveis para links genéricos
+    const genericLinkBaseStyle = useMemo((): React.CSSProperties => ({
+        width: '100%', padding: '12px 16px', borderRadius: 16,
+        backgroundColor: data.contentSettings.biographyColor + "1A",
+        border: '1px solid rgba(255, 255, 255, 0.15)', color: '#fff',
+        fontWeight: 500, textDecoration: 'none', display: 'flex',
+        alignItems: 'center', justifyContent: 'space-between', gap: 14,
+        transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        boxSizing: 'border-box', cursor: 'pointer', outline: 'none',
+    }), [data.contentSettings.biographyColor]);
 
     return (
-        <div
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                padding: 14,
-                gap: 6,
-                alignItems: centered ? 'center' : 'flex-start',
-                textAlign: centered ? 'center' : 'left',
-            }}
-        >
+        <div style={containerStyle}>
             {/* PROFILE IMAGE + FRAME */}
-            <div
-                style={{
-                    position: 'relative',
-                    width: frameSize,
-                    height: frameSize,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
-                <div
-                    style={{
-                        position: 'absolute',
-                        width: profileSize,
-                        height: profileSize,
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        backgroundColor: '#374151',
-                        zIndex: 1,
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                    }}
-                >
+            <div style={profileContainerStyle}>
+                <div style={profileImageContainerStyle}>
                     {data.mediaUrls.profileImageUrl ? (
                         <img
                             src={data.mediaUrls.profileImageUrl}
@@ -2064,117 +1578,70 @@ const CardContent: React.FC<CardContentProps> = ({
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                     ) : (
-                        <div
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                background: 'linear-gradient(135deg,#8b5cf6 0%,#ec4899 100%)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 48,
-                                color: '#fff',
-                            }}
-                        >
+                        <div style={{
+                            width: '100%', height: '100%',
+                            background: 'linear-gradient(135deg,#8b5cf6 0%,#ec4899 100%)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 48, color: '#fff',
+                        }}>
                             ?
                         </div>
                     )}
                 </div>
-
                 {data.isPremium && frame && (
                     <img
-                        src={frame}
-                        alt="Frame"
+                        src={frame} alt="Frame"
                         style={{
-                            position: 'absolute',
-                            width: frameSize,
-                            height: frameSize,
-                            objectFit: 'contain',
-                            zIndex: 2,
-                            pointerEvents: 'none',
+                            position: 'absolute', width: frameSize, height: frameSize,
+                            objectFit: 'contain', zIndex: 2, pointerEvents: 'none',
                         }}
+                        loading="lazy"
                     />
                 )}
             </div>
 
-            {/* NAME COM VERIFICADO (ÍCONE AZUL) */}
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: centered ? 'center' : 'flex-start',
-                    gap: 8,
-                }}
-            >
+            {/* NAME + VERIFIED */}
+            <div style={{
+                display: 'flex', alignItems: 'center',
+                justifyContent: centered ? 'center' : 'flex-start', gap: 8,
+            }}>
                 {data.nameEffects.shiny ? (
                     <div className="name-shiny-container">
-                        <h1
-                            className="name-shiny"
-                            style={{ fontSize: 24, fontWeight: 'bold', margin: 0, letterSpacing: '-0.02em' }}
-                        >
+                        <h1 className="name-shiny" style={{ fontSize: 24, fontWeight: 'bold', margin: 0, letterSpacing: '-0.02em' }}>
                             {data.slug}
                         </h1>
                     </div>
                 ) : (
                     <h1
-                        className={
-                            data.nameEffects.neon
-                                ? 'name-neon'
-                                : data.nameEffects.rgb
-                                    ? 'name-rgb'
-                                    : ''
-                        }
+                        className={data.nameEffects.neon ? 'name-neon' : data.nameEffects.rgb ? 'name-rgb' : ''}
                         style={{
-                            fontSize: 28,
-                            fontWeight: 'bold',
-                            margin: 0,
-                            letterSpacing: '-0.02em',
-                            color:
-                                !data.nameEffects.neon && !data.nameEffects.rgb
-                                    ? data.nameEffects.nameColor || '#fff'  // ← troca biographyColor por nameColor
-                                    : undefined,
+                            fontSize: 28, fontWeight: 'bold', margin: 0, letterSpacing: '-0.02em',
+                            color: !data.nameEffects.neon && !data.nameEffects.rgb
+                                ? data.nameEffects.nameColor || '#fff' : undefined,
                         }}
                     >
                         {data.slug}
                     </h1>
                 )}
-
-
-                {/* Ícone de Verificado Azul */}
                 {hasVerifiedBadge && (
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            animation: 'fadeIn 0.5s ease-out',
-                        }}
-                        title="Conta Verificada"
-                    >
+                    <div style={{ display: 'flex', alignItems: 'center', animation: 'fadeIn 0.5s ease-out' }} title="Conta Verificada">
                         <VerifiedIcon size={24} />
                     </div>
                 )}
             </div>
 
-            {/* BADGES COM TOOLTIPS (exceto verificado) */}
+            {/* BADGES */}
             {displayBadges.length > 0 && (
-                <div
-                    style={{
-                        width: 'max-content',
-                        padding: '0px',
-                        borderRadius: 20,
-                        backgroundColor: 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 3,
-                    }}
-                >
-                    {/* Onde você renderiza os badges */}
+                <div style={{
+                    width: 'max-content', padding: '0px', borderRadius: 20,
+                    backgroundColor: 'transparent', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', gap: 3,
+                }}>
                     {badges.map((badge) => (
                         <BadgeWithTooltip
                             key={badge.id}
                             badge={badge}
-                            biographyColor={badgeColor}  // ← troca biographyColor por badgeColor
+                            biographyColor={badgeColor}
                             colorFilter={badgeColorFilter}
                         />
                     ))}
@@ -2183,45 +1650,25 @@ const CardContent: React.FC<CardContentProps> = ({
 
             {/* BIOGRAPHY */}
             {data.contentSettings.biography && (
-                <p
-                    style={{
-                        fontSize: 16,
-                        paddingTop: '15px',
-                        color: data.contentSettings.biographyColor || '#fff',
-                        margin: 0,
-                        maxWidth: 380,
-                        lineHeight: 1.3,
-                        opacity: 0.85,
-                    }}
-                >
+                <p style={{
+                    fontSize: 16, paddingTop: '15px',
+                    color: data.contentSettings.biographyColor || '#fff',
+                    margin: 0, maxWidth: 380, lineHeight: 1.3, opacity: 0.85,
+                }}>
                     {data.contentSettings.biography}
                 </p>
             )}
 
             {/* TAGS */}
             {data.userTagsResponse.tags.length > 0 && (
-                <div
-                    style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 4,
-                        justifyContent: centered ? 'center' : 'flex-start',
-                    }}
-                >
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: centered ? 'center' : 'flex-start' }}>
                     {data.userTagsResponse.tags.map((tag) => (
-                        <span
-                            key={tag.tagId}
-                            style={{
-                                padding: '3px 5px',
-                                borderRadius: 14,
-                                border: '1px solid',
-                                borderColor: `${data.contentSettings.tagColor}80`,
-                                backgroundColor: 'transparent',
-                                color: data.contentSettings.tagColor,
-                                fontSize: 13,
-                                fontWeight: 600,
-                            }}
-                        >
+                        <span key={tag.tagId} style={{
+                            padding: '3px 5px', borderRadius: 14, border: '1px solid',
+                            borderColor: `${data.contentSettings.tagColor}80`,
+                            backgroundColor: 'transparent', color: data.contentSettings.tagColor,
+                            fontSize: 13, fontWeight: 600,
+                        }}>
                             {tag.tagName}
                         </span>
                     ))}
@@ -2229,88 +1676,36 @@ const CardContent: React.FC<CardContentProps> = ({
             )}
 
             {/* EMBED */}
-            {data.embedUrl && (
-                <div
-                    style={{
-                        width: '100%',
-                        borderRadius: 16,
-                        overflow: 'hidden',
-                        marginTop: 4,
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
-                        // Altura dinâmica baseada no tipo de embed
-                        ...(data.embedUrl.includes('spotify.com')
-                            ? {
-                                // Spotify: altura fixa baseada no tipo
-                                height: data.embedUrl.includes('/track/')
-                                    ? 152  // Track compacto
-                                    : data.embedUrl.includes('/episode/')
-                                        ? 152
-                                        : 352, // Playlist, album, artist
-                                minHeight: data.embedUrl.includes('/track/') ? 152 : 352,
-                            }
-                            : {
-                                // YouTube e outros: aspect ratio 16/9
-                                aspectRatio: '16/9',
-                            }
-                        ),
-                    }}
-                >
+            {data.embedUrl && embedStyle && (
+                <div style={embedStyle}>
                     <iframe
                         src={data.embedUrl}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            border: 'none',
-                            borderRadius: 12,
-                        }}
+                        style={{ width: '100%', height: '100%', border: 'none', borderRadius: 12 }}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        title="Embed"
-                        loading="lazy"
+                        allowFullScreen title="Embed" loading="lazy"
                     />
                 </div>
             )}
 
-
-            {/* ═══════════════════════════════════════════════════════════════
-                LINKS TIPADOS (hasLinkTyped: true) - APENAS ÍCONE SVG
-            ═══════════════════════════════════════════════════════════════ */}
+            {/* TYPED LINKS */}
             {sortedLinks.typed.length > 0 && (
-                <div
-                    style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: 0,
-                        justifyContent: centered ? 'center' : 'flex-start',
-                        width: '100%',
-                    }}
-                >
+                <div style={{
+                    display: 'flex', flexWrap: 'wrap', gap: 0,
+                    justifyContent: centered ? 'center' : 'flex-start', width: '100%',
+                }}>
                     {sortedLinks.typed.map((link) => {
                         const Icon = link.linkTypeId ? ICON_MAP[link.linkTypeId] : null;
-
                         return (
                             <a
-                                key={link.linkId}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                key={link.linkId} href={link.url} target="_blank" rel="noopener noreferrer"
                                 style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    padding: 5,
-                                    borderRadius: 16,
-                                    backgroundColor: 'transparent',
-                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    padding: 5, borderRadius: 16, backgroundColor: 'transparent',
+                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)', cursor: 'pointer',
                                 }}
                                 title={link.title}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1.15) translateY(-2px)';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1)';
-                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15) translateY(-2px)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
                             >
                                 {Icon && <Icon />}
                             </a>
@@ -2319,142 +1714,60 @@ const CardContent: React.FC<CardContentProps> = ({
                 </div>
             )}
 
-            {/* ═══════════════════════════════════════════════════════════════
-                LINKS GENÉRICOS (hasLinkTyped: false) - CARD RETANGULAR
-            ═══════════════════════════════════════════════════════════════ */}
+            {/* GENERIC LINKS */}
             {sortedLinks.generic.length > 0 && (
-                <div
-                    style={{
-                        width: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                        marginTop: sortedLinks.typed.length > 0 ? 4 : 0,
-                    }}
-                >
+                <div style={{
+                    width: '100%', display: 'flex', flexDirection: 'column', gap: 8,
+                    marginTop: sortedLinks.typed.length > 0 ? 4 : 0,
+                }}>
                     {sortedLinks.generic.map((link) => {
                         const favicon = getFaviconUrl(link.url);
-
                         return (
                             <a
-                                key={link.linkId}
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 16px',
-                                    borderRadius: 16,
-                                    backgroundColor: data.contentSettings.biographyColor + "1A",
-                                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                                    color: '#fff',
-                                    fontWeight: 500,
-                                    textDecoration: 'none',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: 14,
-                                    transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                                    boxSizing: 'border-box',
-                                    cursor: 'pointer',
-                                    outline: 'none',
-                                }}
+                                key={link.linkId} href={link.url} target="_blank" rel="noopener noreferrer"
+                                style={genericLinkBaseStyle}
                                 onMouseEnter={(e) => {
                                     const t = e.currentTarget;
                                     t.style.transform = 'scale(1.02) translateY(-2px)';
                                     t.style.borderColor = 'rgba(255, 255, 255, 0.25)';
                                     const arrow = t.querySelector('.link-arrow') as HTMLElement;
-                                    if (arrow) {
-                                        arrow.style.transform = 'translate(3px, -3px)';
-                                        arrow.style.opacity = '1';
-                                    }
+                                    if (arrow) { arrow.style.transform = 'translate(3px, -3px)'; arrow.style.opacity = '1'; }
                                 }}
                                 onMouseLeave={(e) => {
                                     const t = e.currentTarget;
                                     t.style.transform = 'scale(1)';
                                     t.style.borderColor = 'rgba(255, 255, 255, 0.15)';
                                     const arrow = t.querySelector('.link-arrow') as HTMLElement;
-                                    if (arrow) {
-                                        arrow.style.transform = 'translate(0, 0)';
-                                        arrow.style.opacity = '0.5';
-                                    }
+                                    if (arrow) { arrow.style.transform = 'translate(0, 0)'; arrow.style.opacity = '0.5'; }
                                 }}
-                                onMouseDown={(e) => {
-                                    e.currentTarget.style.transform = 'scale(0.98)';
-                                }}
-                                onMouseUp={(e) => {
-                                    e.currentTarget.style.transform = 'scale(1.02) translateY(-2px)';
-                                }}
+                                onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)'; }}
+                                onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1.02) translateY(-2px)'; }}
                             >
-                                <div
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 14,
-                                        flex: 1,
-                                        minWidth: 0,
-                                    }}
-                                >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1, minWidth: 0 }}>
                                     {favicon && (
-                                        <div
-                                            style={{
-                                                width: 32,
-                                                height: 32,
-                                                borderRadius: 10,
-                                                backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                flexShrink: 0,
-                                            }}
-                                        >
+                                        <div style={{
+                                            width: 32, height: 32, borderRadius: 10,
+                                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                        }}>
                                             <img
-                                                src={favicon}
-                                                alt=""
-                                                style={{
-                                                    width: 20,
-                                                    height: 20,
-                                                    borderRadius: 6,
-                                                    objectFit: 'contain',
-                                                }}
-                                                onError={(e) => {
-                                                    (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-                                                }}
+                                                src={favicon} alt=""
+                                                style={{ width: 20, height: 20, borderRadius: 6, objectFit: 'contain' }}
+                                                loading="lazy"
+                                                onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }}
                                             />
                                         </div>
                                     )}
-
-                                    <span
-                                        style={{
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                            flex: 1,
-                                            fontSize: 14,
-                                            fontWeight: 500,
-                                            letterSpacing: '-0.01em',
-                                        }}
-                                    >
+                                    <span style={{
+                                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        flex: 1, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em',
+                                    }}>
                                         {link.title}
                                     </span>
                                 </div>
-
-                                <svg
-                                    className="link-arrow"
-                                    width="18"
-                                    height="18"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2.5"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    style={{
-                                        opacity: 0.5,
-                                        flexShrink: 0,
-                                        transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                                    }}
-                                >
+                                <svg className="link-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                    style={{ opacity: 0.5, flexShrink: 0, transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
                                     <path d="M7 17L17 7" />
                                     <path d="M7 7h10v10" />
                                 </svg>
@@ -2463,50 +1776,78 @@ const CardContent: React.FC<CardContentProps> = ({
                     })}
                 </div>
             )}
+
             {/* VIEW COUNTER */}
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '2%',
-                    color: data.contentSettings.viewColor || data.contentSettings.biographyColor,  // ← adiciona viewColor
-                    fontSize: 13,
-                    fontWeight: 900,
-                    position: 'relative',
-                    opacity: 0.8,
-                }}
-            >
-                <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3.5"
-                >
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '2%',
+                color: data.contentSettings.viewColor || data.contentSettings.biographyColor,
+                fontSize: 13, fontWeight: 900, position: 'relative', opacity: 0.8,
+            }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                 </svg>
-                <span>{data.views.toLocaleString()}</span>
-
+                <span>{viewsFormatted}</span>
                 {showPlusOne && (
-                    <span
-                        className="animate-float-up"
-                        style={{
-                            position: 'absolute',
-                            right: -30,
-                            color: '#4ade80',
-                            fontWeight: 'bolder',
-                            fontSize: 18,
-                        }}
-                    >
+                    <span className="animate-float-up" style={{
+                        position: 'absolute', right: -30, color: '#4ade80',
+                        fontWeight: 'bolder', fontSize: 18,
+                    }}>
                         +1
                     </span>
                 )}
             </div>
         </div>
     );
+});
+CardContent.displayName = 'CardContent';
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATIC STYLES FOR ERROR PAGE
+═══════════════════════════════════════════════════════════════════════════ */
+
+const errorPageCSS = `
+${globalStylesCSS}
+@keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+@keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(143, 124, 255, 0.2); } 50% { box-shadow: 0 0 40px rgba(143, 124, 255, 0.4); } }
+.error-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #121316; padding: 20px; position: relative; overflow: hidden; }
+.error-page::before { content: ''; position: absolute; width: 500px; height: 500px; background: radial-gradient(circle, rgba(143, 124, 255, 0.08) 0%, transparent 70%); top: -150px; right: -150px; pointer-events: none; }
+.error-page::after { content: ''; position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, rgba(79, 140, 255, 0.06) 0%, transparent 70%); bottom: -100px; left: -100px; pointer-events: none; }
+.error-card { background: rgba(17, 18, 19, 0.767); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 28px; padding: 60px 48px; text-align: center; max-width: 420px; width: 100%; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); animation: slideIn 0.5s ease-out; position: relative; z-index: 1; }
+.error-avatar { width: 100px; height: 100px; background: linear-gradient(135deg, #1f2846 0%, rgba(143, 124, 255, 0.1) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 32px; border: 2px dashed rgba(143, 124, 255, 0.3); animation: float 3s ease-in-out infinite, pulse-glow 3s ease-in-out infinite; }
+.error-avatar svg { width: 48px; height: 48px; color: rgba(237, 237, 237, 0.4); }
+.error-status { display: inline-block; padding: 6px 16px; background: rgba(143, 124, 255, 0.1); border: 1px solid rgba(143, 124, 255, 0.3); border-radius: 20px; color: #8F7CFF; font-size: 13px; font-weight: 600; margin-bottom: 20px; letter-spacing: 0.5px; }
+.error-heading { font-size: 28px; font-weight: 700; color: #EDEDED; margin: 0 0 12px; }
+.error-desc { color: rgba(237, 237, 237, 0.6); font-size: 15px; line-height: 1.7; margin: 0 0 32px; }
+.error-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn-primary { padding: 14px 32px; background: linear-gradient(135deg, #8F7CFF 0%, #7A66F0 100%); color: #fff; border: none; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; text-decoration: none; box-shadow: 0 4px 20px rgba(143, 124, 255, 0.3); }
+.btn-primary:hover { background: linear-gradient(135deg, #7A66F0 0%, #8F7CFF 100%); transform: translateY(-2px); box-shadow: 0 6px 30px rgba(143, 124, 255, 0.5); }
+.btn-primary:active { transform: translateY(0); }
+.btn-secondary { padding: 14px 32px; background: rgba(255, 255, 255, 0.021); color: rgba(237, 237, 237, 0.6); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; text-decoration: none; }
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.2); color: #EDEDED; }
+@media (max-width: 480px) { .error-card { padding: 40px 28px; border-radius: 20px; } .error-heading { font-size: 24px; } .error-actions { flex-direction: column; } .btn-primary, .btn-secondary { width: 100%; justify-content: center; } }
+`;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FINGERPRINT - Singleton
+═══════════════════════════════════════════════════════════════════════════ */
+
+let fpPromise: Promise<string> | null = null;
+const getFingerprint = (): Promise<string> => {
+    if (!fpPromise) {
+        fpPromise = FingerprintJS.load().then(fp => fp.get()).then(r => r.visitorId);
+    }
+    return fpPromise;
+};
+
+const getVisitorId = (): string => {
+    let id = localStorage.getItem('visitorId');
+    if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem('visitorId', id);
+    }
+    return id;
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2514,22 +1855,6 @@ const CardContent: React.FC<CardContentProps> = ({
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const UserPublicPage: React.FC = () => {
-    const getFingerprint = async (): Promise<string> => {
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        return result.visitorId;
-    };
-
-    const getVisitorId = (): string => {
-        let id = localStorage.getItem('visitorId');
-        if (!id) {
-            id = crypto.randomUUID();
-            localStorage.setItem('visitorId', id);
-        }
-        return id;
-    };
-
-
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const { slug } = useParams<{ slug: string }>();
     const [data, setData] = useState<UserPageResponse | null>(null);
@@ -2543,15 +1868,26 @@ const UserPublicPage: React.FC = () => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const hasTriedAutoplay = useRef(false);
 
-
     const [tiltX, setTiltX] = useState(0);
     const [tiltY, setTiltY] = useState(0);
-    const [scale, setScale] = useState(1); // ✅ ADICIONAR ESTADO PARA SCALE
-    const [hovering, setHovering] = useState(false); // ✅ ESTADO PARA HOVER
+    const [scale, setScale] = useState(1);
+    const [hovering, setHovering] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
 
-    /* ADICIONE ESTES HANDLERS PARA O EFEITO 3D */
-    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const [fingerprint, setFingerprint] = useState<string>('');
+    const [fpReady, setFpReady] = useState(false);
+    const hasFetched = useRef(false);
+
+    // Fingerprint - usa singleton
+    useEffect(() => {
+        getFingerprint().then((fp) => {
+            setFingerprint(fp);
+            setFpReady(true);
+        });
+    }, []);
+
+    // Mouse handlers com useCallback
+    const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
         if (!data?.cardSettings.perspective || !cardRef.current) return;
 
         const card = cardRef.current;
@@ -2562,44 +1898,30 @@ const UserPublicPage: React.FC = () => {
         const mouseX = e.clientX - centerX;
         const mouseY = e.clientY - centerY;
 
-        const rotateY = (mouseX / (rect.width / 2)) * 15;
-        const rotateX = -(mouseY / (rect.height / 2)) * 15;
+        setTiltY((mouseX / (rect.width / 2)) * 15);
+        setTiltX(-(mouseY / (rect.height / 2)) * 15);
+    }, [data?.cardSettings.perspective]);
 
-        setTiltX(rotateX);
-        setTiltY(rotateY);
-    };
-
-    const handleMouseLeave = () => {
+    const handleMouseLeave = useCallback(() => {
         setTiltX(0);
         setTiltY(0);
         setScale(1);
-        setHovering(false)
-    };
+        setHovering(false);
+    }, []);
 
-    const handleMouseEnter = () => {
+    const handleMouseEnter = useCallback(() => {
         if (data?.cardSettings.hoverGrow) {
             setScale(1.03);
             setHovering(true);
         }
-    };
-
-    const [fingerprint, setFingerprint] = useState<string>('');
-    const [fpReady, setFpReady] = useState(false);
-
-    useEffect(() => {
-        getFingerprint().then((fp) => {
-            setFingerprint(fp);
-            setFpReady(true);
-        });
-    }, []);
-
-    const hasFetched = useRef(false);
+    }, [data?.cardSettings.hoverGrow]);
 
     /* FETCH */
     useEffect(() => {
         if (!slug || !fpReady || !turnstileToken) return;
         if (hasFetched.current) return;
         hasFetched.current = true;
+
         const fetchPage = async () => {
             try {
                 setLoading(true);
@@ -2607,7 +1929,7 @@ const UserPublicPage: React.FC = () => {
 
                 const request: RegisterViewRequest = {
                     visitorId: getVisitorId(),
-                    fingerprint: fingerprint,
+                    fingerprint,
                     turnstileToken: turnstileToken ?? undefined,
                     referrer: document.referrer || undefined,
                     screenWidth: window.screen.width,
@@ -2616,10 +1938,7 @@ const UserPublicPage: React.FC = () => {
                     language: navigator.language,
                 };
 
-                const response = await publicApi.post<UserPageResponse>(
-                    `/public/${slug}`,
-                    request
-                );
+                const response = await publicApi.post<UserPageResponse>(`/public/${slug}`, request);
                 setData(response.data);
 
                 if (response.data.viewCounted) {
@@ -2629,15 +1948,9 @@ const UserPublicPage: React.FC = () => {
             } catch (err: unknown) {
                 console.error('Erro ao buscar página:', err);
                 const errorMessage =
-                    err &&
-                        typeof err === 'object' &&
-                        'response' in err &&
-                        err.response &&
-                        typeof err.response === 'object' &&
-                        'data' in err.response &&
-                        err.response.data &&
-                        typeof err.response.data === 'object' &&
-                        'message' in err.response.data
+                    err && typeof err === 'object' && 'response' in err &&
+                    err.response && typeof err.response === 'object' && 'data' in err.response &&
+                    err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data
                         ? String(err.response.data.message)
                         : 'Erro ao carregar página';
                 setError(errorMessage);
@@ -2647,7 +1960,7 @@ const UserPublicPage: React.FC = () => {
         };
 
         fetchPage();
-    }, [slug, fpReady, turnstileToken]);
+    }, [slug, fpReady, turnstileToken, fingerprint]);
 
     /* FAVICON */
     useEffect(() => {
@@ -2676,15 +1989,12 @@ const UserPublicPage: React.FC = () => {
 
         const tryAutoplay = async () => {
             hasTriedAutoplay.current = true;
-
             if (!audioRef.current) return;
-
             try {
                 audioRef.current.volume = volume;
                 await audioRef.current.play();
                 setIsPlaying(true);
-            } catch (err) {
-                console.warn('Autoplay bloqueado:', err);
+            } catch {
                 setShowMusicPrompt(true);
             }
         };
@@ -2696,53 +2006,35 @@ const UserPublicPage: React.FC = () => {
     /* MUSIC CONTROL */
     useEffect(() => {
         if (!audioRef.current) return;
-
         audioRef.current.volume = volume;
-
         if (isPlaying) {
-            audioRef.current.play().catch((err) => {
-                console.error('Erro ao tocar:', err);
-                setIsPlaying(false);
-            });
+            audioRef.current.play().catch(() => setIsPlaying(false));
         } else {
             audioRef.current.pause();
         }
     }, [isPlaying, volume]);
 
-    /* EQUIPPED ITEMS & VERIFIED CHECK */
+    /* EQUIPPED ITEMS */
     const { badges, frame, cardEffect, hasVerifiedBadge } = useMemo(() => {
         if (!data?.inventoryResponse?.equipped) return {
-            badges: [],
-            frame: null,
-            cardEffect: null,  // ← Adicionado
-            hasVerifiedBadge: false
+            badges: [], frame: null, cardEffect: null, hasVerifiedBadge: false,
         };
-
         const eq = data.inventoryResponse.equipped;
         const isPremium = data.isPremium;
-
-        const validItems = eq.filter((item) => {
-            if (item.isPremium && !isPremium) {
-                return false;
-            }
-            return true;
-        });
-
-        const allBadges = validItems.filter((i) => i.type === 'BADGE');
-        const hasVerified = allBadges.some(isVerifiedBadge);
+        const validItems = eq.filter(item => !item.isPremium || isPremium);
+        const allBadges = validItems.filter(i => i.type === 'BADGE');
 
         return {
             badges: allBadges,
-            frame: validItems.find((i) => i.type === 'FRAME')?.url || null,
-            cardEffect: validItems.find((i) => i.type === 'CARD_EFFECT')?.url || null,  // ← Adicionado
-            hasVerifiedBadge: hasVerified,
+            frame: validItems.find(i => i.type === 'FRAME')?.url || null,
+            cardEffect: validItems.find(i => i.type === 'CARD_EFFECT')?.url || null,
+            hasVerifiedBadge: allBadges.some(isVerifiedBadge),
         };
     }, [data]);
 
-    /* HANDLER PARA INICIAR MÚSICA MANUALMENTE */
-    const handleStartMusic = async () => {
+    /* CALLBACKS */
+    const handleStartMusic = useCallback(async () => {
         setShowMusicPrompt(false);
-
         if (audioRef.current) {
             try {
                 audioRef.current.volume = volume;
@@ -2752,56 +2044,69 @@ const UserPublicPage: React.FC = () => {
                 console.error('Erro ao iniciar música:', err);
             }
         }
-    };
+    }, [volume]);
 
-    /* ═══════════════════════════════════════════════════════════════════════════
-   CARD EFFECT OVERLAY - Efeito visual sobre o card
-    ═══════════════════════════════════════════════════════════════════════════ */
+    const handleVolumeChange = useCallback((v: number) => setVolume(v), []);
+    const handleTogglePlay = useCallback(() => setIsPlaying(prev => !prev), []);
+    const handleToggleMute = useCallback(() => setVolume(prev => prev === 0 ? 0.5 : 0), []);
 
-    interface CardEffectOverlayProps {
-        url: string;
-    }
+    const handleTurnstileSuccess = useCallback((token: string) => setTurnstileToken(token), []);
 
-    const CardEffectOverlay: React.FC<CardEffectOverlayProps> = ({ url }) => {
-        return (
-            <div
-                style={{
-                    position: 'absolute',
-                    inset: 0,  // ← Cobre 100% do card pai
-                    pointerEvents: 'none',
-                    borderRadius: 28,
-                    zIndex: 100,
-                    overflow: 'hidden',
-                }}
-            >
-                <img
-                    src={url}
-                    alt="Card Effect"
-                    style={{
-                        width: '100%',
-                        transform: 'translateY(0%)', // Pequeno ajuste para melhor posicionamento
-                        height: '100%',
-                        objectFit: 'cover',
-                        objectPosition: 'top',
+    const getNameClass = useCallback(() => {
+        if (!data) return '';
+        if (data.nameEffects.neon) return 'name-neon';
+        if (data.nameEffects.shiny) return 'name-shiny';
+        if (data.nameEffects.rgb) return 'name-rgb';
+        return '';
+    }, [data]);
 
-                        pointerEvents: 'none',
-                        userSelect: 'none',
-                    }}
-                />
-            </div>
-        );
-    };
+    const handleGoBack = useCallback(() => window.history.back(), []);
+
+    /* CARD STYLE - Memoizado */
+    const cardStyle = useMemo((): React.CSSProperties | null => {
+        if (!data) return null;
+        return {
+            backgroundColor: data.cardSettings.opacity === 0
+                ? 'transparent'
+                : hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
+            backdropFilter: data.cardSettings.blur ? `blur(${data.cardSettings.blur}px) saturate(180%)` : 'none',
+            WebkitBackdropFilter: data.cardSettings.blur ? `blur(${data.cardSettings.blur}px) saturate(180%)` : 'none',
+            transform: data.cardSettings.perspective
+                ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
+                : data.cardSettings.hoverGrow && hovering ? `scale(${scale})` : 'none',
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
+            borderRadius: 28,
+            padding: 6,
+            width: '100%',
+            maxWidth: 480,
+            boxSizing: 'border-box',
+            willChange: 'transform',
+            position: 'relative',
+            overflow: 'visible',
+        };
+    }, [data, tiltX, tiltY, scale, hovering]);
 
     /* LOADING */
     if (loading) {
         return (
             <>
+                <style dangerouslySetInnerHTML={{ __html: globalStylesCSS }} />
                 <Turnstile
                     siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                    onSuccess={(token) => setTurnstileToken(token)}
+                    onSuccess={handleTurnstileSuccess}
                     options={{ size: 'invisible' }}
                 />
-                {data?.contentSettings.biography}
+                <div style={{
+                    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f0f23 100%)',
+                }}>
+                    <div style={{
+                        width: 50, height: 50,
+                        border: '3px solid rgba(139,92,246,0.3)', borderTopColor: '#8b5cf6',
+                        borderRadius: '50%', animation: 'spin 1s linear infinite',
+                    }} />
+                </div>
             </>
         );
     }
@@ -2812,204 +2117,16 @@ const UserPublicPage: React.FC = () => {
             <>
                 <Turnstile
                     siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                    onSuccess={(token) => setTurnstileToken(token)}
+                    onSuccess={handleTurnstileSuccess}
                     options={{ size: 'invisible' }}
                 />
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                ${globalStylesCSS}
-                
-                @keyframes slideIn {
-                    from { opacity: 0; transform: translateY(20px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                
-                @keyframes float {
-                    0%, 100% { transform: translateY(0px); }
-                    50% { transform: translateY(-8px); }
-                }
-                
-                @keyframes pulse-glow {
-                    0%, 100% { box-shadow: 0 0 20px rgba(143, 124, 255, 0.2); }
-                    50% { box-shadow: 0 0 40px rgba(143, 124, 255, 0.4); }
-                }
-                
-                .error-page {
-                    min-height: 100vh;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: #121316;
-                    padding: 20px;
-                    position: relative;
-                    overflow: hidden;
-                }
-                
-                .error-page::before {
-                    content: '';
-                    position: absolute;
-                    width: 500px;
-                    height: 500px;
-                    background: radial-gradient(circle, rgba(143, 124, 255, 0.08) 0%, transparent 70%);
-                    top: -150px;
-                    right: -150px;
-                    pointer-events: none;
-                }
-                
-                .error-page::after {
-                    content: '';
-                    position: absolute;
-                    width: 400px;
-                    height: 400px;
-                    background: radial-gradient(circle, rgba(79, 140, 255, 0.06) 0%, transparent 70%);
-                    bottom: -100px;
-                    left: -100px;
-                    pointer-events: none;
-                }
-                
-                .error-card {
-                    background: rgba(17, 18, 19, 0.767);
-                    border: 1px solid rgba(255, 255, 255, 0.12);
-                    border-radius: 28px;
-                    padding: 60px 48px;
-                    text-align: center;
-                    max-width: 420px;
-                    width: 100%;
-                    backdrop-filter: blur(24px);
-                    -webkit-backdrop-filter: blur(24px);
-                    animation: slideIn 0.5s ease-out;
-                    position: relative;
-                    z-index: 1;
-                }
-                
-                .error-avatar {
-                    width: 100px;
-                    height: 100px;
-                    background: linear-gradient(135deg, #1f2846 0%, rgba(143, 124, 255, 0.1) 100%);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 0 auto 32px;
-                    border: 2px dashed rgba(143, 124, 255, 0.3);
-                    animation: float 3s ease-in-out infinite, pulse-glow 3s ease-in-out infinite;
-                }
-                
-                .error-avatar svg {
-                    width: 48px;
-                    height: 48px;
-                    color: rgba(237, 237, 237, 0.4);
-                }
-                
-                .error-status {
-                    display: inline-block;
-                    padding: 6px 16px;
-                    background: rgba(143, 124, 255, 0.1);
-                    border: 1px solid rgba(143, 124, 255, 0.3);
-                    border-radius: 20px;
-                    color: #8F7CFF;
-                    font-size: 13px;
-                    font-weight: 600;
-                    margin-bottom: 20px;
-                    letter-spacing: 0.5px;
-                }
-                
-                .error-heading {
-                    font-size: 28px;
-                    font-weight: 700;
-                    color: #EDEDED;
-                    margin: 0 0 12px;
-                }
-                
-                .error-desc {
-                    color: rgba(237, 237, 237, 0.6);
-                    font-size: 15px;
-                    line-height: 1.7;
-                    margin: 0 0 32px;
-                }
-                
-                .error-actions {
-                    display: flex;
-                    gap: 12px;
-                    justify-content: center;
-                    flex-wrap: wrap;
-                }
-                
-                .btn-primary {
-                    padding: 14px 32px;
-                    background: linear-gradient(135deg, #8F7CFF 0%, #7A66F0 100%);
-                    color: #fff;
-                    border: none;
-                    border-radius: 14px;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    text-decoration: none;
-                    box-shadow: 0 4px 20px rgba(143, 124, 255, 0.3);
-                }
-                
-                .btn-primary:hover {
-                    background: linear-gradient(135deg, #7A66F0 0%, #8F7CFF 100%);
-                    transform: translateY(-2px);
-                    box-shadow: 0 6px 30px rgba(143, 124, 255, 0.5);
-                }
-                
-                .btn-primary:active {
-                    transform: translateY(0);
-                }
-                
-                .btn-secondary {
-                    padding: 14px 32px;
-                    background: rgba(255, 255, 255, 0.021);
-                    color: rgba(237, 237, 237, 0.6);
-                    border: 1px solid rgba(255, 255, 255, 0.12);
-                    border-radius: 14px;
-                    font-size: 14px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    text-decoration: none;
-                }
-                
-                .btn-secondary:hover {
-                    background: rgba(255, 255, 255, 0.09);
-                    border-color: rgba(255, 255, 255, 0.2);
-                    color: #EDEDED;
-                }
-                
-                @media (max-width: 480px) {
-                    .error-card {
-                        padding: 40px 28px;
-                        border-radius: 20px;
-                    }
-                    
-                    .error-heading {
-                        font-size: 24px;
-                    }
-                    
-                    .error-actions {
-                        flex-direction: column;
-                    }
-                    
-                    .btn-primary,
-                    .btn-secondary {
-                        width: 100%;
-                        justify-content: center;
-                    }
-                }
-            `}} />
-
+                <style dangerouslySetInnerHTML={{ __html: errorPageCSS }} />
                 <div className="error-page">
                     <div className="error-card">
                         <div className="error-avatar">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={1.5}
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                         </div>
                         <span className="error-status">Erro 404</span>
@@ -3020,9 +2137,7 @@ const UserPublicPage: React.FC = () => {
                         </p>
                         <div className="error-actions">
                             <a href="/" className="btn-primary">Ir para home</a>
-                            <button onClick={() => window.history.back()} className="btn-secondary">
-                                Voltar
-                            </button>
+                            <button onClick={handleGoBack} className="btn-secondary">Voltar</button>
                         </div>
                     </div>
                 </div>
@@ -3030,206 +2145,97 @@ const UserPublicPage: React.FC = () => {
         );
     }
 
-    /* CARD STYLE - WIDTH MAIOR (500px) */
-    const cardStyle: React.CSSProperties = {
-        backgroundColor: data.cardSettings.opacity === 0
-            ? 'transparent'
-            : hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
-        ...(['backdropFilter', 'WebkitBackdropFilter'] as const).reduce((acc, key) => ({
-            ...acc,
-            [key]: data.cardSettings.blur ? `blur(${data.cardSettings.blur}px) saturate(180%)` : 'none',
-        }), {}),
-        transform: data.cardSettings.perspective
-            ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
-            : data.cardSettings.hoverGrow && hovering ? `scale(${scale})` : 'none',
-        transformStyle: 'preserve-3d',
-        transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
-        borderRadius: 28,
-        padding: 6,
-        width: '100%',
-        maxWidth: 480,
-        boxSizing: 'border-box',
-        willChange: 'transform'
-    };
-
-
-    const getNameClass = () => {
-        if (data.nameEffects.neon) return 'name-neon';
-        if (data.nameEffects.shiny) return 'name-shiny';
-        if (data.nameEffects.rgb) return 'name-rgb';
-        return '';
-    };
-
     /* RENDER */
     return (
         <>
-            <style dangerouslySetInnerHTML={{ __html: globalStylesCSS }} />
+            <style dangerouslySetInnerHTML={{ __html: globalStylesCSS + BADGE_TOOLTIP_STYLES }} />
 
-            <main
-                style={{
-                    minHeight: '100vh',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 10,
-                    position: 'relative',
-                    overflowY: 'hidden',
-                    overflow: 'hidden',
-                }}
-            >
+            <main style={{
+                minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 10, position: 'relative', overflowY: 'hidden', overflow: 'hidden',
+            }}>
                 {/* BACKGROUND */}
                 <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
                     {data.mediaUrls.backgroundUrl ? (
                         <BackgroundMedia url={data.mediaUrls.backgroundUrl} />
                     ) : (
-                        <div
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                backgroundColor: data.staticBackgroundColor || 'black',
-                            }}
-                        />
+                        <div style={{ width: '100%', height: '100%', backgroundColor: data.staticBackgroundColor || 'black' }} />
                     )}
                 </div>
 
                 {/* PAGE EFFECTS */}
                 <PageEffectsManager effects={data.pageEffects} />
 
-                {/* OVERLAY PARA INICIAR MÚSICA */}
+                {/* MUSIC PROMPT OVERLAY */}
                 {showMusicPrompt && data.mediaUrls.musicUrl && (
                     <div
                         onClick={handleStartMusic}
                         style={{
-                            position: 'fixed',
-                            inset: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            zIndex: 10000,
-                            backdropFilter: 'blur(20px)',
+                            position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', zIndex: 10000, backdropFilter: 'blur(20px)',
                             animation: 'fadeIn 0.3s ease-out',
                         }}
                     >
-                        <div
-                            style={{
-                                padding: '48px 64px',
-                                borderRadius: 32,
-                                textAlign: 'center',
-
-                            }}
-                        >
-                            <div
-                                style={{
-                                    width: 50,
-                                    height: 80,
-                                    borderRadius: '50%',
-
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    margin: '0 auto 24px',
-                                }}
-                            >
-                                <svg
-                                    width="40"
-                                    height="40"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="white"
-                                    strokeWidth="2"
-                                >
+                        <div style={{ padding: '48px 64px', borderRadius: 32, textAlign: 'center' }}>
+                            <div style={{
+                                width: 50, height: 80, borderRadius: '50%',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px',
+                            }}>
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                                     <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="white" />
                                     <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
                                     <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
                                 </svg>
                             </div>
-
-                            <h2
-                                style={{
-                                    color: '#fff',
-                                    fontSize: 14,
-                                    marginBottom: 12,
-                                    fontWeight: 600,
-                                }}
-                            >
+                            <h2 style={{ color: '#fff', fontSize: 14, marginBottom: 12, fontWeight: 600 }}>
                                 {data.contentSettings.biography}
                             </h2>
-
                         </div>
                     </div>
                 )}
 
-                {/* CARD - WIDTH MAIOR */}
-
-                <div
-                    style={{
-                        position: 'relative',
-                        zIndex: 10,
-                        width: '100%',
-                        maxWidth: 440,
-                        animation: 'slideUp 0.6s ease-out',
-                    }}
-                >
+                {/* CARD */}
+                <div style={{
+                    position: 'relative', zIndex: 10, width: '100%',
+                    maxWidth: 440, animation: 'slideUp 0.6s ease-out',
+                }}>
                     {data.cardSettings.rgbBorder ? (
                         <div className="rgb-border-wrapper">
                             <div
                                 ref={cardRef}
-                                style={{
-                                    ...cardStyle,
-                                    position: 'relative',
-                                    overflow: 'visible',  // ← Importante para o efeito sair do card
-                                }}
+                                style={cardStyle!}
                                 onMouseMove={handleMouseMove}
                                 onMouseEnter={handleMouseEnter}
                                 onMouseLeave={handleMouseLeave}
                             >
                                 <CardContent
-                                    data={data}
-                                    frame={frame}
-                                    badges={badges}
-                                    showPlusOne={showPlusOne}
-                                    getNameClass={getNameClass}
+                                    data={data} frame={frame} badges={badges}
+                                    showPlusOne={showPlusOne} getNameClass={getNameClass}
                                     hasVerifiedBadge={hasVerifiedBadge}
                                 />
-
-                                {/* CARD EFFECT OVERLAY */}
-                                {cardEffect && data.isPremium && (
-                                    <CardEffectOverlay url={cardEffect} />
-                                )}
+                                {cardEffect && data.isPremium && <CardEffectOverlay url={cardEffect} />}
                             </div>
                         </div>
                     ) : (
                         <div
                             ref={cardRef}
-                            style={{
-                                ...cardStyle,
-                                position: 'relative',
-                                overflow: 'visible',  // ← Importante para o efeito sair do card
-                            }}
+                            style={cardStyle!}
                             onMouseMove={handleMouseMove}
                             onMouseEnter={handleMouseEnter}
                             onMouseLeave={handleMouseLeave}
                         >
                             <CardContent
-                                data={data}
-                                frame={frame}
-                                badges={badges}
-                                showPlusOne={showPlusOne}
-                                getNameClass={getNameClass}
+                                data={data} frame={frame} badges={badges}
+                                showPlusOne={showPlusOne} getNameClass={getNameClass}
                                 hasVerifiedBadge={hasVerifiedBadge}
                             />
-
-                            {/* CARD EFFECT OVERLAY */}
-                            {cardEffect && data.isPremium && (
-                                <CardEffectOverlay url={cardEffect} />
-                            )}
+                            {cardEffect && data.isPremium && <CardEffectOverlay url={cardEffect} />}
                         </div>
                     )}
                 </div>
 
-                {/* AUDIO ELEMENT */}
+                {/* AUDIO */}
                 {data.mediaUrls.musicUrl && (
                     <audio ref={audioRef} src={data.mediaUrls.musicUrl} loop preload="auto" />
                 )}
@@ -3238,32 +2244,23 @@ const UserPublicPage: React.FC = () => {
                 {data.mediaUrls.musicUrl && !showMusicPrompt && (
                     <VolumeSlider
                         volume={volume}
-                        onChange={setVolume}
+                        onChange={handleVolumeChange}
                         isPlaying={isPlaying}
-                        onTogglePlay={() => setIsPlaying(!isPlaying)}
-                        onToggleMute={() => setVolume(volume === 0 ? 0.5 : 0)}
+                        onTogglePlay={handleTogglePlay}
+                        onToggleMute={handleToggleMute}
                     />
                 )}
 
-                {/* MARCA D'ÁGUA */}
+                {/* WATERMARK */}
                 {!data.isPremium && (
                     <div
                         onClick={() => window.location.href = "/"}
                         style={{
-                            position: 'fixed',
-                            top: 20,
-                            right: 20,
-                            padding: '8px 14px',
-                            fontSize: 12,
-                            fontWeight: 500,
-                            color: 'rgba(255, 255, 255, 0.5)',
-                            background: 'rgba(0, 0, 0, 0.3)',
-                            backdropFilter: 'blur(10px)',
-                            borderRadius: 12,
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            transition: 'all 0.2s ease',
-                            zIndex: 50,
-                            userSelect: 'none',
+                            position: 'fixed', top: 20, right: 20, padding: '8px 14px',
+                            fontSize: 12, fontWeight: 500, color: 'rgba(255, 255, 255, 0.5)',
+                            background: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(10px)',
+                            borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.1)',
+                            transition: 'all 0.2s ease', zIndex: 50, userSelect: 'none',
                         }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
