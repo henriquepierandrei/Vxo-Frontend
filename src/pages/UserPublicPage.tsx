@@ -2598,7 +2598,7 @@ const UserPublicPage: React.FC = () => {
     /* FETCH */
     useEffect(() => {
         if (!slug || !fpReady || !turnstileToken) return;
-        if (hasFetched.current) return; 
+        if (hasFetched.current) return;
         hasFetched.current = true;
         const fetchPage = async () => {
             try {
@@ -2796,31 +2796,56 @@ const UserPublicPage: React.FC = () => {
     if (loading) {
         return (
             <>
-                <style dangerouslySetInnerHTML={{ __html: globalStylesCSS }} />
                 <Turnstile
                     siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                     onSuccess={(token) => setTurnstileToken(token)}
                     options={{ size: 'invisible' }}
                 />
-                <div
-                    style={{
-                        minHeight: '100vh',
+                <div style={{
+                    minHeight: '100vh',
+                    background: 'black', // ou a cor de fundo padrão
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}>
+                    {/* Skeleton do card em vez de spinner */}
+                    <div style={{
+                        width: 440,
+                        borderRadius: 28,
+                        background: 'rgba(255,255,255,0.05)',
+                        padding: 20,
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f0f23 100%)',
-                    }}
-                >
-                    <div
-                        style={{
-                            width: 50,
-                            height: 50,
-                            border: '3px solid rgba(139,92,246,0.3)',
-                            borderTopColor: '#8b5cf6',
+                        flexDirection: 'column',
+                        gap: 12,
+                    }}>
+                        {/* Avatar skeleton */}
+                        <div style={{
+                            width: 90, height: 90,
                             borderRadius: '50%',
-                            animation: 'spin 1s linear infinite',
-                        }}
-                    />
+                            background: 'rgba(255,255,255,0.08)',
+                            animation: 'pulse 1.5s ease-in-out infinite',
+                        }} />
+                        {/* Nome skeleton */}
+                        <div style={{
+                            width: 160, height: 28,
+                            borderRadius: 8,
+                            background: 'rgba(255,255,255,0.08)',
+                            animation: 'pulse 1.5s ease-in-out infinite',
+                        }} />
+                        {/* Bio skeleton */}
+                        <div style={{
+                            width: '100%', height: 16,
+                            borderRadius: 6,
+                            background: 'rgba(255,255,255,0.08)',
+                            animation: 'pulse 1.5s ease-in-out infinite',
+                        }} />
+                        <div style={{
+                            width: '70%', height: 16,
+                            borderRadius: 6,
+                            background: 'rgba(255,255,255,0.08)',
+                            animation: 'pulse 1.5s ease-in-out infinite',
+                        }} />
+                    </div>
                 </div>
             </>
         );
