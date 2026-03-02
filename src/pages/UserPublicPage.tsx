@@ -2593,12 +2593,13 @@ const UserPublicPage: React.FC = () => {
         });
     }, []);
 
-
+    const hasFetched = useRef(false);
 
     /* FETCH */
     useEffect(() => {
         if (!slug || !fpReady || !turnstileToken) return;
-
+        if (hasFetched.current) return; 
+        hasFetched.current = true;
         const fetchPage = async () => {
             try {
                 setLoading(true);
@@ -3297,11 +3298,6 @@ const UserPublicPage: React.FC = () => {
                     </div>
                 )}
             </main>
-            <Turnstile
-                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                onSuccess={(token) => setTurnstileToken(token)}
-                options={{ size: 'invisible' }}
-            />
         </>
     );
 };
