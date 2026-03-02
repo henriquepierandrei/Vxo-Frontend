@@ -2515,6 +2515,9 @@ const CardContent: React.FC<CardContentProps> = ({
 
 const UserPublicPage: React.FC = () => {
 
+
+
+
     const getFingerprint = async (): Promise<string> => {
         const fp = await FingerprintJS.load();
         const result = await fp.get();
@@ -2535,7 +2538,7 @@ const UserPublicPage: React.FC = () => {
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const { slug } = useParams<{ slug: string }>();
     const [data, setData] = useState<UserPageResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPlusOne, setShowPlusOne] = useState(false);
 
@@ -2594,6 +2597,8 @@ const UserPublicPage: React.FC = () => {
             setFpReady(true);
         });
     }, []);
+
+    
 
     /* FETCH */
     useEffect(() => {
