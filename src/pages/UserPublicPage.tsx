@@ -1268,7 +1268,7 @@ const globalStylesCSS = `
     content: '';
     position: absolute;
     inset: 0;
-    background: url('https://vxo.lat/shiny.gif') repeat center/auto;
+    background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto;
     opacity: 1;
     border-radius: 12px;
     z-index: 0;
@@ -1280,7 +1280,7 @@ const globalStylesCSS = `
     content: '';
     position: absolute;
     inset: 0;
-    background: url('https://vxo.lat/shiny.gif') repeat center/auto;
+    background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto;
     opacity: 0.7;
     border-radius: 12px;
     z-index: 2;
