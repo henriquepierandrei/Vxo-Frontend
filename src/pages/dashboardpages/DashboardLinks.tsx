@@ -435,13 +435,10 @@ const SocialNetworkAlert = ({ networkName }: { networkName: string }) => {
 // ═══════════════════════════════════════════════════════════
 
 const DashboardLinks = () => {
-  const navigate = useNavigate();
-
-  // ✅ USANDO O CONTEXTO CORRETAMENTE
   const {
     links: contextLinks,
-    isLoadingLinks,      // ✅ Nome correto
-    refreshLinks,        // ✅ Nome correto
+    isLoadingLinks,     
+    refreshLinks,        
     addLink,
     updateLink,
     deleteLink,
@@ -451,11 +448,11 @@ const DashboardLinks = () => {
   const links: DisplayUserLink[] = contextLinks.map((link) => {
     const info = extractDomainInfo(link.url);
     return {
-      id: link.id,           // ✅ Já vem como `id` do contexto
+      id: link.id,           // Já vem como `id` do contexto
       url: link.url,
-      domain: link.domain,   // ✅ Já vem do contexto
+      domain: link.domain,   // Já vem do contexto
       displayName: info.displayName,
-      favicon: link.favicon, // ✅ Já vem do contexto
+      favicon: link.favicon, // Já vem do contexto
       hasLinkTyped: link.hasLinkTyped,
       linkTypeId: link.linkTypeId,
     };

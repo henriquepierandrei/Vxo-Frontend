@@ -1,5 +1,5 @@
 // src/pages/DashboardSocial.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,

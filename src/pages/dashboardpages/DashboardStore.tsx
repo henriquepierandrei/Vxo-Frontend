@@ -2534,19 +2534,15 @@ const DashboardStore = () => {
     }
   };
 
-  const handleEquip = async (item: StoreItem) => {
-    setIsSubmitting(true);
-    setLocalError(null);
-    try {
-      setTimeout(() => {
-        navigate("/dashboard/inventory");
-      }, 300);
-    } catch (err: any) {
-      setLocalError(err.response?.data?.message || "Erro ao ir para o inventário.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const handleEquip = (_item: StoreItem) => {     // _item é intencionalmente não utilizado, pois o efeito é o mesmo para qualquer item
+  setIsSubmitting(true);
+  setLocalError(null);
+
+  setTimeout(() => {
+    navigate("/dashboard/inventory");
+    setIsSubmitting(false);
+  }, 300);
+};
 
   const handleFavorite = (item: StoreItem) => {
     toggleFavorite(item.id);

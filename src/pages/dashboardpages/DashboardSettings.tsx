@@ -456,8 +456,6 @@ const DashboardSettings = () => {
   // ── Dados do perfil via Context ──────────────────────────
   const { profileData, isLoadingProfile } = useProfile();
 
-  const displayName = profileData?.name || "Usuário";
-  const profileUrl = profileData?.slug || "usuario";
   const isPremium = profileData?.isPremium ?? false;
   const premiumExpireAt = profileData?.premiumExpireAt;
 

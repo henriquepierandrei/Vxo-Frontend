@@ -3,7 +3,6 @@ import {
   Link2,
   DollarSign,
   ArrowRight,
-  Play,
   Zap,
   Heart,
   Music2

@@ -24,7 +24,6 @@ import {
   RefreshCw,
   Loader2,
   Award,
-  Video,
   Crown,
   Info,
   Layers,
@@ -365,7 +364,6 @@ const FramePreview = ({
 const ItemMediaPreview = ({
   item,
   size = "medium",
-  showPlayButton = false,
   userProfileImage,
 }: {
   item: InventoryItem;

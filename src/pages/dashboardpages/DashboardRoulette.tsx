@@ -490,10 +490,6 @@ const RouletteWheel = ({
       const totalItemWidth = itemWidth + GAP;
       const winnerIndex = items.findIndex((item) => item.id === targetId);
       if (winnerIndex === -1) return currentPosition.current;
-
-      // Posição atual + várias voltas + offset até o vencedor
-      const fullRotations = 5;
-      const rotationDistance = items.length * fullRotations * totalItemWidth;
       
       // Calcula onde o item vencedor deve parar (no centro)
       const targetIndex = items.length * 5 + winnerIndex; // Pega uma instância no meio

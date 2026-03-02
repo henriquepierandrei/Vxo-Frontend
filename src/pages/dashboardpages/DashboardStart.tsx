@@ -33,7 +33,6 @@ import {
   RefreshCw,
   Loader2,
   AlertCircle,
-  Star,
   PartyPopper,
   Sun,
   Moon,
@@ -232,7 +231,7 @@ const SectionHeader = ({
 // ═══════════════════════════════════════════════════════════
 
 
-const AnimatedMascot = ({ isPremium }: { isPremium: boolean }) => {
+const AnimatedMascot = ({  }: { isPremium: boolean }) => {
   const eyeControls = useAnimation();
 
   useEffect(() => {
@@ -452,11 +451,11 @@ const WelcomeHero = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative overflow-hidden bg-gradient-to-br from-[var(--color-primary)]/10 via-[var(--card-background-glass)] to-[var(--color-primary)]/5 backdrop-blur-[var(--blur-amount)] border border-[var(--color-border)] rounded-[var(--border-radius-xl)] p-6 sm:p-8 mb-6"
+      className="relative overflow-hidden bg-gradient-to-br from-[var(--color-surface)] via-[var(--card-background-glass)] to-[var(--color-primary)]5 backdrop-blur-[var(--blur-amount)] border border-[var(--color-border)] rounded-[var(--border-radius-xl)] p-6 sm:p-8 mb-6"
     >
       {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-primary)]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[var(--color-primary)]/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+      <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-surface)] rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-[var(--color-surface)] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
       <div className="relative flex flex-col lg:flex-row items-center gap-6 lg:gap-10">
         {/* Mascote */}
