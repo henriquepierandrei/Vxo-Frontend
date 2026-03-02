@@ -2514,10 +2514,6 @@ const CardContent: React.FC<CardContentProps> = ({
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const UserPublicPage: React.FC = () => {
-
-
-
-
     const getFingerprint = async (): Promise<string> => {
         const fp = await FingerprintJS.load();
         const result = await fp.get();
@@ -2532,7 +2528,6 @@ const UserPublicPage: React.FC = () => {
         }
         return id;
     };
-
 
 
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -2602,7 +2597,6 @@ const UserPublicPage: React.FC = () => {
 
     /* FETCH */
     useEffect(() => {
-        console.log({ slug, fpReady, turnstileToken });
         if (!slug || !fpReady || !turnstileToken) return;
 
         const fetchPage = async () => {
@@ -2761,7 +2755,7 @@ const UserPublicPage: React.FC = () => {
 
     /* ═══════════════════════════════════════════════════════════════════════════
    CARD EFFECT OVERLAY - Efeito visual sobre o card
-═══════════════════════════════════════════════════════════════════════════ */
+    ═══════════════════════════════════════════════════════════════════════════ */
 
     interface CardEffectOverlayProps {
         url: string;
@@ -2802,6 +2796,11 @@ const UserPublicPage: React.FC = () => {
         return (
             <>
                 <style dangerouslySetInnerHTML={{ __html: globalStylesCSS }} />
+                <Turnstile
+                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                    onSuccess={(token) => setTurnstileToken(token)}
+                    options={{ size: 'invisible' }}
+                />
                 <div
                     style={{
                         minHeight: '100vh',
@@ -2830,6 +2829,11 @@ const UserPublicPage: React.FC = () => {
     if (error || !data) {
         return (
             <>
+                <Turnstile
+                    siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                    onSuccess={(token) => setTurnstileToken(token)}
+                    options={{ size: 'invisible' }}
+                />
                 <style dangerouslySetInnerHTML={{
                     __html: `
                 ${globalStylesCSS}
@@ -3295,12 +3299,7 @@ const UserPublicPage: React.FC = () => {
             </main>
             <Turnstile
                 siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                onSuccess={(token) => {
-                    console.log("Turnstile OK:", token);
-                    setTurnstileToken(token);
-                }}
-                onError={() => console.error("Turnstile ERRO")}
-                onExpire={() => console.warn("Turnstile EXPIROU")}
+                onSuccess={(token) => setTurnstileToken(token)}
                 options={{ size: 'invisible' }}
             />
         </>
