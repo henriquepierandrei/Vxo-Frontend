@@ -10,7 +10,6 @@ interface LogoProps {
 export const VxoLogoSmall: React.FC<LogoProps> = ({
     className = "",
     size = 40,
-    variant = "full"
 }) => {
     const navigate = useNavigate();
 
