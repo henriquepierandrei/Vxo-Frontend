@@ -2602,6 +2602,7 @@ const UserPublicPage: React.FC = () => {
 
     /* FETCH */
     useEffect(() => {
+        console.log({ slug, fpReady, turnstileToken });
         if (!slug || !fpReady || !turnstileToken) return;
 
         const fetchPage = async () => {
