@@ -2533,7 +2533,7 @@ const UserPublicPage: React.FC = () => {
         return id;
     };
 
-    
+
 
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const { slug } = useParams<{ slug: string }>();
@@ -2598,7 +2598,7 @@ const UserPublicPage: React.FC = () => {
         });
     }, []);
 
-    
+
 
     /* FETCH */
     useEffect(() => {
@@ -3294,7 +3294,12 @@ const UserPublicPage: React.FC = () => {
             </main>
             <Turnstile
                 siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                onSuccess={(token) => setTurnstileToken(token)}
+                onSuccess={(token) => {
+                    console.log("Turnstile OK:", token);
+                    setTurnstileToken(token);
+                }}
+                onError={() => console.error("Turnstile ERRO")}
+                onExpire={() => console.warn("Turnstile EXPIROU")}
                 options={{ size: 'invisible' }}
             />
         </>
