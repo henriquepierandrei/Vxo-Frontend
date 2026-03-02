@@ -2533,7 +2533,7 @@ const UserPublicPage: React.FC = () => {
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
     const { slug } = useParams<{ slug: string }>();
     const [data, setData] = useState<UserPageResponse | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showPlusOne, setShowPlusOne] = useState(false);
 
