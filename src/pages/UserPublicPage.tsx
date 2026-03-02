@@ -2801,52 +2801,7 @@ const UserPublicPage: React.FC = () => {
                     onSuccess={(token) => setTurnstileToken(token)}
                     options={{ size: 'invisible' }}
                 />
-                <div style={{
-                    minHeight: '100vh',
-                    background: 'black', // ou a cor de fundo padrão
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}>
-                    {/* Skeleton do card em vez de spinner */}
-                    <div style={{
-                        width: 440,
-                        borderRadius: 28,
-                        background: 'rgba(255,255,255,0.05)',
-                        padding: 20,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 12,
-                    }}>
-                        {/* Avatar skeleton */}
-                        <div style={{
-                            width: 90, height: 90,
-                            borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.08)',
-                            animation: 'pulse 1.5s ease-in-out infinite',
-                        }} />
-                        {/* Nome skeleton */}
-                        <div style={{
-                            width: 160, height: 28,
-                            borderRadius: 8,
-                            background: 'rgba(255,255,255,0.08)',
-                            animation: 'pulse 1.5s ease-in-out infinite',
-                        }} />
-                        {/* Bio skeleton */}
-                        <div style={{
-                            width: '100%', height: 16,
-                            borderRadius: 6,
-                            background: 'rgba(255,255,255,0.08)',
-                            animation: 'pulse 1.5s ease-in-out infinite',
-                        }} />
-                        <div style={{
-                            width: '70%', height: 16,
-                            borderRadius: 6,
-                            background: 'rgba(255,255,255,0.08)',
-                            animation: 'pulse 1.5s ease-in-out infinite',
-                        }} />
-                    </div>
-                </div>
+                {data?.contentSettings.biography}
             </>
         );
     }
