@@ -850,7 +850,7 @@ const ProfileCard = ({
 
           <div className="grid grid-cols-2 gap-2 mt-3">
             <motion.button
-              onClick={() => navigate("/dashboard/profile")}
+              onClick={() => navigate("/" + {slug})}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-sm font-medium transition-colors"
