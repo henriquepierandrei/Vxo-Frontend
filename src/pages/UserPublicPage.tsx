@@ -872,13 +872,13 @@ const PayPalIcon: React.FC<IconProps> = ({ color }) => (
 );
 
 const XboxIcon: React.FC<IconProps> = ({ color }) => (
-  <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#107C10"}>
-    <path d="M5.112 3.4C6.88 1.983 9.14 1.04 11.999 1c2.86.04 5.12.983 6.889 2.4C17.362 1.862 15.03 1.207 12 1.207S6.638 1.862 5.112 3.4z" />
-    <path d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417z" />
-    <path d="M4.012 4.108C2.272 5.836.879 8.222.879 11.4c0 2.548.801 5.131 2.209 7.052C2.088 14.364 4.771 9.4 7.577 6.8c-.975-.876-2.375-1.9-3.565-2.692z" />
-    <path d="M16.423 6.8c2.806 2.6 5.489 7.564 4.489 11.652 1.408-1.921 2.209-4.504 2.209-7.052 0-3.178-1.393-5.564-3.133-7.292-1.19.792-2.59 1.816-3.565 2.692z" />
-    <path d="M15.904 6.205C14.354 4.962 13.04 4.17 12 3.873c-1.04.297-2.354 1.089-3.904 2.332C9.398 7.62 10.745 8.95 12 10.05c1.255-1.1 2.602-2.43 3.904-3.845z" />
-  </svg>
+    <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#107C10"}>
+        <path d="M5.112 3.4C6.88 1.983 9.14 1.04 11.999 1c2.86.04 5.12.983 6.889 2.4C17.362 1.862 15.03 1.207 12 1.207S6.638 1.862 5.112 3.4z" />
+        <path d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417z" />
+        <path d="M4.012 4.108C2.272 5.836.879 8.222.879 11.4c0 2.548.801 5.131 2.209 7.052C2.088 14.364 4.771 9.4 7.577 6.8c-.975-.876-2.375-1.9-3.565-2.692z" />
+        <path d="M16.423 6.8c2.806 2.6 5.489 7.564 4.489 11.652 1.408-1.921 2.209-4.504 2.209-7.052 0-3.178-1.393-5.564-3.133-7.292-1.19.792-2.59 1.816-3.565 2.692z" />
+        <path d="M15.904 6.205C14.354 4.962 13.04 4.17 12 3.873c-1.04.297-2.354 1.089-3.904 2.332C9.398 7.62 10.745 8.95 12 10.05c1.255-1.1 2.602-2.43 3.904-3.845z" />
+    </svg>
 );
 const PinterestIcon: React.FC<IconProps> = ({ color }) => (
     <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#BD081C"}>
@@ -1949,8 +1949,8 @@ const UserPublicPage: React.FC = () => {
                 console.error('Erro ao buscar página:', err);
                 const errorMessage =
                     err && typeof err === 'object' && 'response' in err &&
-                    err.response && typeof err.response === 'object' && 'data' in err.response &&
-                    err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data
+                        err.response && typeof err.response === 'object' && 'data' in err.response &&
+                        err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data
                         ? String(err.response.data.message)
                         : 'Erro ao carregar página';
                 setError(errorMessage);
@@ -2091,21 +2091,159 @@ const UserPublicPage: React.FC = () => {
     if (loading) {
         return (
             <>
-                <style dangerouslySetInnerHTML={{ __html: globalStylesCSS }} />
+                <style dangerouslySetInnerHTML={{
+                    __html: globalStylesCSS + `
+                @keyframes shimmer {
+                    0% { background-position: -600px 0; }
+                    100% { background-position: 600px 0; }
+                }
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(16px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .skeleton {
+                    background: linear-gradient(
+                        90deg,
+                        rgba(255,255,255,0.04) 0px,
+                        rgba(255,255,255,0.09) 200px,
+                        rgba(255,255,255,0.04) 400px
+                    );
+                    background-size: 600px 100%;
+                    animation: shimmer 1.6s ease-in-out infinite;
+                    border-radius: 10px;
+                }
+            ` }} />
+
                 <Turnstile
                     siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                     onSuccess={handleTurnstileSuccess}
                     options={{ size: 'invisible' }}
                 />
+
                 <div style={{
-                    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f0f23 100%)',
+                    minHeight: '100vh',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 10,
+                    background: 'linear-gradient(135deg,#0d0d1a 0%,#111827 50%,#0a0a14 100%)',
                 }}>
                     <div style={{
-                        width: 50, height: 50,
-                        border: '3px solid rgba(139,92,246,0.3)', borderTopColor: '#8b5cf6',
-                        borderRadius: '50%', animation: 'spin 1s linear infinite',
-                    }} />
+                        width: '100%',
+                        maxWidth: 440,
+                        borderRadius: 28,
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        backdropFilter: 'blur(20px)',
+                        padding: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0,
+                        animation: 'fadeInUp 0.4s ease-out',
+                        boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
+                    }}>
+
+                        {/* Topo: avatar + nome + badges */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '6px 6px 16px' }}>
+
+                            {/* Avatar */}
+                            <div className="skeleton" style={{
+                                width: 90, height: 90,
+                                borderRadius: '50%',
+                                flexShrink: 0,
+                            }} />
+
+                            {/* Nome */}
+                            <div className="skeleton" style={{ width: 160, height: 26 }} />
+
+                            {/* Badges */}
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                {[24, 24, 24].map((size, i) => (
+                                    <div key={i} className="skeleton" style={{
+                                        width: size, height: size,
+                                        borderRadius: '50%',
+                                    }} />
+                                ))}
+                            </div>
+
+                            {/* Bio */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                                <div className="skeleton" style={{ width: '92%', height: 14 }} />
+                                <div className="skeleton" style={{ width: '75%', height: 14 }} />
+                                <div className="skeleton" style={{ width: '60%', height: 14 }} />
+                            </div>
+
+                            {/* Tags */}
+                            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                                {[70, 90, 60].map((w, i) => (
+                                    <div key={i} className="skeleton" style={{
+                                        width: w, height: 24,
+                                        borderRadius: 20,
+                                    }} />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Divisor */}
+                        <div style={{
+                            height: 1,
+                            background: 'rgba(255,255,255,0.06)',
+                            margin: '4px 0 16px',
+                        }} />
+
+                        {/* Ícones sociais */}
+                        <div style={{ display: 'flex', gap: 8, padding: '0 6px 16px' }}>
+                            {[1, 2, 3, 4, 5].map((_, i) => (
+                                <div key={i} className="skeleton" style={{
+                                    width: 36, height: 36,
+                                    borderRadius: 12,
+                                }} />
+                            ))}
+                        </div>
+
+                        {/* Links genéricos */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 6px 16px' }}>
+                            {[1, 2, 3].map((_, i) => (
+                                <div key={i} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 12,
+                                    padding: '12px 14px',
+                                    borderRadius: 16,
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    background: 'rgba(255,255,255,0.02)',
+                                }}>
+                                    <div className="skeleton" style={{
+                                        width: 32, height: 32,
+                                        borderRadius: 10,
+                                        flexShrink: 0,
+                                    }} />
+                                    <div className="skeleton" style={{
+                                        flex: 1,
+                                        height: 14,
+                                        width: `${60 + i * 10}%`,
+                                    }} />
+                                    <div className="skeleton" style={{
+                                        width: 16, height: 16,
+                                        borderRadius: 4,
+                                        flexShrink: 0,
+                                    }} />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* View counter */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '4px 10px',
+                        }}>
+                            <div className="skeleton" style={{ width: 16, height: 16, borderRadius: '50%' }} />
+                            <div className="skeleton" style={{ width: 40, height: 12 }} />
+                        </div>
+
+                    </div>
                 </div>
             </>
         );
