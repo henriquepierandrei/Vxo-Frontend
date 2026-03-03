@@ -30,10 +30,6 @@ import {
   getKnownDomainInfo,
 } from "../../utils/linkUtils";
 
-// ═══════════════════════════════════════════════════════════
-// TIPOS LOCAIS (estendendo o tipo do contexto)
-// ═══════════════════════════════════════════════════════════
-
 interface DisplayUserLink {
   id: string;
   url: string;
@@ -42,21 +38,14 @@ interface DisplayUserLink {
   favicon: string;
   hasLinkTyped: boolean;
   linkTypeId: number | null;
+  linkText: string;
 }
-
-// ═══════════════════════════════════════════════════════════
-// UTILITÁRIO: Detectar Rede Social
-// ═══════════════════════════════════════════════════════════
 
 const getSocialNetworkFromUrl = (url: string): string | null => {
   const networkId = detectSocialNetwork(url);
   if (!networkId) return null;
   return getSocialNetworkName(url);
 };
-
-// ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE (Input, LinksCard, SectionHeader, Modal, etc.)
-// ═══════════════════════════════════════════════════════════
 
 const Input = ({
   label,
@@ -291,7 +280,7 @@ const LinkItem = ({
         <FaviconImage url={link.favicon} domain={link.domain} size={24} />
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-medium text-[var(--color-text)] truncate">
-            {knownInfo?.name || link.displayName}
+            {knownInfo?.name || link.linkText || link.displayName}
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] truncate mt-0.5">{link.domain}</p>
         </div>
@@ -431,7 +420,7 @@ const SocialNetworkAlert = ({ networkName }: { networkName: string }) => {
 };
 
 // ═══════════════════════════════════════════════════════════
-// PÁGINA PRINCIPAL - USANDO O CONTEXTO CORRETAMENTE
+// PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 
 const DashboardLinks = () => {
@@ -444,24 +433,23 @@ const DashboardLinks = () => {
     deleteLink,
   } = useLinks();
 
-  // ✅ Transformar links do contexto para o formato com displayName
   const links: DisplayUserLink[] = contextLinks.map((link) => {
     const info = extractDomainInfo(link.url);
     return {
-      id: link.id,           // Já vem como `id` do contexto
+      id: link.id,
       url: link.url,
-      domain: link.domain,   // Já vem do contexto
+      domain: link.domain,
       displayName: info.displayName,
-      favicon: link.favicon, // Já vem do contexto
+      favicon: link.favicon,
       hasLinkTyped: link.hasLinkTyped,
       linkTypeId: link.linkTypeId,
+      linkText: link.linkText || "",
     };
   });
 
-  // Estados locais (apenas UI)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");  // ✅ Estado local de erro
+  const [errorMessage, setErrorMessage] = useState("");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [detectedSocialNetwork, setDetectedSocialNetwork] = useState<string | null>(null);
   const [linkForm, setLinkForm] = useState({ url: "", linkText: "" });
@@ -469,16 +457,15 @@ const DashboardLinks = () => {
   // Modal de Edição
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingLink, setEditingLink] = useState<DisplayUserLink | null>(null);
-  const [editForm, setEditForm] = useState({ url: "" });
+  const [editForm, setEditForm] = useState({ url: "", linkText: "" });
   const [editDetectedSocial, setEditDetectedSocial] = useState<string | null>(null);
 
   // Modal de Exclusão
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingLink, setDeletingLink] = useState<DisplayUserLink | null>(null);
 
-  // Handler para mudança de URL no form principal
   const handleUrlChange = (value: string) => {
-    setLinkForm({ url: "", linkText: "" });
+    setLinkForm(prev => ({ ...prev, url: value }));
     setFormErrors({});
     setErrorMessage("");
 
@@ -490,9 +477,8 @@ const DashboardLinks = () => {
     }
   };
 
-  // Handler para mudança de URL no modal de edição
   const handleEditUrlChange = (value: string) => {
-    setEditForm({ url: value });
+    setEditForm(prev => ({ ...prev, url: value }));
     setFormErrors({});
 
     if (value.trim() && isValidUrl(value)) {
@@ -503,7 +489,6 @@ const DashboardLinks = () => {
     }
   };
 
-  // ✅ ADICIONAR LINK (usando contexto)
   const handleSubmit = async () => {
     setFormErrors({});
     setErrorMessage("");
@@ -521,7 +506,6 @@ const DashboardLinks = () => {
       return;
     }
 
-    // Verificar se é rede social
     const socialNetwork = getSocialNetworkFromUrl(linkForm.url);
     if (socialNetwork) {
       setDetectedSocialNetwork(socialNetwork);
@@ -536,12 +520,11 @@ const DashboardLinks = () => {
     try {
       const normalizedUrl = normalizeUrl(linkForm.url.trim());
       const info = extractDomainInfo(normalizedUrl);
-      await addLink(normalizedUrl, undefined, info.displayName);
+      await addLink(normalizedUrl, undefined, linkForm.linkText || info.displayName);
 
       setLinkForm({ url: "", linkText: "" });
       setDetectedSocialNetwork(null);
       setSuccessMessage("Link adicionado com sucesso!");
-
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err: any) {
       console.error("Erro ao adicionar link:", err);
@@ -558,16 +541,14 @@ const DashboardLinks = () => {
     }
   };
 
-  // Abrir modal de edição
   const handleEdit = (link: DisplayUserLink) => {
     setEditingLink(link);
-    setEditForm({ url: link.url });
+    setEditForm({ url: link.url, linkText: link.linkText || link.displayName });
     setFormErrors({});
     setEditDetectedSocial(null);
     setIsEditModalOpen(true);
   };
 
-  // ✅ EDITAR LINK (usando contexto)
   const handleEditSubmit = async () => {
     if (!editingLink) return;
 
@@ -586,7 +567,6 @@ const DashboardLinks = () => {
       return;
     }
 
-    // Verificar se é rede social
     const socialNetwork = getSocialNetworkFromUrl(editForm.url);
     if (socialNetwork) {
       setEditDetectedSocial(socialNetwork);
@@ -601,11 +581,11 @@ const DashboardLinks = () => {
     try {
       const normalizedUrl = normalizeUrl(editForm.url.trim());
       const info = extractDomainInfo(normalizedUrl);
-      await updateLink(editingLink.id, normalizedUrl, undefined, info.displayName);
+      await updateLink(editingLink.id, normalizedUrl, undefined, editForm.linkText || info.displayName);
 
       setIsEditModalOpen(false);
       setEditingLink(null);
-      setEditForm({ url: "" });
+      setEditForm({ url: "", linkText: "" });
       setEditDetectedSocial(null);
     } catch (err: any) {
       console.error("Erro ao atualizar link:", err);
@@ -615,21 +595,18 @@ const DashboardLinks = () => {
     }
   };
 
-  // Abrir modal de exclusão
   const handleDelete = (link: DisplayUserLink) => {
     setDeletingLink(link);
     setIsDeleteModalOpen(true);
   };
 
-  // ✅ EXCLUIR LINK (usando contexto)
   const confirmDelete = async () => {
     if (!deletingLink) return;
 
     setIsSubmitting(true);
 
     try {
-      await deleteLink(deletingLink.id); // ✅ Usando o contexto
-
+      await deleteLink(deletingLink.id);
       setIsDeleteModalOpen(false);
       setDeletingLink(null);
     } catch (err: any) {
@@ -727,6 +704,17 @@ const DashboardLinks = () => {
                 disabled={isSubmitting}
               />
 
+              <Input
+                label="Texto do link"
+                placeholder="Ex: Meu portfólio, Canal do YouTube..."
+                value={linkForm.linkText}
+                onChange={(value) => setLinkForm(prev => ({ ...prev, linkText: value }))}
+                icon={Edit3}
+                maxLength={35}
+                helperText="Nome que será exibido no seu perfil"
+                disabled={isSubmitting}
+              />
+
               <AnimatePresence>
                 {detectedSocialNetwork && <SocialNetworkAlert networkName={detectedSocialNetwork} />}
               </AnimatePresence>
@@ -734,20 +722,6 @@ const DashboardLinks = () => {
               <AnimatePresence>
                 {linkForm.url && isValidUrl(linkForm.url) && !detectedSocialNetwork && (
                   <LinkPreview url={linkForm.url} />
-                )}
-              </AnimatePresence>
-
-              <AnimatePresence>
-                {linkForm.url && isValidUrl(linkForm.url) && !detectedSocialNetwork && (
-                  <Input
-                    label="Texto do link"
-                    placeholder="Ex: Meu portfólio, Canal do YouTube..."
-                    value={linkForm.linkText}
-                    onChange={(value) => setLinkForm(prev => ({ ...prev, linkText: value }))}
-                    icon={Edit3}
-                    maxLength={35}
-                    helperText="Nome que será exibido no seu perfil"
-                  />
                 )}
               </AnimatePresence>
 
@@ -797,7 +771,7 @@ const DashboardLinks = () => {
               description="Aqui você poderá gerenciar seus links."
               action={
                 <motion.button
-                  onClick={refreshLinks} // ✅ Nome correto
+                  onClick={refreshLinks}
                   disabled={isLoadingLinks}
                   className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] transition-colors disabled:opacity-50"
                   whileHover={{ scale: 1.1 }}
@@ -851,7 +825,7 @@ const DashboardLinks = () => {
         onClose={() => {
           setIsEditModalOpen(false);
           setEditingLink(null);
-          setEditForm({ url: "" });
+          setEditForm({ url: "", linkText: "" });
           setFormErrors({});
           setEditDetectedSocial(null);
         }}
@@ -879,6 +853,16 @@ const DashboardLinks = () => {
             disabled={isSubmitting}
           />
 
+          <Input
+            label="Texto do link"
+            placeholder="Ex: Meu portfólio..."
+            value={editForm.linkText}
+            onChange={(value) => setEditForm(prev => ({ ...prev, linkText: value }))}
+            icon={Edit3}
+            maxLength={35}
+            disabled={isSubmitting}
+          />
+
           <AnimatePresence>{editDetectedSocial && <SocialNetworkAlert networkName={editDetectedSocial} />}</AnimatePresence>
 
           <AnimatePresence>
@@ -892,7 +876,7 @@ const DashboardLinks = () => {
               onClick={() => {
                 setIsEditModalOpen(false);
                 setEditingLink(null);
-                setEditForm({ url: "" });
+                setEditForm({ url: "", linkText: "" });
                 setFormErrors({});
                 setEditDetectedSocial(null);
               }}
@@ -946,7 +930,7 @@ const DashboardLinks = () => {
               <FaviconImage url={deletingLink.favicon} domain={deletingLink.domain} size={20} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[var(--color-text)]">
-                  {getKnownDomainInfo(deletingLink.domain)?.name || deletingLink.displayName}
+                  {getKnownDomainInfo(deletingLink.domain)?.name || deletingLink.linkText || deletingLink.displayName}
                 </p>
                 <p className="text-xs text-[var(--color-text-muted)] truncate">{deletingLink.url}</p>
               </div>
