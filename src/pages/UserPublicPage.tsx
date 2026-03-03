@@ -1071,8 +1071,10 @@ const globalStylesCSS = `
 
 .rgb-border-card {
     position: relative;
+    /* Isola o stacking context */
 }
 
+/* Borda RGB usando mask para recortar o interior */
 .rgb-border-card::before {
     content: '';
     position: absolute;
@@ -1087,6 +1089,17 @@ const globalStylesCSS = `
     animation: rgb-border-animation 3s linear infinite;
     z-index: -1;
     pointer-events: none;
+
+    /* MASK: recorta o interior, só sobra a borda */
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    padding: 3px;
 }
 
 /* ═══════════════════════════════════════════════════════ */
@@ -2106,7 +2119,6 @@ const UserPublicPage: React.FC = () => {
             willChange: 'transform',
             position: 'relative',
             overflow: 'visible',
-            isolation: 'isolate',
         };
     }, [data, tiltX, tiltY, scale, hovering]);
 
@@ -2223,7 +2235,7 @@ const UserPublicPage: React.FC = () => {
                         </div>
                     </div>
                 )}
-                {/* CARD */}
+                {/* CARD — Um único bloco, sem condicional de wrapper */}
                 <div style={{
                     position: 'relative', zIndex: 10, width: '100%',
                     maxWidth: 440, animation: 'slideUp 0.6s ease-out',
