@@ -147,10 +147,10 @@ class CheckoutService {
   // ═══════════════════════════════════════════════════════════
 
   async checkoutCoins(amount: CoinAmount): Promise<CheckoutResponse> {
-    const validAmounts: CoinAmount[] = ['300', '900', '1800', '3600'];
+    const validAmounts: CoinAmount[] = ['300', '500', '700', '1000'];
     
     if (!validAmounts.includes(amount)) {
-      throw new Error('Quantidade de moedas inválida. Valores aceitos: 300, 900, 1800, 3600');
+      throw new Error('Quantidade de moedas inválida. Valores aceitos: 300, 500, 700, 1000');
     }
 
     const key = this.getRequestKey(`coins-${amount}`);
