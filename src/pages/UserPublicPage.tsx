@@ -4,7 +4,7 @@ import { publicApi } from '../services/api';
 import { Turnstile } from '@marsidev/react-turnstile';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   TYPES
+   TYPES — aligned with backend UserPageFrontendSimplifiedResponse
 ═══════════════════════════════════════════════════════════════════════════ */
 
 interface PageEffects {
@@ -58,6 +58,10 @@ interface InventoryItem {
     name?: string;
 }
 
+interface InventoryPublicResponse {
+    equipped: InventoryItem[];
+}
+
 interface UserLink {
     id: string;
     linkId: string;
@@ -69,26 +73,44 @@ interface UserLink {
     hasLinkTyped: boolean;
 }
 
+interface UserLinksResponse {
+    links: UserLink[];
+}
+
 interface TagResponse {
     tagId: number;
     tagName: string;
 }
 
-interface UserPageResponse {
+interface UserTagsResponse {
+    tags: TagResponse[];
+}
+
+/**
+ * Matches backend: UserPageFrontendSimplifiedResponse
+ * NO views, NO viewCounted — those come from POST /view
+ */
+interface UserPageSimplifiedResponse {
     pageEffects: PageEffects;
     cardSettings: CardSettings;
     contentSettings: ContentSettings;
+    userTagsResponse: UserTagsResponse;
     nameEffects: NameEffects;
     mediaUrls: MediaUrls;
-    staticBackgroundColor?: string | null;
-    inventoryResponse: { equipped: InventoryItem[] };
-    userLinksResponse: { links: UserLink[] };
-    userTagsResponse: { tags: TagResponse[] };
+    inventoryResponse: InventoryPublicResponse;
+    userLinksResponse: UserLinksResponse;
     embedUrl: string | null;
-    views: number;
+    staticBackgroundColor: string | null;
     slug: string;
     isPremium: boolean;
+}
+
+/**
+ * Matches backend: RegisterViewResponse
+ */
+interface RegisterViewResponse {
     viewCounted: boolean;
+    views: number;
 }
 
 interface RegisterViewRequest {
@@ -100,6 +122,27 @@ interface RegisterViewRequest {
     screenHeight?: number;
     timezone?: string;
     language?: string;
+}
+
+/**
+ * Internal state: page data + view info (merged from both endpoints)
+ */
+interface UserPageState {
+    pageEffects: PageEffects;
+    cardSettings: CardSettings;
+    contentSettings: ContentSettings;
+    userTagsResponse: UserTagsResponse;
+    nameEffects: NameEffects;
+    mediaUrls: MediaUrls;
+    inventoryResponse: InventoryPublicResponse;
+    userLinksResponse: UserLinksResponse;
+    embedUrl: string | null;
+    staticBackgroundColor: string | null;
+    slug: string;
+    isPremium: boolean;
+    // View data — populated from POST /view response
+    views: number;
+    viewCounted: boolean;
 }
 
 interface IconProps {
@@ -179,10 +222,10 @@ const getErrorMessage = (err: unknown): string => {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PRELOAD CRITICAL IMAGES — chamado assim que os dados chegam
+   PRELOAD CRITICAL IMAGES
 ═══════════════════════════════════════════════════════════════════════════ */
 
-function preloadCriticalImages(data: UserPageResponse) {
+function preloadCriticalImages(data: UserPageSimplifiedResponse) {
     const urls: { url: string; priority: 'high' | 'low' }[] = [];
 
     if (data.mediaUrls.backgroundUrl && !isVideoUrl(data.mediaUrls.backgroundUrl)) {
@@ -203,7 +246,7 @@ function preloadCriticalImages(data: UserPageResponse) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   RGB TO FILTER — com cache + deferred hook
+   RGB TO FILTER
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const filterCache = new Map<string, string>();
@@ -312,7 +355,6 @@ function rgbToFilter(c: string): string {
     return `invert(${Math.round(f[0])}%) sepia(${Math.round(f[1])}%) saturate(${Math.round(f[2])}%) hue-rotate(${Math.round(f[3] * 3.6)}deg) brightness(${Math.round(f[4])}%) contrast(${Math.round(f[5])}%)`;
 }
 
-/** Hook que computa o CSS filter fora da main thread */
 const useDeferredFilter = (color: string): string => {
     const [filter, setFilter] = useState(() => {
         if (!color || color === 'transparent' || color === 'rgb(255, 255, 255)') return 'none';
@@ -348,7 +390,7 @@ const useDeferredFilter = (color: string): string => {
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   FINGERPRINT — importação dinâmica (não entra no bundle crítico)
+   FINGERPRINT
 ═══════════════════════════════════════════════════════════════════════════ */
 
 let fpPromise: Promise<string> | null = null;
@@ -837,13 +879,13 @@ const PayPalIcon: React.FC<IconProps> = ({ color }) => (
 );
 
 const XboxIcon: React.FC<IconProps> = ({ color }) => (
-  <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#107C10"}>
-    <path d="M5.112 3.4C6.88 1.983 9.14 1.04 11.999 1c2.86.04 5.12.983 6.889 2.4C17.362 1.862 15.03 1.207 12 1.207S6.638 1.862 5.112 3.4z" />
-    <path d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417z" />
-    <path d="M4.012 4.108C2.272 5.836.879 8.222.879 11.4c0 2.548.801 5.131 2.209 7.052C2.088 14.364 4.771 9.4 7.577 6.8c-.975-.876-2.375-1.9-3.565-2.692z" />
-    <path d="M16.423 6.8c2.806 2.6 5.489 7.564 4.489 11.652 1.408-1.921 2.209-4.504 2.209-7.052 0-3.178-1.393-5.564-3.133-7.292-1.19.792-2.59 1.816-3.565 2.692z" />
-    <path d="M15.904 6.205C14.354 4.962 13.04 4.17 12 3.873c-1.04.297-2.354 1.089-3.904 2.332C9.398 7.62 10.745 8.95 12 10.05c1.255-1.1 2.602-2.43 3.904-3.845z" />
-  </svg>
+    <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#107C10"}>
+        <path d="M5.112 3.4C6.88 1.983 9.14 1.04 11.999 1c2.86.04 5.12.983 6.889 2.4C17.362 1.862 15.03 1.207 12 1.207S6.638 1.862 5.112 3.4z" />
+        <path d="M4.102 21.033C6.211 22.881 8.977 24 12 24c3.026 0 5.789-1.119 7.902-2.967 1.877-1.912-4.316-8.709-7.902-11.417-3.582 2.708-9.779 9.505-7.898 11.417z" />
+        <path d="M4.012 4.108C2.272 5.836.879 8.222.879 11.4c0 2.548.801 5.131 2.209 7.052C2.088 14.364 4.771 9.4 7.577 6.8c-.975-.876-2.375-1.9-3.565-2.692z" />
+        <path d="M16.423 6.8c2.806 2.6 5.489 7.564 4.489 11.652 1.408-1.921 2.209-4.504 2.209-7.052 0-3.178-1.393-5.564-3.133-7.292-1.19.792-2.59 1.816-3.565 2.692z" />
+        <path d="M15.904 6.205C14.354 4.962 13.04 4.17 12 3.873c-1.04.297-2.354 1.089-3.904 2.332C9.398 7.62 10.745 8.95 12 10.05c1.255-1.1 2.602-2.43 3.904-3.845z" />
+    </svg>
 );
 const PinterestIcon: React.FC<IconProps> = ({ color }) => (
     <svg viewBox="0 0 24 24" width="30" height="30" fill={color || "#BD081C"}>
@@ -927,7 +969,6 @@ const NameMCIcon: React.FC<IconProps> = ({ color }) => (
     </svg>
 );
 
-
 const ICON_MAP: Record<number, React.FC<IconProps>> = {
     1: InstagramIcon,
     2: SnapchatIcon,
@@ -975,25 +1016,57 @@ const globalStylesCSS = `
     50% { opacity: 1; transform: translateY(-20px) scale(1.3); }
     100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
 }
-.animate-float-up { animation: float-up 2s ease-out forwards; }
+.animate-float-up {
+    animation: float-up 2s ease-out forwards;
+}
 @keyframes neon-flicker {
     0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
         text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 30px #ff00de, 0 0 40px #ff00de, 0 0 55px #ff00de, 0 0 75px #ff00de;
     }
     20%, 24%, 55% { text-shadow: none; }
 }
-.name-neon { color: #fff; text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 30px #ff00de, 0 0 40px #ff00de; animation: neon-flicker 1.5s infinite alternate; }
+.name-neon {
+    color: #fff;
+    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 30px #ff00de, 0 0 40px #ff00de;
+    animation: neon-flicker 1.5s infinite alternate;
+}
 @keyframes shiny-move { 0% { background-position: 200% center; } 100% { background-position: -200% center; } }
 .name-shiny-container { position: relative; display: inline-block; padding: 1px; }
-.name-shiny-container::before { content: ''; position: absolute; inset: 0; background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto; opacity: 1; border-radius: 12px; z-index: 0; pointer-events: none; }
-.name-shiny-container::after { content: ''; position: absolute; inset: 0; background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto; opacity: 0.7; border-radius: 12px; z-index: 2; pointer-events: none; mix-blend-mode: screen; }
-.name-shiny { position: relative; z-index: 1; color: #ffffff; font-weight: bold; -webkit-text-fill-color: #ffffff; text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5); background: none; background-image: none; animation: none; }
-@keyframes rgb-cycle { 0% { color: #ff0000; } 16.67% { color: #ff8000; } 33.33% { color: #ffff00; } 50% { color: #00ff00; } 66.67% { color: #0080ff; } 83.33% { color: #8000ff; } 100% { color: #ff0000; } }
+.name-shiny-container::before {
+    content: ''; position: absolute; inset: 0;
+    background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto;
+    opacity: 1; border-radius: 12px; z-index: 0; pointer-events: none;
+}
+.name-shiny-container::after {
+    content: ''; position: absolute; inset: 0;
+    background: url('https://vxo.lat/effects/shiny.gif') repeat center/auto;
+    opacity: 0.7; border-radius: 12px; z-index: 2; pointer-events: none; mix-blend-mode: screen;
+}
+.name-shiny {
+    position: relative; z-index: 1; color: #ffffff; font-weight: bold;
+    -webkit-text-fill-color: #ffffff;
+    text-shadow: 0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5);
+    background: none; background-image: none; animation: none;
+}
+@keyframes rgb-cycle {
+    0% { color: #ff0000; } 16.67% { color: #ff8000; } 33.33% { color: #ffff00; }
+    50% { color: #00ff00; } 66.67% { color: #0080ff; } 83.33% { color: #8000ff; } 100% { color: #ff0000; }
+}
 .name-rgb { animation: rgb-cycle 3s linear infinite; }
-@keyframes text-glow-pulse { 0%, 100% { text-shadow: 0 0 4px rgba(255,255,255,0.3), 0 0 12px rgba(255,255,255,0.15); } 50% { text-shadow: 0 0 8px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.25), 0 0 40px rgba(255,255,255,0.1); } }
-.name-glow { text-shadow: 0 0 6px rgba(255,255,255,0.35), 0 0 16px rgba(255,255,255,0.15); animation: text-glow-pulse 3s ease-in-out infinite; }
+@keyframes text-glow-pulse {
+    0%, 100% { text-shadow: 0 0 4px rgba(255,255,255,0.3), 0 0 12px rgba(255,255,255,0.15); }
+    50% { text-shadow: 0 0 8px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.25), 0 0 40px rgba(255,255,255,0.1); }
+}
+.name-glow {
+    text-shadow: 0 0 6px rgba(255,255,255,0.35), 0 0 16px rgba(255,255,255,0.15);
+    animation: text-glow-pulse 3s ease-in-out infinite;
+}
 @keyframes rgb-border-animation { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-.rgb-border-wrapper { position: relative; padding: 3px; border-radius: 36px; background: linear-gradient(45deg, #ff0000, #ff8000, #ffff00, #00ff00, #0080ff, #8000ff, #ff0080, #ff0000); background-size: 400% 400%; animation: rgb-border-animation 3s linear infinite; }
+.rgb-border-wrapper {
+    position: relative; padding: 3px; border-radius: 36px;
+    background: linear-gradient(45deg, #ff0000, #ff8000, #ffff00, #00ff00, #0080ff, #8000ff, #ff0080, #ff0000);
+    background-size: 400% 400%; animation: rgb-border-animation 3s linear infinite;
+}
 @keyframes money-fall { 0% { transform: translateY(-100px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
 @keyframes thunder-flash { 0%, 100% { opacity: 0; } 10%, 30% { opacity: 0.3; } 20% { opacity: 0.8; } }
 .thunder-overlay { animation: thunder-flash 4s infinite; }
@@ -1241,7 +1314,7 @@ const PageEffectsManager: React.FC<{ effects: PageEffects }> = React.memo(({ eff
 PageEffectsManager.displayName = 'PageEffectsManager';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BACKGROUND COMPONENT — fetchpriority="high", SEM loading="lazy"
+   BACKGROUND COMPONENT
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const backgroundOverlayStyle: React.CSSProperties = { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)' };
@@ -1258,8 +1331,7 @@ const BackgroundMedia: React.FC<{ url: string }> = React.memo(({ url }) => {
                     src={url}
                     alt="Background"
                     style={bgMediaStyle}
-                    // eslint-disable-next-line react/no-unknown-property
-                    // @ts-ignore — fetchpriority é válido mas TS não reconhece
+                    // @ts-ignore
                     fetchpriority="high"
                     decoding="async"
                 />
@@ -1290,11 +1362,11 @@ const CardEffectOverlay: React.FC<{ url: string }> = React.memo(({ url }) => (
 CardEffectOverlay.displayName = 'CardEffectOverlay';
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CARD CONTENT
+   CARD CONTENT — now uses UserPageState (with views)
 ═══════════════════════════════════════════════════════════════════════════ */
 
 interface CardContentProps {
-    data: UserPageResponse;
+    data: UserPageState;
     frame: string | null;
     badges: InventoryItem[];
     showPlusOne: boolean;
@@ -1410,7 +1482,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
                 {data.nameEffects.shiny ? (
                     <div className="name-shiny-container">
                         <h1 className="name-shiny" style={{ fontSize: 24, fontWeight: 'bold', margin: 0, letterSpacing: '-0.02em' }}>
-                            {data.slug}
+                            {data.nameEffects.name || data.slug}
                         </h1>
                     </div>
                 ) : (
@@ -1422,7 +1494,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
                                 ? data.nameEffects.nameColor || '#fff' : undefined,
                         }}
                     >
-                        {data.slug}
+                        {data.nameEffects.name || data.slug}
                     </h1>
                 )}
                 {hasVerifiedBadge && (
@@ -1640,7 +1712,7 @@ ${globalStylesCSS}
 `;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   LOADING SKELETON COMPONENT — Extraído para evitar re-render
+   LOADING SKELETON COMPONENT
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const LoadingSkeleton: React.FC = React.memo(() => (
@@ -1710,7 +1782,7 @@ const UserPublicPage: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
 
     /* ── estado principal ───────────────────────────────── */
-    const [data, setData] = useState<UserPageResponse | null>(null);
+    const [data, setData] = useState<UserPageState | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [showPlusOne, setShowPlusOne] = useState(false);
@@ -1739,6 +1811,7 @@ const UserPublicPage: React.FC = () => {
 
     /* ══════════════════════════════════════════════════════
        FASE 1 — buscar dados IMEDIATAMENTE (GET, sem bloqueio)
+       Backend returns UserPageFrontendSimplifiedResponse (no views)
        ═══════════════════════════════════════════════════════ */
     useEffect(() => {
         if (!slug || hasFetchedData.current) return;
@@ -1749,12 +1822,20 @@ const UserPublicPage: React.FC = () => {
                 setLoading(true);
                 setError(null);
 
-                // ★ GET simples — não depende de turnstile nem fingerprint
-                const response = await publicApi.get<UserPageResponse>(`/public/${slug}`);
-                setData(response.data);
+                const response = await publicApi.get<UserPageSimplifiedResponse>(`/public/${slug}`);
+                const pageData = response.data;
 
-                // Preload imagens críticas logo que temos os dados
-                preloadCriticalImages(response.data);
+                // Convert backend response to internal state (add views defaults)
+                const stateData: UserPageState = {
+                    ...pageData,
+                    views: 0,          // Will be populated by POST /view
+                    viewCounted: false, // Will be populated by POST /view
+                };
+
+                setData(stateData);
+
+                // Preload critical images
+                preloadCriticalImages(pageData);
             } catch (err: unknown) {
                 console.error('Erro ao buscar página:', err);
                 setError(getErrorMessage(err));
@@ -1768,8 +1849,7 @@ const UserPublicPage: React.FC = () => {
 
     /* ══════════════════════════════════════════════════════
        FASE 2 — contar view em BACKGROUND
-       (só roda quando turnstile + fingerprint já estiverem
-       prontos — NÃO bloqueia o conteúdo)
+       POST /public/{slug}/view -> RegisterViewResponse { viewCounted, views }
        ═══════════════════════════════════════════════════════ */
     useEffect(() => {
         if (!slug || !data || !fpReady || !turnstileToken || hasCountedView.current) return;
@@ -1788,20 +1868,26 @@ const UserPublicPage: React.FC = () => {
                     language: navigator.language,
                 };
 
-                const response = await publicApi.post<{ viewCounted: boolean; views: number }>(
+                const response = await publicApi.post<RegisterViewResponse>(
                     `/public/${slug}/view`,
                     request
                 );
 
+                // Always update views from the response
+                setData(prev => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        views: response.data.views,
+                        viewCounted: response.data.viewCounted,
+                    };
+                });
+
                 if (response.data.viewCounted) {
                     setShowPlusOne(true);
-                    setData(prev =>
-                        prev ? { ...prev, views: response.data.views, viewCounted: true } : prev
-                    );
                     setTimeout(() => setShowPlusOne(false), 2000);
                 }
             } catch (err) {
-                // Falha silenciosa — contagem de view não deve prejudicar UX
                 console.error('Erro ao contar view:', err);
             }
         };
@@ -1809,7 +1895,7 @@ const UserPublicPage: React.FC = () => {
         countView();
     }, [slug, data, fpReady, turnstileToken, fingerprint]);
 
-    /* ── Fingerprint em background (import dinâmico) ──── */
+    /* ── Fingerprint em background ──────────────────────── */
     useEffect(() => {
         getFingerprint().then((fp) => {
             setFingerprint(fp);
@@ -1940,13 +2026,11 @@ const UserPublicPage: React.FC = () => {
 
     /* ═══════════════════════════════════════════════════════════════
        RENDER — LOADING
-       (Turnstile roda em PARALELO, não bloqueia o skeleton)
        ═══════════════════════════════════════════════════════════════ */
     if (loading) {
         return (
             <>
                 <style dangerouslySetInnerHTML={{ __html: skeletonCSS }} />
-                {/* Turnstile inicia enquanto o GET ainda está em andamento */}
                 <Turnstile
                     siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                     onSuccess={handleTurnstileSuccess}
@@ -1963,7 +2047,6 @@ const UserPublicPage: React.FC = () => {
     if (error || !data) {
         return (
             <>
-                {/* Manter Turnstile para caso de retry */}
                 {!turnstileToken && (
                     <Turnstile
                         siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
@@ -2003,7 +2086,6 @@ const UserPublicPage: React.FC = () => {
         <>
             <style dangerouslySetInnerHTML={{ __html: globalStylesCSS + BADGE_TOOLTIP_STYLES }} />
 
-            {/* Turnstile continua em background se ainda não completou */}
             {!turnstileToken && (
                 <Turnstile
                     siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
@@ -2140,5 +2222,3 @@ const UserPublicPage: React.FC = () => {
         </>
     );
 };
-
-export default UserPublicPage;
