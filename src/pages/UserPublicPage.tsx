@@ -1624,7 +1624,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
                                     )}
                                     <span style={{
                                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                        flex: 1, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', color: data.contentSettings.badgeColor || '#ffffff'
+                                        flex: 1, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em', color: data.contentSettings.tagColor || '#ffffff'
                                     }}>
                                         {link.linkText}
                                     </span>
