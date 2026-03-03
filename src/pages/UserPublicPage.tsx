@@ -104,6 +104,7 @@ interface UserPageSimplifiedResponse {
     staticBackgroundColor: string | null;
     slug: string;
     isPremium: boolean;
+    cachedViews: number; // For SEO and initial render before POST /view returns
 }
 
 /**
@@ -1431,7 +1432,21 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
         return { ...base, aspectRatio: '16/9' };
     }, [data.embedUrl]);
 
-    const viewsFormatted = useMemo(() => data.views.toLocaleString(), [data.views]);
+
+    const viewsFormatted = useMemo(() => {
+        if (!data) return null;
+        return formatViews(data.views);
+    }, [data?.views]);
+
+    function formatViews(views: number): string {
+        if (views >= 1_000_000) {
+            return (views / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+        }
+        if (views >= 1_000) {
+            return (views / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+        }
+        return views.toString();
+    }
 
     const genericLinkBaseStyle = useMemo((): React.CSSProperties => ({
         width: '100%', padding: '12px 16px', borderRadius: 16,
@@ -1641,23 +1656,42 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
             )}
 
             {/* VIEW COUNTER */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '2%',
-                color: data.contentSettings.viewColor || data.contentSettings.biographyColor,
-                fontSize: 13, fontWeight: 900, position: 'relative', opacity: 0.8,
-            }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                </svg>
-                <span>{viewsFormatted}</span>
-                {showPlusOne && (
-                    <span className="animate-float-up" style={{
-                        position: 'absolute', right: -30, color: '#4ade80',
-                        fontWeight: 'bolder', fontSize: 18,
-                    }}>+1</span>
-                )}
-            </div>
+            {viewsFormatted !== null && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '2%',
+                    color: data.contentSettings.viewColor || data.contentSettings.biographyColor,
+                    fontSize: 13,
+                    fontWeight: 900,
+                    position: 'relative',
+                    opacity: 0.8,
+                }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+
+                    <span>{viewsFormatted}</span>
+
+                    {/* +1 Animation */}
+                    {showPlusOne && (
+                        <span
+                            className="animate-float-up"
+                            style={{
+                                position: 'absolute',
+                                right: -30,
+                                color: '#4ade80',
+                                fontWeight: 'bolder',
+                                fontSize: 18,
+                            }}
+                        >
+                            +1
+                        </span>
+                    )}
+                </div>
+            )}
         </div>
     );
 });
@@ -1811,9 +1845,8 @@ const UserPublicPage: React.FC = () => {
     const hasFetchedData = useRef(false);
 
     /* ══════════════════════════════════════════════════════
-       FASE 1 — buscar dados IMEDIATAMENTE (GET, sem bloqueio)
-       Backend returns UserPageFrontendSimplifiedResponse (no views)
-       ═══════════════════════════════════════════════════════ */
+   FASE 1 — buscar dados IMEDIATAMENTE (GET, sem bloqueio)
+   ═══════════════════════════════════════════════════════ */
     useEffect(() => {
         if (!slug || hasFetchedData.current) return;
         hasFetchedData.current = true;
@@ -1826,16 +1859,13 @@ const UserPublicPage: React.FC = () => {
                 const response = await publicApi.get<UserPageSimplifiedResponse>(`/public/${slug}`);
                 const pageData = response.data;
 
-                // Convert backend response to internal state (add views defaults)
                 const stateData: UserPageState = {
                     ...pageData,
-                    views: 0,          // Will be populated by POST /view
-                    viewCounted: false, // Will be populated by POST /view
+                    views: pageData.cachedViews,  // ✅ Mostra cachedViews IMEDIATAMENTE
+                    viewCounted: false,
                 };
 
                 setData(stateData);
-
-                // Preload critical images
                 preloadCriticalImages(pageData);
             } catch (err: unknown) {
                 console.error('Erro ao buscar página:', err);
@@ -1850,7 +1880,6 @@ const UserPublicPage: React.FC = () => {
 
     /* ══════════════════════════════════════════════════════
        FASE 2 — contar view em BACKGROUND
-       POST /public/{slug}/view -> RegisterViewResponse { viewCounted, views }
        ═══════════════════════════════════════════════════════ */
     useEffect(() => {
         if (!slug || !data || !fpReady || !turnstileToken || hasCountedView.current) return;
@@ -1874,22 +1903,40 @@ const UserPublicPage: React.FC = () => {
                     request
                 );
 
-                // Always update views from the response
-                setData(prev => {
-                    if (!prev) return prev;
-                    return {
-                        ...prev,
-                        views: response.data.views,
-                        viewCounted: response.data.viewCounted,
-                    };
-                });
-
                 if (response.data.viewCounted) {
+                    // ✅ View foi contada! Mostra animação +1 PRIMEIRO
                     setShowPlusOne(true);
+
+                    // ✅ Pequeno delay para o +1 aparecer ANTES do número mudar
+                    // Isso cria o efeito visual de "somou"
+                    setTimeout(() => {
+                        setData(prev => {
+                            if (!prev) return prev;
+                            return {
+                                ...prev,
+                                views: response.data.views, // Atualiza para o valor real do backend
+                                viewCounted: true,
+                            };
+                        });
+                    }, 150); // 150ms de delay para o número atualizar após o +1 aparecer
+
+                    // Remove a animação +1 depois de 2 segundos
                     setTimeout(() => setShowPlusOne(false), 2000);
+                } else {
+                    // ❌ View NÃO foi contada (já visitou antes)
+                    // Apenas atualiza o número real sem animação
+                    setData(prev => {
+                        if (!prev) return prev;
+                        return {
+                            ...prev,
+                            views: response.data.views,
+                            viewCounted: false,
+                        };
+                    });
                 }
             } catch (err) {
                 console.error('Erro ao contar view:', err);
+                // Se falhar, mantém o cachedViews — já está exibido
             }
         };
 
