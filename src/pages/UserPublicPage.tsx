@@ -71,6 +71,7 @@ interface UserLink {
     linkTypeId: number | null;
     order: number;
     hasLinkTyped: boolean;
+    linkText: string; // Texto extraído do link
 }
 
 interface UserLinksResponse {
@@ -1625,7 +1626,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
                                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                                         flex: 1, fontSize: 14, fontWeight: 500, letterSpacing: '-0.01em',
                                     }}>
-                                        {link.title}
+                                        {link.linkText}
                                     </span>
                                 </div>
                                 <svg className="link-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
