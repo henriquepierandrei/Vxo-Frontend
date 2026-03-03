@@ -2222,3 +2222,5 @@ const UserPublicPage: React.FC = () => {
         </>
     );
 };
+
+export default UserPublicPage;
