@@ -154,8 +154,204 @@ interface IconProps {
 const VERIFIED_BADGE_ID = "vxo_badge_e01uyc9s2xkpvz";
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   ERROR TYPES & PARSER
+═══════════════════════════════════════════════════════════════════════════ */
+
+interface ApiError {
+    status: number;
+    error: string;
+    message: string;
+    path?: string;
+    timestamp?: string;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════════════════════════ */
+const parseApiError = (err: unknown): ApiError => {
+    // Tenta extrair o erro estruturado do backend
+    if (
+        err && typeof err === 'object' && 'response' in err &&
+        err.response && typeof err.response === 'object'
+    ) {
+        const response = err.response as { status?: number; data?: unknown };
+        const status = response.status || 500;
+        const data = response.data;
+
+        if (data && typeof data === 'object') {
+            const d = data as Record<string, unknown>;
+            return {
+                status,
+                error: String(d.error || 'UNKNOWN_ERROR'),
+                message: String(d.message || 'Erro desconhecido'),
+                path: d.path ? String(d.path) : undefined,
+                timestamp: d.timestamp ? String(d.timestamp) : undefined,
+            };
+        }
+
+        return {
+            status,
+            error: 'UNKNOWN_ERROR',
+            message: 'Erro desconhecido',
+        };
+    }
+
+    return {
+        status: 500,
+        error: 'NETWORK_ERROR',
+        message: 'Não foi possível conectar ao servidor',
+    };
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ERROR CONFIG — Cada tipo de erro tem visual diferente
+═══════════════════════════════════════════════════════════════════════════ */
+
+interface ErrorConfig {
+    icon: React.ReactNode;
+    statusLabel: string;
+    statusColor: string;
+    statusBg: string;
+    heading: string;
+    description: string;
+    glowColor: string;
+    gradientFrom: string;
+    gradientTo: string;
+    avatarBorder: string;
+    showRetry: boolean;
+    showHome: boolean;
+    showBack: boolean;
+}
+
+const getErrorConfig = (apiError: ApiError): ErrorConfig => {
+    const message = apiError.message.toLowerCase();
+
+    // ── BANIDO ──
+    if (
+        message.includes('banido') ||
+        message.includes('banned') ||
+        message.includes('suspenso') ||
+        message.includes('suspended') ||
+        apiError.error === 'USER_BANNED'
+    ) {
+        return {
+            icon: (
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 48, height: 48, color: 'rgba(239, 68, 68, 0.7)' }}>
+                    <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
+                    <path strokeLinecap="round" strokeWidth={1.5} d="M4.93 4.93l14.14 14.14" />
+                </svg>
+            ),
+            statusLabel: 'Conta Suspensa',
+            statusColor: '#EF4444',
+            statusBg: 'rgba(239, 68, 68, 0.1)',
+            heading: 'Este perfil foi suspenso',
+            description: 'Esta conta foi suspensa por violar os termos de uso da plataforma. Se você acredita que isso é um erro, entre em contato com o suporte.',
+            glowColor: 'rgba(239, 68, 68, 0.2)',
+            gradientFrom: 'rgba(239, 68, 68, 0.08)',
+            gradientTo: 'transparent',
+            avatarBorder: 'rgba(239, 68, 68, 0.3)',
+            showRetry: false,
+            showHome: true,
+            showBack: true,
+        };
+    }
+
+    // ── NÃO ENCONTRADO (404) ──
+    if (apiError.status === 404) {
+        return {
+            icon: (
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 48, height: 48, color: 'rgba(143, 124, 255, 0.5)' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+            ),
+            statusLabel: 'Erro 404',
+            statusColor: '#8F7CFF',
+            statusBg: 'rgba(143, 124, 255, 0.1)',
+            heading: 'Perfil não encontrado',
+            description: 'Não conseguimos encontrar o usuário que você está procurando. Verifique o link ou tente buscar novamente.',
+            glowColor: 'rgba(143, 124, 255, 0.2)',
+            gradientFrom: 'rgba(143, 124, 255, 0.08)',
+            gradientTo: 'transparent',
+            avatarBorder: 'rgba(143, 124, 255, 0.3)',
+            showRetry: false,
+            showHome: true,
+            showBack: true,
+        };
+    }
+
+    // ── RATE LIMIT (429) ──
+    if (apiError.status === 429) {
+        return {
+            icon: (
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 48, height: 48, color: 'rgba(251, 191, 36, 0.7)' }}>
+                    <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
+                    <polyline points="12,6 12,12 16,14" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+            ),
+            statusLabel: 'Muitas requisições',
+            statusColor: '#FBBF24',
+            statusBg: 'rgba(251, 191, 36, 0.1)',
+            heading: 'Calma aí!',
+            description: 'Você está fazendo muitas requisições. Aguarde alguns segundos e tente novamente.',
+            glowColor: 'rgba(251, 191, 36, 0.2)',
+            gradientFrom: 'rgba(251, 191, 36, 0.08)',
+            gradientTo: 'transparent',
+            avatarBorder: 'rgba(251, 191, 36, 0.3)',
+            showRetry: true,
+            showHome: false,
+            showBack: true,
+        };
+    }
+
+    // ── MANUTENÇÃO (503) ──
+    if (apiError.status === 503) {
+        return {
+            icon: (
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 48, height: 48, color: 'rgba(59, 130, 246, 0.7)' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
+                </svg>
+            ),
+            statusLabel: 'Em manutenção',
+            statusColor: '#3B82F6',
+            statusBg: 'rgba(59, 130, 246, 0.1)',
+            heading: 'Estamos em manutenção',
+            description: 'O sistema está passando por uma atualização. Volte em alguns minutos.',
+            glowColor: 'rgba(59, 130, 246, 0.2)',
+            gradientFrom: 'rgba(59, 130, 246, 0.08)',
+            gradientTo: 'transparent',
+            avatarBorder: 'rgba(59, 130, 246, 0.3)',
+            showRetry: true,
+            showHome: true,
+            showBack: false,
+        };
+    }
+
+    // ── ERRO GENÉRICO (500, etc) ──
+    return {
+        icon: (
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 48, height: 48, color: 'rgba(251, 146, 60, 0.7)' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+        ),
+        statusLabel: `Erro ${apiError.status}`,
+        statusColor: '#FB923C',
+        statusBg: 'rgba(251, 146, 60, 0.1)',
+        heading: 'Algo deu errado',
+        description: apiError.message || 'Ocorreu um erro inesperado. Tente novamente mais tarde.',
+        glowColor: 'rgba(251, 146, 60, 0.2)',
+        gradientFrom: 'rgba(251, 146, 60, 0.08)',
+        gradientTo: 'transparent',
+        avatarBorder: 'rgba(251, 146, 60, 0.3)',
+        showRetry: true,
+        showHome: true,
+        showBack: true,
+    };
+};
+
 
 const extractBadgeName = (url: string): string => {
     try {
@@ -212,16 +408,7 @@ const isVideoUrl = (url: string): boolean => {
     }
 };
 
-const getErrorMessage = (err: unknown): string => {
-    if (
-        err && typeof err === 'object' && 'response' in err &&
-        err.response && typeof err.response === 'object' && 'data' in err.response &&
-        err.response.data && typeof err.response.data === 'object' && 'message' in err.response.data
-    ) {
-        return String(err.response.data.message);
-    }
-    return 'Erro ao carregar página';
-};
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PRELOAD CRITICAL IMAGES
@@ -1740,27 +1927,115 @@ CardContent.displayName = 'CardContent';
 
 const errorPageCSS = `
 ${globalStylesCSS}
-@keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
-@keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(143, 124, 255, 0.2); } 50% { box-shadow: 0 0 40px rgba(143, 124, 255, 0.4); } }
-.error-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #121316; padding: 20px; position: relative; overflow: hidden; }
-.error-page::before { content: ''; position: absolute; width: 500px; height: 500px; background: radial-gradient(circle, rgba(143, 124, 255, 0.08) 0%, transparent 70%); top: -150px; right: -150px; pointer-events: none; }
-.error-page::after { content: ''; position: absolute; width: 400px; height: 400px; background: radial-gradient(circle, rgba(79, 140, 255, 0.06) 0%, transparent 70%); bottom: -100px; left: -100px; pointer-events: none; }
-.error-card { background: rgba(17, 18, 19, 0.767); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 28px; padding: 60px 48px; text-align: center; max-width: 420px; width: 100%; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); animation: slideIn 0.5s ease-out; position: relative; z-index: 1; }
-.error-avatar { width: 100px; height: 100px; background: linear-gradient(135deg, #1f2846 0%, rgba(143, 124, 255, 0.1) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 32px; border: 2px dashed rgba(143, 124, 255, 0.3); animation: float 3s ease-in-out infinite, pulse-glow 3s ease-in-out infinite; }
-.error-avatar svg { width: 48px; height: 48px; color: rgba(237, 237, 237, 0.4); }
-.error-status { display: inline-block; padding: 6px 16px; background: rgba(143, 124, 255, 0.1); border: 1px solid rgba(143, 124, 255, 0.3); border-radius: 20px; color: #8F7CFF; font-size: 13px; font-weight: 600; margin-bottom: 20px; letter-spacing: 0.5px; }
-.error-heading { font-size: 28px; font-weight: 700; color: #EDEDED; margin: 0 0 12px; }
-.error-desc { color: rgba(237, 237, 237, 0.6); font-size: 15px; line-height: 1.7; margin: 0 0 32px; }
-.error-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.btn-primary { padding: 14px 32px; background: linear-gradient(135deg, #8F7CFF 0%, #7A66F0 100%); color: #fff; border: none; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; text-decoration: none; box-shadow: 0 4px 20px rgba(143, 124, 255, 0.3); }
-.btn-primary:hover { background: linear-gradient(135deg, #7A66F0 0%, #8F7CFF 100%); transform: translateY(-2px); box-shadow: 0 6px 30px rgba(143, 124, 255, 0.5); }
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+}
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px var(--glow-color, rgba(143, 124, 255, 0.2)); }
+    50% { box-shadow: 0 0 40px var(--glow-color, rgba(143, 124, 255, 0.4)); }
+}
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+.error-page {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #121316; padding: 20px; position: relative; overflow: hidden;
+}
+.error-page::before {
+    content: ''; position: absolute; width: 500px; height: 500px;
+    background: radial-gradient(circle, var(--gradient-from, rgba(143, 124, 255, 0.08)) 0%, transparent 70%);
+    top: -150px; right: -150px; pointer-events: none;
+}
+.error-page::after {
+    content: ''; position: absolute; width: 400px; height: 400px;
+    background: radial-gradient(circle, var(--gradient-to, rgba(79, 140, 255, 0.06)) 0%, transparent 70%);
+    bottom: -100px; left: -100px; pointer-events: none;
+}
+.error-card {
+    background: rgba(17, 18, 19, 0.767); border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 28px; padding: 60px 48px; text-align: center; max-width: 420px; width: 100%;
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    animation: slideIn 0.5s ease-out; position: relative; z-index: 1;
+}
+.error-avatar {
+    width: 100px; height: 100px;
+    background: linear-gradient(135deg, rgba(30,30,40,1) 0%, var(--gradient-from, rgba(143, 124, 255, 0.1)) 100%);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 32px;
+    border: 2px dashed var(--avatar-border, rgba(143, 124, 255, 0.3));
+    animation: float 3s ease-in-out infinite, pulse-glow 3s ease-in-out infinite;
+}
+.error-avatar.banned {
+    animation: float 3s ease-in-out infinite, pulse-glow 3s ease-in-out infinite, shake 0.5s ease-in-out 0.5s;
+}
+.error-status {
+    display: inline-block; padding: 6px 16px;
+    background: var(--status-bg, rgba(143, 124, 255, 0.1));
+    border: 1px solid var(--status-color, rgba(143, 124, 255, 0.3));
+    border-radius: 20px;
+    color: var(--status-color, #8F7CFF);
+    font-size: 13px; font-weight: 600; margin-bottom: 20px; letter-spacing: 0.5px;
+}
+.error-heading {
+    font-size: 28px; font-weight: 700; color: #EDEDED; margin: 0 0 12px;
+}
+.error-desc {
+    color: rgba(237, 237, 237, 0.6); font-size: 15px; line-height: 1.7; margin: 0 0 32px;
+}
+.error-actions {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+}
+.btn-primary {
+    padding: 14px 32px;
+    background: linear-gradient(135deg, var(--status-color, #8F7CFF) 0%, var(--status-color, #7A66F0) 100%);
+    color: #fff; border: none; border-radius: 14px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all 0.3s ease; text-decoration: none;
+    box-shadow: 0 4px 20px var(--glow-color, rgba(143, 124, 255, 0.3));
+    filter: brightness(1);
+}
+.btn-primary:hover {
+    filter: brightness(1.15);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px var(--glow-color, rgba(143, 124, 255, 0.5));
+}
 .btn-primary:active { transform: translateY(0); }
-.btn-secondary { padding: 14px 32px; background: rgba(255, 255, 255, 0.021); color: rgba(237, 237, 237, 0.6); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; text-decoration: none; }
-.btn-secondary:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.2); color: #EDEDED; }
-@media (max-width: 480px) { .error-card { padding: 40px 28px; border-radius: 20px; } .error-heading { font-size: 24px; } .error-actions { flex-direction: column; } .btn-primary, .btn-secondary { width: 100%; justify-content: center; } }
+.btn-secondary {
+    padding: 14px 32px; background: rgba(255, 255, 255, 0.021);
+    color: rgba(237, 237, 237, 0.6); border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.3s ease; text-decoration: none;
+}
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.2); color: #EDEDED;
+}
+.error-divider {
+    width: 40px; height: 1px; margin: 0 auto 24px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+}
+.error-footer {
+    margin-top: 24px; padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    color: rgba(237, 237, 237, 0.3); font-size: 12px;
+}
+.error-footer a {
+    color: var(--status-color, #8F7CFF);
+    text-decoration: none; transition: opacity 0.2s;
+}
+.error-footer a:hover { opacity: 0.8; }
+@media (max-width: 480px) {
+    .error-card { padding: 40px 28px; border-radius: 20px; }
+    .error-heading { font-size: 24px; }
+    .error-actions { flex-direction: column; }
+    .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+}
 `;
-
 /* ═══════════════════════════════════════════════════════════════════════════
    LOADING SKELETON CSS
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -1856,7 +2131,7 @@ const UserPublicPage: React.FC = () => {
     /* ── estado principal ───────────────────────────────── */
     const [data, setData] = useState<UserPageState | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [apiError, setApiError] = useState<ApiError | null>(null);  // ← MUDOU
     const [showPlusOne, setShowPlusOne] = useState(false);
 
     /* ── view-counting (background) ─────────────────────── */
@@ -1891,14 +2166,14 @@ const UserPublicPage: React.FC = () => {
         const fetchPage = async () => {
             try {
                 setLoading(true);
-                setError(null);
+                setApiError(null);  // ← MUDOU
 
                 const response = await publicApi.get<UserPageSimplifiedResponse>(`/public/${slug}`);
                 const pageData = response.data;
 
                 const stateData: UserPageState = {
                     ...pageData,
-                    views: pageData.cachedViews,  // ✅ Mostra cachedViews IMEDIATAMENTE
+                    views: pageData.cachedViews,
                     viewCounted: false,
                 };
 
@@ -1906,7 +2181,7 @@ const UserPublicPage: React.FC = () => {
                 preloadCriticalImages(pageData);
             } catch (err: unknown) {
                 console.error('Erro ao buscar página:', err);
-                setError(getErrorMessage(err));
+                setApiError(parseApiError(err));  // ← MUDOU: parseia o erro completo
             } finally {
                 setLoading(false);
             }
@@ -2142,9 +2417,52 @@ const UserPublicPage: React.FC = () => {
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       RENDER — ERROR
-       ═══════════════════════════════════════════════════════════════ */
-    if (error || !data) {
+   RENDER — ERROR
+   ═══════════════════════════════════════════════════════════════ */
+    if (apiError || !data) {
+        const errorInfo = apiError || { status: 404, error: 'NOT_FOUND', message: 'Perfil não encontrado' };
+        const config = getErrorConfig(errorInfo);
+
+        const isBanned = errorInfo.message.toLowerCase().includes('banido') ||
+            errorInfo.message.toLowerCase().includes('banned') ||
+            errorInfo.message.toLowerCase().includes('suspenso');
+
+        const cssVars = {
+            '--status-color': config.statusColor,
+            '--status-bg': config.statusBg,
+            '--glow-color': config.glowColor,
+            '--gradient-from': config.gradientFrom,
+            '--gradient-to': config.gradientTo,
+            '--avatar-border': config.avatarBorder,
+        } as React.CSSProperties;
+
+        const handleRetry = () => {
+            hasFetchedData.current = false;
+            hasCountedView.current = false;
+            setApiError(null);
+            setData(null);
+            setLoading(true);
+
+            // Re-trigger fetch
+            const refetch = async () => {
+                try {
+                    const response = await publicApi.get<UserPageSimplifiedResponse>(`/public/${slug}`);
+                    const pageData = response.data;
+                    setData({
+                        ...pageData,
+                        views: pageData.cachedViews,
+                        viewCounted: false,
+                    });
+                    preloadCriticalImages(pageData);
+                } catch (err: unknown) {
+                    setApiError(parseApiError(err));
+                } finally {
+                    setLoading(false);
+                }
+            };
+            refetch();
+        };
+
         return (
             <>
                 {!turnstileToken && (
@@ -2155,24 +2473,50 @@ const UserPublicPage: React.FC = () => {
                     />
                 )}
                 <style dangerouslySetInnerHTML={{ __html: errorPageCSS }} />
-                <div className="error-page">
+                <div className="error-page" style={cssVars}>
                     <div className="error-card">
-                        <div className="error-avatar">
-                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                        {/* Avatar com ícone contextual */}
+                        <div className={`error-avatar${isBanned ? ' banned' : ''}`}>
+                            {config.icon}
                         </div>
-                        <span className="error-status">Erro 404</span>
-                        <h1 className="error-heading">Perfil não encontrado</h1>
-                        <p className="error-desc">
-                            Não conseguimos encontrar o usuário que você está procurando.
-                            Verifique o link ou tente buscar novamente.
-                        </p>
+
+                        {/* Status badge */}
+                        <span className="error-status">
+                            {config.statusLabel}
+                        </span>
+
+                        {/* Heading */}
+                        <h1 className="error-heading">{config.heading}</h1>
+
+                        {/* Divider decorativo */}
+                        <div className="error-divider" />
+
+                        {/* Descrição */}
+                        <p className="error-desc">{config.description}</p>
+
+                        {/* Ações */}
                         <div className="error-actions">
-                            <a href="/" className="btn-primary">Ir para home</a>
-                            <button onClick={handleGoBack} className="btn-secondary">Voltar</button>
+                            {config.showHome && (
+                                <a href="/" className="btn-primary">Ir para home</a>
+                            )}
+                            {config.showRetry && (
+                                <button onClick={handleRetry} className="btn-primary">
+                                    Tentar novamente
+                                </button>
+                            )}
+                            {config.showBack && (
+                                <button onClick={handleGoBack} className="btn-secondary">
+                                    Voltar
+                                </button>
+                            )}
                         </div>
+
+                        {/* Footer com link de suporte para banidos */}
+                        {isBanned && (
+                            <div className="error-footer">
+                                Acha que é um erro? <a href="/support">Fale com o suporte</a>
+                            </div>
+                        )}
                     </div>
                 </div>
             </>
