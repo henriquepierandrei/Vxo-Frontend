@@ -35,14 +35,14 @@ export const COIN_PACKAGES: CoinPackage[] = [
   },
   { 
     amount: '700', 
-    coins: 850, 
+    coins: 700, 
     price: 29.90, 
     bonus: 150,
     bonusLabel: '+150 bônus',
   },
   { 
     amount: '1000', 
-    coins: 1400, 
+    coins: 1000, 
     price: 35.90, 
     bonus: 400,
     bonusLabel: '+400 bônus',
