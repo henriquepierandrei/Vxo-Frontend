@@ -398,7 +398,7 @@ const LinkPreview = ({ url }: { url: string }) => {
 
 const SocialNetworkAlert = ({ networkName }: { networkName: string }) => {
   const navigate = useNavigate();
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -10 }}
@@ -437,8 +437,8 @@ const SocialNetworkAlert = ({ networkName }: { networkName: string }) => {
 const DashboardLinks = () => {
   const {
     links: contextLinks,
-    isLoadingLinks,     
-    refreshLinks,        
+    isLoadingLinks,
+    refreshLinks,
     addLink,
     updateLink,
     deleteLink,
@@ -462,9 +462,9 @@ const DashboardLinks = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");  // ✅ Estado local de erro
-  const [linkForm, setLinkForm] = useState({ url: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [detectedSocialNetwork, setDetectedSocialNetwork] = useState<string | null>(null);
+  const [linkForm, setLinkForm] = useState({ url: "", linkText: "" });
 
   // Modal de Edição
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -478,7 +478,7 @@ const DashboardLinks = () => {
 
   // Handler para mudança de URL no form principal
   const handleUrlChange = (value: string) => {
-    setLinkForm({ url: value });
+    setLinkForm({ url: "", linkText: "" });
     setFormErrors({});
     setErrorMessage("");
 
@@ -535,9 +535,10 @@ const DashboardLinks = () => {
 
     try {
       const normalizedUrl = normalizeUrl(linkForm.url.trim());
-      await addLink(normalizedUrl); // ✅ Usando o contexto
+      const info = extractDomainInfo(normalizedUrl);
+      await addLink(normalizedUrl, undefined, info.displayName);
 
-      setLinkForm({ url: "" });
+      setLinkForm({ url: "", linkText: "" });
       setDetectedSocialNetwork(null);
       setSuccessMessage("Link adicionado com sucesso!");
 
@@ -599,7 +600,8 @@ const DashboardLinks = () => {
 
     try {
       const normalizedUrl = normalizeUrl(editForm.url.trim());
-      await updateLink(editingLink.id, normalizedUrl); // ✅ Usando o contexto
+      const info = extractDomainInfo(normalizedUrl);
+      await updateLink(editingLink.id, normalizedUrl, undefined, info.displayName);
 
       setIsEditModalOpen(false);
       setEditingLink(null);
@@ -732,6 +734,20 @@ const DashboardLinks = () => {
               <AnimatePresence>
                 {linkForm.url && isValidUrl(linkForm.url) && !detectedSocialNetwork && (
                   <LinkPreview url={linkForm.url} />
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {linkForm.url && isValidUrl(linkForm.url) && !detectedSocialNetwork && (
+                  <Input
+                    label="Texto do link"
+                    placeholder="Ex: Meu portfólio, Canal do YouTube..."
+                    value={linkForm.linkText}
+                    onChange={(value) => setLinkForm(prev => ({ ...prev, linkText: value }))}
+                    icon={Edit3}
+                    maxLength={35}
+                    helperText="Nome que será exibido no seu perfil"
+                  />
                 )}
               </AnimatePresence>
 

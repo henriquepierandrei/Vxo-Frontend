@@ -20,6 +20,7 @@ interface UserLinkResponse {
   url: string;
   hasLinkTyped: boolean;
   linkTypeId: number | null;
+  linkText: string; // Texto extraído do link
 }
 
 interface UserLinksResponse {
@@ -33,6 +34,7 @@ export interface UserLink {
   favicon: string;
   hasLinkTyped: boolean;
   linkTypeId: number | null;
+  linkText: string; // Texto extraído do link
 }
 
 interface LinksContextData {
@@ -40,8 +42,8 @@ interface LinksContextData {
   rawLinks: UserLinkResponse[];
   isLoadingLinks: boolean;
   refreshLinks: () => Promise<void>;
-  addLink: (url: string, typeId?: number) => Promise<void>;
-  updateLink: (linkId: string, url?: string, typeId?: number) => Promise<void>;
+  addLink: (url: string, typeId?: number, linkText?: string) => Promise<void>;
+  updateLink: (linkId: string, url?: string, typeId?: number, linkText?: string ) => Promise<void>;
   deleteLink: (linkId: string) => Promise<void>;
 }
 
@@ -71,6 +73,7 @@ function mapToUserLink(raw: UserLinkResponse): UserLink {
     favicon: getFavicon(raw.url),
     hasLinkTyped: raw.hasLinkTyped,
     linkTypeId: raw.linkTypeId,
+    linkText: raw.linkText, // ← estava faltando isso
   };
 }
 
@@ -108,15 +111,15 @@ export function LinksProvider({ children }: { children: ReactNode }) {
     try {
       isFetchingRef.current = true;
       setIsLoadingLinks(true);
-      
+
       console.log("[LinksContext] Buscando links...");
       const response = await api.get<UserLinksResponse>("/user/links");
       const data = response.data.links ?? [];
-      
+
       setRawLinks(data);
       setLinks(data.map(mapToUserLink));
       hasFetchedRef.current = true;
-      
+
       console.log("[LinksContext] Links carregados:", data.length);
     } catch (error) {
       console.error("Erro ao carregar links:", error);
@@ -155,16 +158,17 @@ export function LinksProvider({ children }: { children: ReactNode }) {
 
   // ── Adicionar link ─────────────────────────────────────
   const addLink = useCallback(
-    async (url: string, typeId?: number) => {
+    async (url: string, typeId?: number, linkText?: string) => { // ← adicionar linkText
       const params = new URLSearchParams();
       params.append("url", url);
       if (typeId !== undefined) {
         params.append("typeId", typeId.toString());
       }
+      if (linkText !== undefined) {
+        params.append("linkText", linkText);
+      }
 
       await api.post(`/user/links?${params.toString()}`);
-
-      // Recarrega do servidor pra pegar o ID real
       await fetchLinks(true);
     },
     [fetchLinks]
@@ -172,25 +176,26 @@ export function LinksProvider({ children }: { children: ReactNode }) {
 
   // ── Atualizar link ─────────────────────────────────────
   const updateLink = useCallback(
-    async (linkId: string, url?: string, typeId?: number) => {
+    async (linkId: string, url?: string, typeId?: number, linkText?: string) => { // ← adicionar linkText
       const params = new URLSearchParams();
       if (url) params.append("url", url);
       if (typeId !== undefined) params.append("typeId", typeId.toString());
+      if (linkText !== undefined) params.append("linkText", linkText); // ← adicionar
 
       await api.put(`/user/links/${linkId}?${params.toString()}`);
 
-      // Atualiza localmente sem refetch completo
       setRawLinks((prev) =>
         prev.map((link) =>
           link.linkId === linkId
             ? {
-                ...link,
-                ...(url && { url }),
-                ...(typeId !== undefined && {
-                  linkTypeId: typeId,
-                  hasLinkTyped: true,
-                }),
-              }
+              ...link,
+              ...(url && { url }),
+              ...(linkText !== undefined && { linkText }), // ← adicionar
+              ...(typeId !== undefined && {
+                linkTypeId: typeId,
+                hasLinkTyped: true,
+              }),
+            }
             : link
         )
       );
@@ -199,24 +204,24 @@ export function LinksProvider({ children }: { children: ReactNode }) {
         prev.map((link) =>
           link.id === linkId
             ? {
-                ...link,
-                ...(url && {
-                  url,
-                  domain: extractDomain(url),
-                  favicon: getFavicon(url),
-                }),
-                ...(typeId !== undefined && {
-                  linkTypeId: typeId,
-                  hasLinkTyped: true,
-                }),
-              }
+              ...link,
+              ...(url && {
+                url,
+                domain: extractDomain(url),
+                favicon: getFavicon(url),
+              }),
+              ...(linkText !== undefined && { linkText }), // ← adicionar
+              ...(typeId !== undefined && {
+                linkTypeId: typeId,
+                hasLinkTyped: true,
+              }),
+            }
             : link
         )
       );
     },
     []
   );
-
   // ── Deletar link ───────────────────────────────────────
   const deleteLink = useCallback(async (linkId: string) => {
     await api.delete(`/user/links/${linkId}`);

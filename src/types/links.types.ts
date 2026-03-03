@@ -3,6 +3,7 @@ export interface UserLinkResponse {
   url: string;
   hasLinkTyped: boolean;
   linkTypeId: number | null;
+  linkText: string; // Texto extraído do link
 }
 
 export interface UserLinksResponse {
@@ -17,4 +18,5 @@ export interface UserLink {
   favicon: string;
   hasLinkTyped: boolean;
   linkTypeId: number | null;
+  linkText: string; // Texto extraído do link
 }
