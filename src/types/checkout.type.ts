@@ -7,7 +7,7 @@ export interface CheckoutResponse {
 }
 
 export type PlanType = 'plan-monthly' | 'plan-annual';
-export type CoinAmount = '300' | '900' | '1800' | '3600';
+export type CoinAmount = '300' | '500' | '700' | '1000';
 
 export interface CoinPackage {
   amount: CoinAmount;
@@ -23,27 +23,27 @@ export const COIN_PACKAGES: CoinPackage[] = [
   { 
     amount: '300', 
     coins: 300, 
-    price: 9.90,
+    price: 14.90,
   },
   { 
-    amount: '900', 
-    coins: 900, 
-    price: 24.90, 
+    amount: '500', 
+    coins: 500, 
+    price: 22.90, 
     bonus: 50,
     bonusLabel: '+50 bônus',
     isPopular: true,
   },
   { 
-    amount: '1800', 
-    coins: 1800, 
-    price: 44.90, 
+    amount: '700', 
+    coins: 850, 
+    price: 29.90, 
     bonus: 150,
     bonusLabel: '+150 bônus',
   },
   { 
-    amount: '3600', 
-    coins: 3600, 
-    price: 79.90, 
+    amount: '1000', 
+    coins: 1400, 
+    price: 35.90, 
     bonus: 400,
     bonusLabel: '+400 bônus',
     isBestValue: true,

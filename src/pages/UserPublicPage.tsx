@@ -2514,7 +2514,7 @@ const UserPublicPage: React.FC = () => {
                         {/* Footer com link de suporte para banidos */}
                         {isBanned && (
                             <div className="error-footer">
-                                Acha que é um erro? <a href="/support">Fale com o suporte</a>
+                                Acha que é um erro? <a href="https://discord.gg/EvvcDcM3ay">Fale com o suporte</a>
                             </div>
                         )}
                     </div>
