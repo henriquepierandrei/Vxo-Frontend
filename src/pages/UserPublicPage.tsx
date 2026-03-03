@@ -1003,7 +1003,6 @@ const ICON_MAP: Record<number, React.FC<IconProps>> = {
     33: NameMCIcon,
 };
 
-
 /* ═══════════════════════════════════════════════════════════════════════════
    GLOBAL STYLES
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -2150,7 +2149,6 @@ const UserPublicPage: React.FC = () => {
                         <div style={{ width: '100%', height: '100%', backgroundColor: data.staticBackgroundColor || 'black' }} />
                     )}
                 </div>
-
                 {/* PAGE EFFECTS */}
                 <PageEffectsManager effects={data.pageEffects} />
 
@@ -2182,7 +2180,6 @@ const UserPublicPage: React.FC = () => {
                         </div>
                     </div>
                 )}
-
                 {/* CARD */}
                 <div style={{
                     position: 'relative', zIndex: 10, width: '100%',
