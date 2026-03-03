@@ -1058,12 +1058,39 @@ const globalStylesCSS = `
     text-shadow: 0 0 6px rgba(255,255,255,0.35), 0 0 16px rgba(255,255,255,0.15);
     animation: text-glow-pulse 3s ease-in-out infinite;
 }
-@keyframes rgb-border-animation { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-.rgb-border-wrapper {
-    position: relative; padding: 3px; border-radius: 36px;
-    background: linear-gradient(45deg, #ff0000, #ff8000, #ffff00, #00ff00, #0080ff, #8000ff, #ff0080, #ff0000);
-    background-size: 400% 400%; animation: rgb-border-animation 3s linear infinite;
+
+/* ═══════════════════════════════════════════════════════
+   RGB BORDER — Pseudo-element approach
+   Acompanha perspective/tilt e NÃO vaza para dentro do card
+═══════════════════════════════════════════════════════════ */
+@keyframes rgb-border-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
+
+.rgb-border-card {
+    position: relative;
+}
+
+.rgb-border-card::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 31px;
+    background: linear-gradient(
+        45deg,
+        #ff0000, #ff8000, #ffff00, #00ff00,
+        #0080ff, #8000ff, #ff0080, #ff0000
+    );
+    background-size: 400% 400%;
+    animation: rgb-border-animation 3s linear infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════ */
+
 @keyframes money-fall { 0% { transform: translateY(-100px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
 @keyframes thunder-flash { 0%, 100% { opacity: 0; } 10%, 30% { opacity: 0.3; } 20% { opacity: 0.8; } }
 .thunder-overlay { animation: thunder-flash 4s infinite; }
@@ -2050,20 +2077,36 @@ const UserPublicPage: React.FC = () => {
     /* ── Card style ──────────────────────────────────────── */
     const cardStyle = useMemo((): React.CSSProperties | null => {
         if (!data) return null;
+
+        const hasPerspective = data.cardSettings.perspective;
+        const isHoverGrow = data.cardSettings.hoverGrow && hovering;
+
         return {
             backgroundColor: data.cardSettings.opacity === 0
                 ? 'transparent'
                 : hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
-            backdropFilter: data.cardSettings.blur ? `blur(${data.cardSettings.blur}px) saturate(180%)` : 'none',
-            WebkitBackdropFilter: data.cardSettings.blur ? `blur(${data.cardSettings.blur}px) saturate(180%)` : 'none',
-            transform: data.cardSettings.perspective
+            backdropFilter: data.cardSettings.blur
+                ? `blur(${data.cardSettings.blur}px) saturate(180%)`
+                : 'none',
+            WebkitBackdropFilter: data.cardSettings.blur
+                ? `blur(${data.cardSettings.blur}px) saturate(180%)`
+                : 'none',
+            transform: hasPerspective
                 ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
-                : data.cardSettings.hoverGrow && hovering ? `scale(${scale})` : 'none',
+                : isHoverGrow
+                    ? `scale(${scale})`
+                    : 'none',
             transformStyle: 'preserve-3d',
             transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
-            borderRadius: 28, padding: 6, width: '100%', maxWidth: 480,
-            boxSizing: 'border-box', willChange: 'transform',
-            position: 'relative', overflow: 'visible',
+            borderRadius: 28,
+            padding: 6,
+            width: '100%',
+            maxWidth: 480,
+            boxSizing: 'border-box',
+            willChange: 'transform',
+            position: 'relative',
+            overflow: 'visible',
+            isolation: 'isolate',
         };
     }, [data, tiltX, tiltY, scale, hovering]);
 
@@ -2185,43 +2228,21 @@ const UserPublicPage: React.FC = () => {
                     position: 'relative', zIndex: 10, width: '100%',
                     maxWidth: 440, animation: 'slideUp 0.6s ease-out',
                 }}>
-                    {data.cardSettings.rgbBorder ? (
-                        <div className="rgb-border-wrapper" style={{
-                            transform: data.cardSettings.perspective
-                                ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
-                                : data.cardSettings.hoverGrow && hovering ? `scale(${scale})` : 'none'
-                        }}>
-                            <div
-                                ref={cardRef}
-                                style={cardStyle!}
-                                onMouseMove={handleMouseMove}
-                                onMouseEnter={handleMouseEnter}
-                                onMouseLeave={handleMouseLeave}
-                            >
-                                <CardContent
-                                    data={data} frame={frame} badges={badges}
-                                    showPlusOne={showPlusOne} getNameClass={getNameClass}
-                                    hasVerifiedBadge={hasVerifiedBadge}
-                                />
-                                {cardEffect && data.isPremium && <CardEffectOverlay url={cardEffect} />}
-                            </div>
-                        </div>
-                    ) : (
-                        <div
-                            ref={cardRef}
-                            style={cardStyle!}
-                            onMouseMove={handleMouseMove}
-                            onMouseEnter={handleMouseEnter}
-                            onMouseLeave={handleMouseLeave}
-                        >
-                            <CardContent
-                                data={data} frame={frame} badges={badges}
-                                showPlusOne={showPlusOne} getNameClass={getNameClass}
-                                hasVerifiedBadge={hasVerifiedBadge}
-                            />
-                            {cardEffect && data.isPremium && <CardEffectOverlay url={cardEffect} />}
-                        </div>
-                    )}
+                    <div
+                        ref={cardRef}
+                        className={data.cardSettings.rgbBorder ? 'rgb-border-card' : undefined}
+                        style={cardStyle!}
+                        onMouseMove={handleMouseMove}
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
+                    >
+                        <CardContent
+                            data={data} frame={frame} badges={badges}
+                            showPlusOne={showPlusOne} getNameClass={getNameClass}
+                            hasVerifiedBadge={hasVerifiedBadge}
+                        />
+                        {cardEffect && data.isPremium && <CardEffectOverlay url={cardEffect} />}
+                    </div>
                 </div>
 
                 {/* AUDIO */}
