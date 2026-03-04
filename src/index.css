@@ -6,14 +6,14 @@
 
 :root {
   /* Brand */
-  --color-primary: #8F7CFF;
+  --color-primary: #6656be;
   --color-primary-dark: #7A66F0;
-  --color-secondary: #4F8CFF;
-  --color-accent: #1f2846;
+  --color-secondary: #3259a1;
+  --color-accent: #303957;
 
   /* Backgrounds */
-  --color-background: #121316;
-  --color-surface: rgba(255, 255, 255, 0.021);
+  --color-background: #101011;
+  --color-surface: rgba(255, 255, 255, 0.048);
   --color-surface-hover: rgba(255, 255, 255, 0.09);
 
   /* Borders */
@@ -38,7 +38,7 @@
 
 [data-theme="light"] {
   /* Brand */
-  --color-primary: #4438ad;
+  --color-primary: #5547d4;
   --color-primary-dark: #566fdb;
   --color-secondary: #2563EB;
   --color-accent: #fefeff;

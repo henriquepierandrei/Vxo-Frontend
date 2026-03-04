@@ -43,6 +43,8 @@ import TitleManager from "./types/TitleManager";
 import ForgotPasswordPage from "./pages/authpages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/authpages/ResetPasswordPage";
 import UserPublicPage from "./pages/UserPublicPage";
+import TermsOfService from "./pages/homepages/TermsOfService";
+import PrivacyPolicy from "./pages/homepages/PrivacyPolicy";
 
 function App() {
   return (
@@ -65,6 +67,10 @@ function App() {
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
                 
                 <Route path="/plans" element={<PrincingSection />} />
+
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+
                 <Route path="/ranking" element={<RankingPage />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
 

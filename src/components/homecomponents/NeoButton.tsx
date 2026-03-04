@@ -37,11 +37,11 @@ const NeonButton = () => {
         className="inline-flex transition overflow-hidden group text-sm font-medium rounded-full relative items-center justify-center"
         style={{
           background: 'linear-gradient(135deg, var(--color-background) 0%, var(--card-background-glass) 100%)',
-          border: 'none',
           boxShadow: 'rgba(68, 56, 173, 0.2) 0px 8px 32px, rgba(68, 56, 173, 0.1) 0px 1px 0px inset, rgba(0, 0, 0, 0.1) 0px -1px 0px inset',
           transition: 'all 0.3s ease-out',
           transform: 'translateY(0px)',
           height: '60px',
+          border: '1px solid var(--color-border)',
           minWidth: '300px',
           fontFamily: "'JetBrains Mono', monospace",
           padding: '0'

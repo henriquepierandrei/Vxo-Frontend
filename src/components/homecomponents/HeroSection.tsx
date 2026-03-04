@@ -11,15 +11,6 @@ import GridBackground from './GridBackground';
 import NeonButton from '../homecomponents/NeoButton';
 
 const HeroSection: React.FC = () => {
-  // Avatares para Social Proof
-  const avatars = [
-    'https://i.pravatar.cc/100?img=1',
-    'https://i.pravatar.cc/100?img=2',
-    'https://i.pravatar.cc/100?img=3',
-    'https://i.pravatar.cc/100?img=4',
-    'https://i.pravatar.cc/100?img=5',
-  ];
-
   // Cards de recursos
   const features = [
     {
@@ -135,7 +126,7 @@ const HeroSection: React.FC = () => {
         {/* Botões CTA */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
           {/* Botão Principal */}
-          <button onClick={() => window.location.href = '/login'}  className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white rounded-full overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[var(--color-secondary)]/25">
+          <button onClick={() => window.location.href = '/login'} className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white rounded-full overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[var(--color-secondary)]/25">
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-secondary)] via-[var(--color-primary)] to-[var(--color-accent)]" />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
@@ -147,54 +138,6 @@ const HeroSection: React.FC = () => {
           {/* Botão Secundário */}
           <NeonButton />
         </div>
-
-        {/* Social Proof */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-          {/* Avatares Sobrepostos */}
-          <div className="flex -space-x-3">
-            {avatars.map((avatar, index) => (
-              <div
-                key={index}
-                className="relative w-10 h-10 rounded-full ring-2 ring-[var(--color-border)] overflow-hidden transition-transform hover:scale-110 hover:z-10"
-                style={{ zIndex: avatars.length - index }}
-              >
-                <img
-                  src={avatar}
-                  alt={`User ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
-                {/* Online Indicator para o último */}
-                {index === avatars.length - 1 && (
-                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full ring-2 ring-[var(--color-border)]" />
-                )}
-              </div>
-            ))}
-
-            {/* More Users Indicator */}
-            <div className="relative w-10 h-10 rounded-full ring-2 ring-[var(--color-border)] bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-              <span className="text-xs font-bold text-white">+5K</span>
-            </div>
-          </div>
-
-          {/* Texto */}
-          <div className="flex items-center gap-2">
-            <div className="flex gap-0.5">
-              {[...Array(5)].map((_, i) => (
-                <svg
-                  key={i}
-                  className="w-4 h-4 text-yellow-400 fill-current"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              ))}
-            </div>
-            <span className="text-gray-400 text-sm">
-              Junte-se a <span className="text-[var(--color-primary)] font-semibold">+5.000</span> usuários
-            </span>
-          </div>
-        </div>
-
         {/* Cards de Recursos */}
         <div className="max-w-5xl mx-auto">
           {/* Header da seção (opcional) */}

@@ -2034,14 +2034,14 @@ const DashboardCustomization = () => {
             <div className="space-y-3 pt-2">
               <ToggleSwitch
                 label="Perspectiva 3D"
-                description="Efeito de profundidade (Premium)"
+                description="Efeito de profundidade"
                 checked={settings.cardPerspective}
                 onChange={(value) => updateSetting("cardPerspective", value)}
                 icon={Move}
               />
               <ToggleSwitch
                 label="Crescer ao Hover"
-                description="Card aumenta no hover (Premium)"
+                description="Card aumenta no hover"
                 checked={settings.cardHoverGrow}
                 onChange={(value) => updateSetting("cardHoverGrow", value)}
                 icon={Zap}

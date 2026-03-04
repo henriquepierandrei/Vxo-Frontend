@@ -281,7 +281,7 @@ const NavItemDesktop = ({
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="relative z-10 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white"
+            className="relative z-10 px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--color-primary)] text-white"
           >
             NEW
           </motion.span>
