@@ -27,10 +27,8 @@ import {
   Loader2,
   RefreshCw,
   Link as LinkIcon,
-  Lock,
-  Clock,
-  Globe, // ✅ Novo ícone para favicon
-  Crown, // ✅ Ícone premium
+  Globe,
+  Crown,
 } from "lucide-react";
 import { customizationService } from "../../services/customizationService";
 
@@ -39,7 +37,7 @@ import { customizationService } from "../../services/customizationService";
 // ═══════════════════════════════════════════════════════════
 
 interface MediaAsset {
-  type: "avatar" | "background" | "cursor" | "audio" | "favicon"; // ✅ Adicionado favicon
+  type: "avatar" | "background" | "cursor" | "audio" | "favicon";
   url: string;
   isActive: boolean;
 }
@@ -49,7 +47,7 @@ interface ActiveAssets {
   background: MediaAsset | null;
   cursor: MediaAsset | null;
   audio: MediaAsset | null;
-  favicon: MediaAsset | null; // ✅ Adicionado favicon
+  favicon: MediaAsset | null;
   audioVolume: number;
 }
 
@@ -61,41 +59,38 @@ const getFileNameFromUrl = (url: string): string => {
   try {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname;
-    const filename = pathname.substring(pathname.lastIndexOf('/') + 1);
-    return decodeURIComponent(filename) || 'arquivo';
+    const filename = pathname.substring(pathname.lastIndexOf("/") + 1);
+    return decodeURIComponent(filename) || "arquivo";
   } catch {
-    return 'arquivo';
+    return "arquivo";
   }
 };
 
 const getMimeTypeFromUrl = (url: string): string => {
-  const ext = url.split('.').pop()?.toLowerCase();
+  const ext = url.split(".").pop()?.toLowerCase();
   const mimeTypes: Record<string, string> = {
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    mp3: 'audio/mpeg',
-    wav: 'audio/wav',
-    ogg: 'audio/ogg',
-    cur: 'image/x-icon',
-    svg: 'image/svg+xml',
-    ico: 'image/x-icon', // ✅ Adicionado ico
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    cur: "image/x-icon",
+    svg: "image/svg+xml",
+    ico: "image/x-icon",
   };
-  return mimeTypes[ext || ''] || 'application/octet-stream';
+  return mimeTypes[ext || ""] || "application/octet-stream";
 };
 
 const formatDate = (date: Date): string => {
-  return new Intl.DateTimeFormat('pt-BR').format(date);
+  return new Intl.DateTimeFormat("pt-BR").format(date);
 };
 
-/**
- * Converte dados do ProfileContext para o formato de assets
- */
 const profileDataToAssets = (
-  profileData: NonNullable<ReturnType<typeof useProfile>['profileData']>
-): Omit<ActiveAssets, 'audioVolume'> => {
+  profileData: NonNullable<ReturnType<typeof useProfile>["profileData"]>
+): Omit<ActiveAssets, "audioVolume"> => {
   const mediaUrls = profileData.pageSettings.mediaUrls;
 
   return {
@@ -111,7 +106,6 @@ const profileDataToAssets = (
     audio: mediaUrls.musicUrl
       ? { type: "audio", url: mediaUrls.musicUrl, isActive: true }
       : null,
-    // ✅ Adicionado favicon
     favicon: mediaUrls.faviconUrl
       ? { type: "favicon", url: mediaUrls.faviconUrl, isActive: true }
       : null,
@@ -119,7 +113,7 @@ const profileDataToAssets = (
 };
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTES BASE (Reutilizados)
+// COMPONENTES BASE
 // ═══════════════════════════════════════════════════════════
 
 const AssetsCard = ({
@@ -157,12 +151,17 @@ const SectionHeader = ({
 }) => (
   <div className="flex items-start justify-between gap-4 mb-4 sm:mb-6">
     <div className="flex items-start gap-3 sm:gap-4">
-      <div className="p-2 sm:p-3 rounded-[var(--border-radius-md)] bg-[var(--color-primary)]/10 flex-shrink-0">
+      <div
+        className="p-2 sm:p-3 rounded-[var(--border-radius-md)] flex-shrink-0"
+        style={{ backgroundColor: "rgba(var(--color-primary-rgb, 99, 102, 241), 0.1)" }}
+      >
         <Icon size={20} className="sm:w-6 sm:h-6 text-[var(--color-primary)]" />
       </div>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">{title}</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-[var(--color-text)]">
+            {title}
+          </h2>
           {isPremium && (
             <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white flex items-center gap-1">
               <Crown size={10} />
@@ -170,7 +169,9 @@ const SectionHeader = ({
             </span>
           )}
         </div>
-        <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">{description}</p>
+        <p className="text-xs sm:text-sm text-[var(--color-text-muted)] mt-0.5 sm:mt-1">
+          {description}
+        </p>
       </div>
     </div>
     {action}
@@ -182,14 +183,22 @@ const StatusBadge = ({ active }: { active: boolean }) => (
     className={`
       inline-flex items-center gap-1.5 px-2.5 py-1
       rounded-full text-xs font-medium
-      ${active
-        ? 'bg-green-500/10 text-green-400 border border-green-500/30'
-        : 'bg-[var(--color-surface)] text-[var(--color-text-muted)] border border-[var(--color-border)]'
+      ${
+        active
+          ? "text-green-400 border border-green-500"
+          : "text-[var(--color-text-muted)] border border-[var(--color-border)]"
       }
     `}
+    style={{
+      backgroundColor: active ? "rgba(34, 197, 94, 0.1)" : "var(--color-surface)",
+    }}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-green-400' : 'bg-[var(--color-text-muted)]'}`} />
-    {active ? 'Ativo' : 'Inativo'}
+    <span
+      className={`w-1.5 h-1.5 rounded-full ${
+        active ? "bg-green-400" : "bg-[var(--color-text-muted)]"
+      }`}
+    />
+    {active ? "Ativo" : "Inativo"}
   </span>
 );
 
@@ -231,19 +240,22 @@ const EmptyAssetState = ({
     <h3 className="text-sm font-medium text-[var(--color-text)] mb-1">{title}</h3>
     <p className="text-xs text-[var(--color-text-muted)] max-w-xs">{description}</p>
     {isPremiumLocked ? (
-      <div className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-400/10 to-orange-500/10 border border-yellow-500/30">
+      <div
+        className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full border"
+        style={{
+          background:
+            "linear-gradient(to right, rgba(250, 204, 21, 0.1), rgba(249, 115, 22, 0.1))",
+          borderColor: "rgba(234, 179, 8, 0.3)",
+        }}
+      >
         <Crown size={14} className="text-yellow-400" />
         <span className="text-xs font-medium text-yellow-400">Recurso Premium</span>
       </div>
     ) : (
       <motion.button
-        onClick={() => window.location.href = "/dashboard/customization"}
-        className="
-          mt-4 px-4 py-2 rounded-[var(--border-radius-md)]
-          bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20
-          text-[var(--color-primary)] text-sm font-medium
-          transition-all duration-300
-        "
+        onClick={() => (window.location.href = "/dashboard/customization")}
+        className="mt-4 px-4 py-2 rounded-[var(--border-radius-md)] text-[var(--color-primary)] text-sm font-medium transition-all duration-300"
+        style={{ backgroundColor: "rgba(var(--color-primary-rgb, 99, 102, 241), 0.1)" }}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
@@ -282,7 +294,8 @@ const Modal = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 z-50"
+            style={{ backgroundColor: "rgba(0, 0, 0, 0.6)", backdropFilter: "blur(4px)" }}
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -291,14 +304,18 @@ const Modal = ({
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div className={`
+            <div
+              className={`
               w-full ${sizeClasses[size]}
               bg-[var(--color-background)] backdrop-blur-[var(--blur-amount)]
               border border-[var(--color-border)] rounded-[var(--border-radius-xl)]
               shadow-2xl overflow-hidden
-            `}>
+            `}
+            >
               <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[var(--color-border)]">
-                <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-text)]">{title}</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-text)]">
+                  {title}
+                </h2>
                 <motion.button
                   onClick={onClose}
                   className="p-2 rounded-full bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all"
@@ -308,9 +325,7 @@ const Modal = ({
                   <X size={18} />
                 </motion.button>
               </div>
-              <div className="p-4 sm:p-6 max-h-[70vh] overflow-auto">
-                {children}
-              </div>
+              <div className="p-4 sm:p-6 max-h-[70vh] overflow-auto">{children}</div>
             </div>
           </motion.div>
         </>
@@ -361,7 +376,7 @@ const AudioPlayer = ({
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const handleTimeUpdate = () => {
@@ -413,7 +428,11 @@ const AudioPlayer = ({
             [&::-webkit-slider-thumb]:cursor-pointer
           "
           style={{
-            background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${(currentTime / (duration || 1)) * 100}%, var(--color-border) ${(currentTime / (duration || 1)) * 100}%, var(--color-border) 100%)`
+            background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${
+              (currentTime / (duration || 1)) * 100
+            }%, var(--color-border) ${
+              (currentTime / (duration || 1)) * 100
+            }%, var(--color-border) 100%)`,
           }}
         />
         <div className="flex justify-between text-xs text-[var(--color-text-muted)]">
@@ -425,11 +444,7 @@ const AudioPlayer = ({
       <div className="flex items-center gap-4">
         <motion.button
           onClick={togglePlay}
-          className="
-            p-3 rounded-full
-            bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]
-            text-white transition-all
-          "
+          className="p-3 rounded-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white transition-all"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -471,6 +486,131 @@ const AudioPlayer = ({
   );
 };
 
+// ═══════════════════════════════════════════════════════════
+// CURSOR TEST AREA (para preview do cursor no modal)
+// ═══════════════════════════════════════════════════════════
+
+const CursorTestArea = ({ cursorUrl }: { cursorUrl: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isHovering, setIsHovering] = useState(false);
+  const [cursorLoaded, setCursorLoaded] = useState(false);
+  const [cursorError, setCursorError] = useState(false);
+
+  useEffect(() => {
+    if (!cursorUrl) return;
+
+    setCursorLoaded(false);
+    setCursorError(false);
+
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      setCursorLoaded(true);
+
+      // Aplica o cursor no container
+      const container = containerRef.current;
+      if (!container) return;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      const aspectRatio = img.naturalWidth / img.naturalHeight;
+      let drawW = 32,
+        drawH = 32;
+      if (aspectRatio > 1) drawH = 32 / aspectRatio;
+      else if (aspectRatio < 1) drawW = 32 * aspectRatio;
+      const offsetX = (32 - drawW) / 2;
+      const offsetY = (32 - drawH) / 2;
+
+      ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+      const dataUrl = canvas.toDataURL("image/png");
+      container.style.cursor = `url("${dataUrl}") 0 0, auto`;
+    };
+    img.onerror = () => setCursorError(true);
+    img.src = cursorUrl;
+
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.style.cursor = "auto";
+      }
+    };
+  }, [cursorUrl]);
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      className="p-6 rounded-[var(--border-radius-md)] border-2 border-dashed flex flex-col items-center justify-center text-center select-none transition-all duration-300"
+      style={{
+        minHeight: 140,
+        borderColor: cursorLoaded && !cursorError
+          ? "var(--color-primary)"
+          : cursorError
+          ? "#ef4444"
+          : "var(--color-border)",
+        background: isHovering
+          ? "rgba(var(--color-primary-rgb, 99, 102, 241), 0.05)"
+          : "var(--color-surface)",
+      }}
+    >
+      {cursorError ? (
+        <>
+          <AlertCircle size={24} className="text-red-400 mb-2" />
+          <p className="text-xs font-medium text-red-400">Erro ao carregar cursor</p>
+        </>
+      ) : !cursorLoaded ? (
+        <>
+          <Loader2 size={24} className="text-[var(--color-primary)] mb-2 animate-spin" />
+          <p className="text-xs text-[var(--color-text-muted)]">Carregando cursor...</p>
+        </>
+      ) : (
+        <>
+          <motion.div
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <MousePointer2 size={24} className="text-[var(--color-primary)] mb-2" />
+          </motion.div>
+          <p className="text-xs font-medium text-[var(--color-text)] mb-1">
+            🎯 Área de Teste do Cursor
+          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            Mova o mouse aqui para testar
+          </p>
+          <AnimatePresence>
+            {isHovering && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                style={{
+                  backgroundColor: "rgba(34, 197, 94, 0.2)",
+                  border: "1px solid rgba(34, 197, 94, 0.3)",
+                }}
+              >
+                <CheckCircle size={11} className="text-green-400" />
+                <span className="text-xs font-medium text-green-400">Cursor ativo!</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// ASSET PREVIEW CARD
+// ═══════════════════════════════════════════════════════════
+
 const AssetPreviewCard = ({
   asset,
   icon: Icon,
@@ -479,7 +619,6 @@ const AssetPreviewCard = ({
   onView,
   children,
   disabled,
-  isPremiumLocked = false,
 }: {
   asset: MediaAsset | null;
   icon: React.ElementType;
@@ -501,14 +640,18 @@ const AssetPreviewCard = ({
   };
 
   return (
-    <div className="
-      p-4 rounded-[var(--border-radius-md)]
-      bg-[var(--color-surface)] border border-[var(--color-border)]
-      hover:border-[var(--color-primary)]/30 transition-all duration-300
-    ">
+    <div
+      className="p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] transition-all duration-300"
+      style={{}}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-primary)]/10">
+          <div
+            className="p-2 rounded-[var(--border-radius-sm)]"
+            style={{
+              backgroundColor: "rgba(var(--color-primary-rgb, 99, 102, 241), 0.1)",
+            }}
+          >
             <Icon size={18} className="text-[var(--color-primary)]" />
           </div>
           <div>
@@ -528,7 +671,11 @@ const AssetPreviewCard = ({
           {children}
 
           <div className="mt-4 space-y-2 p-3 rounded-[var(--border-radius-sm)] bg-[var(--color-background)]">
-            <InfoItem icon={LinkIcon} label="URL" value={asset.url.substring(0, 40) + '...'} />
+            <InfoItem
+              icon={LinkIcon}
+              label="URL"
+              value={asset.url.substring(0, 40) + "..."}
+            />
             <InfoItem icon={FileVideo} label="Tipo" value={getMimeTypeFromUrl(asset.url)} />
             <InfoItem icon={Calendar} label="Configurado em" value={formatDate(new Date())} />
           </div>
@@ -536,13 +683,10 @@ const AssetPreviewCard = ({
           <div className="mt-4 flex items-center gap-2">
             <motion.button
               onClick={onView}
-              className="
-                flex-1 flex items-center justify-center gap-2 px-3 py-2
-                rounded-[var(--border-radius-sm)]
-                bg-[var(--color-primary)]/10 hover:bg-[var(--color-primary)]/20
-                text-[var(--color-primary)] text-xs font-medium
-                transition-all duration-300
-              "
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-[var(--border-radius-sm)] text-[var(--color-primary)] text-xs font-medium transition-all duration-300"
+              style={{
+                backgroundColor: "rgba(var(--color-primary-rgb, 99, 102, 241), 0.1)",
+              }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -553,29 +697,23 @@ const AssetPreviewCard = ({
             <motion.button
               onClick={handleCopy}
               disabled={disabled}
-              className="
-                p-2 rounded-[var(--border-radius-sm)]
-                bg-[var(--color-background)] hover:bg-[var(--color-surface-hover)]
-                text-[var(--color-text-muted)] hover:text-[var(--color-text)]
-                transition-all duration-300 disabled:opacity-50
-              "
+              className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-background)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all duration-300 disabled:opacity-50"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Copiar URL"
             >
-              {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+              {copied ? (
+                <Check size={14} className="text-green-400" />
+              ) : (
+                <Copy size={14} />
+              )}
             </motion.button>
 
             <motion.a
               href={asset.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="
-                p-2 rounded-[var(--border-radius-sm)]
-                bg-[var(--color-background)] hover:bg-[var(--color-surface-hover)]
-                text-[var(--color-text-muted)] hover:text-[var(--color-text)]
-                transition-all duration-300
-              "
+              className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-background)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all duration-300"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Abrir em nova aba"
@@ -586,12 +724,8 @@ const AssetPreviewCard = ({
             <motion.button
               onClick={onRemove}
               disabled={disabled}
-              className="
-                p-2 rounded-[var(--border-radius-sm)]
-                bg-[var(--color-background)] hover:bg-red-500/10
-                text-[var(--color-text-muted)] hover:text-red-400
-                transition-all duration-300 disabled:opacity-50
-              "
+              className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-background)] text-[var(--color-text-muted)] hover:text-red-400 transition-all duration-300 disabled:opacity-50"
+              style={{}}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Remover"
@@ -604,12 +738,7 @@ const AssetPreviewCard = ({
         <EmptyAssetState
           icon={Icon}
           title={`Nenhum ${title.toLowerCase()} ativo`}
-          description={
-            isPremiumLocked
-              ? `O ${title.toLowerCase()} é um recurso exclusivo para usuários Premium.`
-              : `Configure um ${title.toLowerCase()} na página de Customização.`
-          }
-          isPremiumLocked={isPremiumLocked}
+          description={`Configure um ${title.toLowerCase()} na página de Customização.`}
         />
       )}
     </div>
@@ -617,31 +746,20 @@ const AssetPreviewCard = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// PÁGINA PRINCIPAL COM INTEGRAÇÃO DO CONTEXT
+// PÁGINA PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 
 const DashboardAssets = () => {
-  // ═══════════════════════════════════════════════════════════
-  // CONTEXTO DO PERFIL
-  // ═══════════════════════════════════════════════════════════
-  const {
-    profileData,
-    isLoadingProfile,
-    refreshProfile
-  } = useProfile();
+  const { profileData, isLoadingProfile, refreshProfile } = useProfile();
 
-  // ✅ Verificar se usuário é Premium
   const userIsPremium = profileData?.isPremium ?? false;
 
-  // ═══════════════════════════════════════════════════════════
-  // ESTADOS LOCAIS
-  // ═══════════════════════════════════════════════════════════
   const [assets, setAssets] = useState<ActiveAssets>({
     avatar: null,
     background: null,
     cursor: null,
     audio: null,
-    favicon: null, // ✅ Adicionado favicon
+    favicon: null,
     audioVolume: 50,
   });
 
@@ -652,30 +770,24 @@ const DashboardAssets = () => {
 
   const [viewModal, setViewModal] = useState<{
     isOpen: boolean;
-    type: "avatar" | "background" | "cursor" | "audio" | "favicon" | null; // ✅ Adicionado favicon
+    type: "avatar" | "background" | "cursor" | "audio" | "favicon" | null;
   }>({ isOpen: false, type: null });
 
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
-    type: "avatar" | "background" | "cursor" | "audio" | "favicon" | null; // ✅ Adicionado favicon
+    type: "avatar" | "background" | "cursor" | "audio" | "favicon" | null;
   }>({ isOpen: false, type: null });
 
-  // ═══════════════════════════════════════════════════════════
-  // SINCRONIZAR COM DADOS DO CONTEXTO
-  // ═══════════════════════════════════════════════════════════
+  // Sincronizar com dados do contexto
   useEffect(() => {
     if (profileData) {
       const loadedAssets = profileDataToAssets(profileData);
-      setAssets(prev => ({
+      setAssets((prev) => ({
         ...loadedAssets,
-        audioVolume: prev.audioVolume, // Preservar volume do áudio
+        audioVolume: prev.audioVolume,
       }));
     }
   }, [profileData]);
-
-  // ═══════════════════════════════════════════════════════════
-  // HANDLERS
-  // ═══════════════════════════════════════════════════════════
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -691,33 +803,33 @@ const DashboardAssets = () => {
     }
   }, [refreshProfile]);
 
-  const handleRemove = async (type: "avatar" | "background" | "cursor" | "audio" | "favicon") => {
+  const handleRemove = async (
+    type: "avatar" | "background" | "cursor" | "audio" | "favicon"
+  ) => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Mapear tipo para campo da API
       const fieldMap = {
         avatar: "profileImageUrl",
         background: "backgroundUrl",
         cursor: "cursorUrl",
         audio: "musicUrl",
-        favicon: "faviconUrl", // ✅ Adicionado favicon
+        favicon: "faviconUrl",
       };
 
-      // Atualizar via PATCH, limpando apenas o campo específico
       await customizationService.patchPageSettings({
         mediaUrls: {
           [fieldMap[type]]: "",
           profileImageUrl: type !== "avatar" ? assets.avatar?.url || "" : "",
           backgroundUrl: type !== "background" ? assets.background?.url || "" : "",
           musicUrl: type !== "audio" ? assets.audio?.url || "" : "",
-          faviconUrl: type !== "favicon" ? assets.favicon?.url || "" : ""
+          cursorUrl: type !== "cursor" ? assets.cursor?.url || "" : "",
+          faviconUrl: type !== "favicon" ? assets.favicon?.url || "" : "",
         },
-        staticBackgroundColor: "", // ← adiciona isso
+        staticBackgroundColor: "",
       });
 
-      // Atualizar o contexto global após a remoção
       await refreshProfile();
 
       setDeleteModal({ isOpen: false, type: null });
@@ -732,7 +844,9 @@ const DashboardAssets = () => {
       } else if (err.response?.status === 403) {
         setError("Você não tem permissão para modificar este recurso.");
       } else {
-        setError(err.response?.data?.message || "Erro ao remover. Tente novamente.");
+        setError(
+          err.response?.data?.message || "Erro ao remover. Tente novamente."
+        );
       }
       setDeleteModal({ isOpen: false, type: null });
     } finally {
@@ -750,23 +864,14 @@ const DashboardAssets = () => {
       background: "Background",
       cursor: "Cursor",
       audio: "Áudio",
-      favicon: "Favicon", // ✅ Adicionado favicon
+      favicon: "Favicon",
     };
     return titles[type] || type;
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // RENDER
-  // ═══════════════════════════════════════════════════════════
-
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
 
   const itemVariants = {
@@ -774,19 +879,22 @@ const DashboardAssets = () => {
     visible: { opacity: 1, y: 0 },
   };
 
-  // Loading State - usa o estado do contexto
+  // Loading State
   if (isLoadingProfile && !profileData) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={48} className="mx-auto mb-4 animate-spin text-[var(--color-primary)]" />
+          <Loader2
+            size={48}
+            className="mx-auto mb-4 animate-spin text-[var(--color-primary)]"
+          />
           <p className="text-[var(--color-text-muted)]">Carregando assets...</p>
         </div>
       </div>
     );
   }
 
-  // Error state quando não há dados do perfil
+  // Error state
   if (!profileData) {
     return (
       <div className="min-h-screen bg-[var(--color-background)] flex items-center justify-center">
@@ -801,13 +909,7 @@ const DashboardAssets = () => {
           <motion.button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="
-              flex items-center gap-2 px-4 py-2.5 mx-auto
-              rounded-[var(--border-radius-md)]
-              bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]
-              text-white font-medium text-sm
-              transition-all duration-300
-            "
+            className="flex items-center gap-2 px-4 py-2.5 mx-auto rounded-[var(--border-radius-md)] bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-medium text-sm transition-all duration-300"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -833,7 +935,10 @@ const DashboardAssets = () => {
           className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-[var(--color-text-muted)] mb-3 sm:mb-4 overflow-x-auto whitespace-nowrap pb-2"
         >
           <span>Dashboard</span>
-          <ChevronRight size={12} className="sm:w-[14px] sm:h-[14px] flex-shrink-0" />
+          <ChevronRight
+            size={12}
+            className="sm:w-[14px] sm:h-[14px] flex-shrink-0"
+          />
           <span className="text-[var(--color-text)]">Ativos</span>
         </motion.div>
 
@@ -851,18 +956,15 @@ const DashboardAssets = () => {
           <motion.button
             onClick={handleRefresh}
             disabled={isRefreshing || isLoadingProfile}
-            className="
-              p-2.5 rounded-[var(--border-radius-md)]
-              bg-[var(--color-surface)] border border-[var(--color-border)]
-              text-[var(--color-text-muted)] hover:text-[var(--color-text)]
-              transition-all duration-300
-              disabled:opacity-50
-            "
+            className="p-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-all duration-300 disabled:opacity-50"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             title="Recarregar assets"
           >
-            <RefreshCw size={18} className={(isRefreshing || isLoadingProfile) ? "animate-spin" : ""} />
+            <RefreshCw
+              size={18}
+              className={isRefreshing || isLoadingProfile ? "animate-spin" : ""}
+            />
           </motion.button>
         </motion.div>
       </div>
@@ -874,13 +976,18 @@ const DashboardAssets = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="mb-6 p-4 rounded-[var(--border-radius-md)] bg-red-500/10 border border-red-500/30 flex items-center gap-3"
+            className="mb-6 p-4 rounded-[var(--border-radius-md)] flex items-center gap-3"
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+            }}
           >
             <AlertCircle size={20} className="text-red-400 flex-shrink-0" />
             <span className="text-sm text-red-400 flex-1">{error}</span>
             <button
               onClick={() => setError(null)}
-              className="p-1 rounded-full hover:bg-red-500/20 text-red-400"
+              className="p-1 rounded-full text-red-400"
+              style={{}}
             >
               <X size={16} />
             </button>
@@ -895,11 +1002,11 @@ const DashboardAssets = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="
-              mb-6 flex items-center gap-2 p-4
-              rounded-[var(--border-radius-md)]
-              bg-green-500/10 border border-green-500/30
-            "
+            className="mb-6 flex items-center gap-2 p-4 rounded-[var(--border-radius-md)]"
+            style={{
+              backgroundColor: "rgba(34, 197, 94, 0.1)",
+              border: "1px solid rgba(34, 197, 94, 0.3)",
+            }}
           >
             <CheckCircle size={20} className="text-green-400" />
             <span className="text-sm text-green-400">{successMessage}</span>
@@ -907,43 +1014,70 @@ const DashboardAssets = () => {
         )}
       </AnimatePresence>
 
-      {/* Stats Overview - ✅ Atualizado com Favicon */}
+      {/* Stats Overview */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6"
       >
         {[
-          { icon: User, label: "Avatar", active: !!assets.avatar, locked: false, premium: false },
-          { icon: Image, label: "Background", active: !!assets.background, locked: false, premium: false },
-          { icon: MousePointer2, label: "Cursor", active: false, locked: true, premium: false },
-          { icon: Music, label: "Áudio", active: !!assets.audio, locked: false, premium: false },
-          { icon: Globe, label: "Favicon", active: !!assets.favicon, locked: !userIsPremium, premium: true }, // ✅ Favicon Premium
+          {
+            icon: User,
+            label: "Avatar",
+            active: !!assets.avatar,
+            locked: false,
+            premium: false,
+          },
+          {
+            icon: Image,
+            label: "Background",
+            active: !!assets.background,
+            locked: false,
+            premium: false,
+          },
+          {
+            icon: MousePointer2,
+            label: "Cursor",
+            active: !!assets.cursor,
+            locked: false,
+            premium: false,
+          },
+          {
+            icon: Music,
+            label: "Áudio",
+            active: !!assets.audio,
+            locked: false,
+            premium: false,
+          },
+          {
+            icon: Globe,
+            label: "Favicon",
+            active: !!assets.favicon,
+            locked: !userIsPremium,
+            premium: true,
+          },
         ].map((item, index) => (
           <motion.div
             key={item.label}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.1 }}
-            className={`
-              p-4 rounded-[var(--border-radius-md)]
-              border transition-all duration-300 relative
-              ${item.locked
-                ? "bg-[var(--color-surface)]/50 border-[var(--color-border)] opacity-75"
+            className="p-4 rounded-[var(--border-radius-md)] border transition-all duration-300 relative"
+            style={{
+              backgroundColor: item.locked
+                ? "var(--color-surface)"
                 : item.active
-                  ? "bg-[var(--color-primary)]/10 border-[var(--color-primary)]"
-                  : "bg-[var(--color-surface)] border-[var(--color-border)]"
-              }
-            `}
+                ? "rgba(var(--color-primary-rgb, 99, 102, 241), 0.1)"
+                : "var(--color-surface)",
+              borderColor: item.active && !item.locked
+                ? "var(--color-primary)"
+                : "var(--color-border)",
+              opacity: item.locked ? 0.75 : 1,
+            }}
           >
-            {/* Badge de Premium ou Lock */}
             {item.locked && (
               <div className="absolute top-2 right-2">
-                {item.premium ? (
-                  <Crown size={14} className="text-yellow-400" />
-                ) : (
-                  <Lock size={14} className="text-[var(--color-text-muted)]" />
-                )}
+                <Crown size={14} className="text-yellow-400" />
               </div>
             )}
             {item.premium && !item.locked && (
@@ -957,40 +1091,45 @@ const DashboardAssets = () => {
                 size={20}
                 className={
                   item.locked
-                    ? "text-[var(--color-text-muted)]/50"
+                    ? "text-[var(--color-text-muted)]"
                     : item.active
-                      ? "text-[var(--color-primary)]"
-                      : "text-[var(--color-text-muted)]"
+                    ? "text-[var(--color-primary)]"
+                    : "text-[var(--color-text-muted)]"
                 }
               />
               {!item.locked && (
                 <span
-                  className={`
-                  w-2 h-2 rounded-full
-                  ${item.active ? "bg-green-400" : "bg-[var(--color-text-muted)]"}
-                `}
+                  className={`w-2 h-2 rounded-full ${
+                    item.active
+                      ? "bg-green-400"
+                      : "bg-[var(--color-text-muted)]"
+                  }`}
                 />
               )}
             </div>
-            <p className="text-sm font-medium text-[var(--color-text)] mt-2">{item.label}</p>
-            <p className={`text-xs ${item.locked
-                ? "text-[var(--color-text-muted)]/50"
-                : item.active
+            <p className="text-sm font-medium text-[var(--color-text)] mt-2">
+              {item.label}
+            </p>
+            <p
+              className={`text-xs ${
+                item.locked
+                  ? "text-[var(--color-text-muted)]"
+                  : item.active
                   ? "text-green-400"
                   : "text-[var(--color-text-muted)]"
-              }`}>
+              }`}
+            >
               {item.locked
-                ? (item.premium ? "Premium" : "Em breve")
+                ? "Premium"
                 : item.active
-                  ? "Ativo"
-                  : "Não configurado"
-              }
+                ? "Ativo"
+                : "Não configurado"}
             </p>
           </motion.div>
         ))}
       </motion.div>
 
-      {/* Content Grid - ✅ Adicionado grid de 3 colunas para comportar favicon */}
+      {/* Content Grid */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -1005,7 +1144,6 @@ const DashboardAssets = () => {
               title="Avatar"
               description="Sua foto de perfil exibida no seu perfil"
             />
-
             <AssetPreviewCard
               asset={assets.avatar}
               icon={User}
@@ -1017,7 +1155,8 @@ const DashboardAssets = () => {
               {assets.avatar && (
                 <div className="flex justify-center">
                   <motion.div
-                    className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-[var(--color-primary)]/30"
+                    className="relative w-32 h-32 rounded-full overflow-hidden border-4"
+                    style={{ borderColor: "rgba(var(--color-primary-rgb, 99, 102, 241), 0.3)" }}
                     whileHover={{ scale: 1.05 }}
                   >
                     <img
@@ -1025,7 +1164,13 @@ const DashboardAssets = () => {
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                    <div
+                      className="absolute inset-0"
+                      style={{
+                        background:
+                          "linear-gradient(to top, rgba(0,0,0,0.3), transparent)",
+                      }}
+                    />
                   </motion.div>
                 </div>
               )}
@@ -1041,13 +1186,16 @@ const DashboardAssets = () => {
               title="Background"
               description="Imagem de fundo do seu perfil"
             />
-
             <AssetPreviewCard
               asset={assets.background}
               icon={Image}
               title="Background"
-              onRemove={() => setDeleteModal({ isOpen: true, type: "background" })}
-              onView={() => setViewModal({ isOpen: true, type: "background" })}
+              onRemove={() =>
+                setDeleteModal({ isOpen: true, type: "background" })
+              }
+              onView={() =>
+                setViewModal({ isOpen: true, type: "background" })
+              }
               disabled={isSubmitting}
             >
               {assets.background && (
@@ -1070,10 +1218,19 @@ const DashboardAssets = () => {
                       className="w-full h-full object-cover"
                     />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(to top, rgba(0,0,0,0.5), transparent)",
+                    }}
+                  />
                   <motion.button
-                    onClick={() => setViewModal({ isOpen: true, type: "background" })}
-                    className="absolute bottom-2 right-2 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-all"
+                    onClick={() =>
+                      setViewModal({ isOpen: true, type: "background" })
+                    }
+                    className="absolute bottom-2 right-2 p-2 rounded-full text-white transition-all"
+                    style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -1085,75 +1242,48 @@ const DashboardAssets = () => {
           </AssetsCard>
         </motion.div>
 
-        {/* CURSOR - BLOQUEADO/EM BREVE */}
+        {/* CURSOR - Now functional! */}
         <motion.div variants={itemVariants}>
           <AssetsCard>
             <SectionHeader
               icon={MousePointer2}
               title="Cursor"
               description="Cursor personalizado para seu perfil"
-              action={
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)]">
-                  <Clock size={14} className="text-[var(--color-text-muted)]" />
-                  <span className="text-xs font-medium text-[var(--color-text-muted)]">Em breve</span>
-                </div>
-              }
             />
-
-            <div className="relative">
-              {/* Overlay de bloqueio */}
-              <div className="absolute inset-0 bg-[var(--color-background)]/60 backdrop-blur-sm z-10 rounded-[var(--border-radius-md)] flex items-center justify-center">
-                <div className="text-center p-6">
-                  <motion.div
-                    className="w-16 h-16 rounded-full bg-[var(--color-surface)] flex items-center justify-center mb-4 mx-auto"
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    <Lock size={24} className="text-[var(--color-text-muted)]" />
-                  </motion.div>
-                  <h3 className="text-sm font-semibold text-[var(--color-text)] mb-1">
-                    Funcionalidade em desenvolvimento
-                  </h3>
-                  <p className="text-xs text-[var(--color-text-muted)] max-w-xs mx-auto">
-                    A personalização de cursor estará disponível em breve. Fique atento às atualizações!
-                  </p>
-                  <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/30">
-                    <Clock size={12} className="text-[var(--color-primary)]" />
-                    <span className="text-xs font-medium text-[var(--color-primary)]">Em breve</span>
+            <AssetPreviewCard
+              asset={assets.cursor}
+              icon={MousePointer2}
+              title="Cursor"
+              onRemove={() => setDeleteModal({ isOpen: true, type: "cursor" })}
+              onView={() => setViewModal({ isOpen: true, type: "cursor" })}
+              disabled={isSubmitting}
+            >
+              {assets.cursor && (
+                <div className="space-y-4">
+                  {/* Preview da imagem do cursor */}
+                  <div className="flex justify-center">
+                    <motion.div
+                      className="relative w-24 h-24 rounded-[var(--border-radius-md)] overflow-hidden border-2 flex items-center justify-center"
+                      style={{
+                        borderColor: "rgba(var(--color-primary-rgb, 99, 102, 241), 0.3)",
+                        backgroundColor: "var(--color-background)",
+                      }}
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <img
+                        src={assets.cursor.url}
+                        alt="Cursor"
+                        className="w-16 h-16 object-contain"
+                        style={{ imageRendering: "pixelated" }}
+                      />
+                    </motion.div>
                   </div>
+
+                  {/* Área de teste do cursor */}
+                  <CursorTestArea cursorUrl={assets.cursor.url} />
                 </div>
-              </div>
-
-              {/* Card desabilitado por baixo */}
-              <div className="opacity-40 pointer-events-none">
-                <div className="
-                  p-4 rounded-[var(--border-radius-md)]
-                  bg-[var(--color-surface)] border border-[var(--color-border)]
-                ">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-primary)]/10">
-                        <MousePointer2 size={18} className="text-[var(--color-primary)]" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium text-[var(--color-text)]">Cursor</h3>
-                      </div>
-                    </div>
-                    <StatusBadge active={false} />
-                  </div>
-
-                  <div className="flex justify-center items-center py-8">
-                    <div className="
-                      w-24 h-24 rounded-[var(--border-radius-md)]
-                      bg-[var(--color-background)] border border-dashed border-[var(--color-border)]
-                      flex items-center justify-center
-                    ">
-                      <MousePointer2 size={32} className="text-[var(--color-text-muted)]" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              )}
+            </AssetPreviewCard>
           </AssetsCard>
         </motion.div>
 
@@ -1165,7 +1295,6 @@ const DashboardAssets = () => {
               title="Áudio"
               description="Música de fundo do seu perfil"
             />
-
             <AssetPreviewCard
               asset={assets.audio}
               icon={Music}
@@ -1187,7 +1316,7 @@ const DashboardAssets = () => {
           </AssetsCard>
         </motion.div>
 
-        {/* ✅ FAVICON - PREMIUM ONLY */}
+        {/* FAVICON - PREMIUM ONLY */}
         <motion.div variants={itemVariants}>
           <AssetsCard>
             <SectionHeader
@@ -1197,22 +1326,40 @@ const DashboardAssets = () => {
               isPremium={true}
               action={
                 !userIsPremium ? (
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-400/10 to-orange-500/10 border border-yellow-500/30">
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full"
+                    style={{
+                      background:
+                        "linear-gradient(to right, rgba(250, 204, 21, 0.1), rgba(249, 115, 22, 0.1))",
+                      border: "1px solid rgba(234, 179, 8, 0.3)",
+                    }}
+                  >
                     <Crown size={14} className="text-yellow-400" />
-                    <span className="text-xs font-medium text-yellow-400">Premium</span>
+                    <span className="text-xs font-medium text-yellow-400">
+                      Premium
+                    </span>
                   </div>
                 ) : null
               }
             />
 
-            {/* Se não for premium, mostrar overlay de bloqueio */}
             {!userIsPremium ? (
               <div className="relative">
-                {/* Overlay de bloqueio Premium */}
-                <div className="absolute inset-0 bg-[var(--color-background)]/60 backdrop-blur-sm z-10 rounded-[var(--border-radius-md)] flex items-center justify-center">
+                <div
+                  className="absolute inset-0 z-10 rounded-[var(--border-radius-md)] flex items-center justify-center"
+                  style={{
+                    backgroundColor: "rgba(var(--color-bg-rgb, 10, 10, 15), 0.6)",
+                    backdropFilter: "blur(4px)",
+                  }}
+                >
                   <div className="text-center p-6">
                     <motion.div
-                      className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400/20 to-orange-500/20 flex items-center justify-center mb-4 mx-auto border border-yellow-500/30"
+                      className="w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(250, 204, 21, 0.2), rgba(249, 115, 22, 0.2))",
+                        border: "1px solid rgba(234, 179, 8, 0.3)",
+                      }}
                       animate={{ scale: [1, 1.05, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
                     >
@@ -1222,10 +1369,13 @@ const DashboardAssets = () => {
                       Recurso Premium
                     </h3>
                     <p className="text-xs text-[var(--color-text-muted)] max-w-xs mx-auto">
-                      O favicon personalizado é exclusivo para usuários Premium. Faça upgrade para desbloquear!
+                      O favicon personalizado é exclusivo para usuários
+                      Premium. Faça upgrade para desbloquear!
                     </p>
                     <motion.button
-                      onClick={() => window.location.href = "/dashboard/premium"}
+                      onClick={() =>
+                        (window.location.href = "/dashboard/premium")
+                      }
                       className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold shadow-lg"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -1236,50 +1386,63 @@ const DashboardAssets = () => {
                   </div>
                 </div>
 
-                {/* Card desabilitado por baixo */}
                 <div className="opacity-40 pointer-events-none">
-                  <div className="
-                    p-4 rounded-[var(--border-radius-md)]
-                    bg-[var(--color-surface)] border border-[var(--color-border)]
-                  ">
+                  <div className="p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)]">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-primary)]/10">
-                          <Globe size={18} className="text-[var(--color-primary)]" />
+                        <div
+                          className="p-2 rounded-[var(--border-radius-sm)]"
+                          style={{
+                            backgroundColor:
+                              "rgba(var(--color-primary-rgb, 99, 102, 241), 0.1)",
+                          }}
+                        >
+                          <Globe
+                            size={18}
+                            className="text-[var(--color-primary)]"
+                          />
                         </div>
                         <div>
-                          <h3 className="text-sm font-medium text-[var(--color-text)]">Favicon</h3>
+                          <h3 className="text-sm font-medium text-[var(--color-text)]">
+                            Favicon
+                          </h3>
                         </div>
                       </div>
                       <StatusBadge active={false} />
                     </div>
-
                     <div className="flex justify-center items-center py-8">
-                      <div className="
-                        w-24 h-24 rounded-[var(--border-radius-md)]
-                        bg-[var(--color-background)] border border-dashed border-[var(--color-border)]
-                        flex items-center justify-center
-                      ">
-                        <Globe size={32} className="text-[var(--color-text-muted)]" />
+                      <div className="w-24 h-24 rounded-[var(--border-radius-md)] bg-[var(--color-background)] border border-dashed border-[var(--color-border)] flex items-center justify-center">
+                        <Globe
+                          size={32}
+                          className="text-[var(--color-text-muted)]"
+                        />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             ) : (
-              /* Se for premium, mostrar o card normal */
               <AssetPreviewCard
                 asset={assets.favicon}
                 icon={Globe}
                 title="Favicon"
-                onRemove={() => setDeleteModal({ isOpen: true, type: "favicon" })}
-                onView={() => setViewModal({ isOpen: true, type: "favicon" })}
+                onRemove={() =>
+                  setDeleteModal({ isOpen: true, type: "favicon" })
+                }
+                onView={() =>
+                  setViewModal({ isOpen: true, type: "favicon" })
+                }
                 disabled={isSubmitting}
               >
                 {assets.favicon && (
                   <div className="flex justify-center">
                     <motion.div
-                      className="relative w-24 h-24 rounded-[var(--border-radius-md)] overflow-hidden border-2 border-[var(--color-primary)]/30 bg-[var(--color-background)] flex items-center justify-center"
+                      className="relative w-24 h-24 rounded-[var(--border-radius-md)] overflow-hidden border-2 flex items-center justify-center"
+                      style={{
+                        borderColor:
+                          "rgba(var(--color-primary-rgb, 99, 102, 241), 0.3)",
+                        backgroundColor: "var(--color-background)",
+                      }}
                       whileHover={{ scale: 1.05 }}
                     >
                       <img
@@ -1296,11 +1459,13 @@ const DashboardAssets = () => {
         </motion.div>
       </motion.div>
 
-      {/* VIEW MODAL - ✅ Adicionado suporte para favicon */}
+      {/* VIEW MODAL */}
       <Modal
         isOpen={viewModal.isOpen}
         onClose={() => setViewModal({ isOpen: false, type: null })}
-        title={`Visualizar ${viewModal.type ? getAssetTitle(viewModal.type) : ""}`}
+        title={`Visualizar ${
+          viewModal.type ? getAssetTitle(viewModal.type) : ""
+        }`}
         size={viewModal.type === "background" ? "xl" : "lg"}
       >
         {viewModal.type === "avatar" && assets.avatar && (
@@ -1308,11 +1473,19 @@ const DashboardAssets = () => {
             <img
               src={assets.avatar.url}
               alt="Avatar"
-              className="w-64 h-64 rounded-full object-cover border-4 border-[var(--color-primary)]/30"
+              className="w-64 h-64 rounded-full object-cover border-4"
+              style={{
+                borderColor:
+                  "rgba(var(--color-primary-rgb, 99, 102, 241), 0.3)",
+              }}
             />
             <div className="text-center">
-              <p className="text-sm text-[var(--color-text)]">{getFileNameFromUrl(assets.avatar.url)}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{getMimeTypeFromUrl(assets.avatar.url)}</p>
+              <p className="text-sm text-[var(--color-text)]">
+                {getFileNameFromUrl(assets.avatar.url)}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {getMimeTypeFromUrl(assets.avatar.url)}
+              </p>
             </div>
           </div>
         )}
@@ -1338,6 +1511,38 @@ const DashboardAssets = () => {
           </>
         )}
 
+        {/* CURSOR MODAL */}
+        {viewModal.type === "cursor" && assets.cursor && (
+          <div className="flex flex-col items-center gap-6">
+            {/* Preview grande */}
+            <div className="p-8 rounded-[var(--border-radius-lg)] bg-[var(--color-surface)] border border-[var(--color-border)]">
+              <img
+                src={assets.cursor.url}
+                alt="Cursor"
+                className="w-32 h-32 object-contain"
+                style={{ imageRendering: "pixelated" }}
+              />
+            </div>
+
+            {/* Área de teste */}
+            <div className="w-full max-w-md">
+              <p className="text-xs text-[var(--color-text-muted)] mb-2 text-center">
+                Teste seu cursor na área abaixo:
+              </p>
+              <CursorTestArea cursorUrl={assets.cursor.url} />
+            </div>
+
+            <div className="text-center">
+              <p className="text-sm text-[var(--color-text)]">
+                {getFileNameFromUrl(assets.cursor.url)}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {getMimeTypeFromUrl(assets.cursor.url)}
+              </p>
+            </div>
+          </div>
+        )}
+
         {viewModal.type === "audio" && assets.audio && (
           <div className="space-y-6">
             <div className="p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)]">
@@ -1348,16 +1553,19 @@ const DashboardAssets = () => {
               />
             </div>
             <div className="text-center">
-              <p className="text-sm text-[var(--color-text)]">{getFileNameFromUrl(assets.audio.url)}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{getMimeTypeFromUrl(assets.audio.url)}</p>
+              <p className="text-sm text-[var(--color-text)]">
+                {getFileNameFromUrl(assets.audio.url)}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {getMimeTypeFromUrl(assets.audio.url)}
+              </p>
             </div>
           </div>
         )}
 
-        {/* ✅ Visualização de Favicon */}
+        {/* FAVICON MODAL */}
         {viewModal.type === "favicon" && assets.favicon && (
           <div className="flex flex-col items-center gap-6">
-            {/* Preview grande */}
             <div className="p-8 rounded-[var(--border-radius-lg)] bg-[var(--color-surface)] border border-[var(--color-border)]">
               <img
                 src={assets.favicon.url}
@@ -1366,12 +1574,14 @@ const DashboardAssets = () => {
               />
             </div>
 
-            {/* Preview na aba do navegador simulada */}
+            {/* Simulação da aba do navegador */}
             <div className="w-full max-w-md">
               <p className="text-xs text-[var(--color-text-muted)] mb-2 text-center">
                 Preview na aba do navegador:
               </p>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-t-lg bg-[var(--color-surface)] border border-[var(--color-border)]">
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-t-lg bg-[var(--color-surface)] border border-[var(--color-border)]"
+              >
                 <img
                   src={assets.favicon.url}
                   alt="Favicon"
@@ -1380,13 +1590,20 @@ const DashboardAssets = () => {
                 <span className="text-xs text-[var(--color-text)] truncate">
                   Seu Perfil - VXO
                 </span>
-                <X size={12} className="text-[var(--color-text-muted)] ml-auto" />
+                <X
+                  size={12}
+                  className="text-[var(--color-text-muted)] ml-auto"
+                />
               </div>
             </div>
 
             <div className="text-center">
-              <p className="text-sm text-[var(--color-text)]">{getFileNameFromUrl(assets.favicon.url)}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{getMimeTypeFromUrl(assets.favicon.url)}</p>
+              <p className="text-sm text-[var(--color-text)]">
+                {getFileNameFromUrl(assets.favicon.url)}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                {getMimeTypeFromUrl(assets.favicon.url)}
+              </p>
             </div>
           </div>
         )}
@@ -1396,24 +1613,42 @@ const DashboardAssets = () => {
       <Modal
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal({ isOpen: false, type: null })}
-        title={`Remover ${deleteModal.type ? getAssetTitle(deleteModal.type) : ""}`}
+        title={`Remover ${
+          deleteModal.type ? getAssetTitle(deleteModal.type) : ""
+        }`}
       >
         <div className="space-y-4">
-          <div className="flex items-start gap-3 p-4 rounded-[var(--border-radius-md)] bg-red-500/10 border border-red-500/30">
-            <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <div
+            className="flex items-start gap-3 p-4 rounded-[var(--border-radius-md)]"
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+            }}
+          >
+            <AlertCircle
+              size={20}
+              className="text-red-400 flex-shrink-0 mt-0.5"
+            />
             <div>
               <p className="text-sm text-[var(--color-text)]">
-                Tem certeza que deseja remover este {deleteModal.type ? getAssetTitle(deleteModal.type).toLowerCase() : "arquivo"}?
+                Tem certeza que deseja remover este{" "}
+                {deleteModal.type
+                  ? getAssetTitle(deleteModal.type).toLowerCase()
+                  : "arquivo"}
+                ?
               </p>
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                Ele será removido da sua customização. Você pode configurá-lo novamente a qualquer momento.
+                Ele será removido da sua customização. Você pode
+                configurá-lo novamente a qualquer momento.
               </p>
             </div>
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
             <motion.button
-              onClick={() => setDeleteModal({ isOpen: false, type: null })}
+              onClick={() =>
+                setDeleteModal({ isOpen: false, type: null })
+              }
               disabled={isSubmitting}
               className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] text-[var(--color-text)] font-medium transition-all disabled:opacity-50"
               whileHover={{ scale: 1.02 }}
@@ -1422,7 +1657,9 @@ const DashboardAssets = () => {
               Cancelar
             </motion.button>
             <motion.button
-              onClick={() => deleteModal.type && handleRemove(deleteModal.type)}
+              onClick={() =>
+                deleteModal.type && handleRemove(deleteModal.type)
+              }
               disabled={isSubmitting}
               className="flex-1 px-4 py-2.5 rounded-[var(--border-radius-md)] bg-red-500 hover:bg-red-600 text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               whileHover={isSubmitting ? {} : { scale: 1.02 }}
