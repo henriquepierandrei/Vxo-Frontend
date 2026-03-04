@@ -2309,33 +2309,65 @@ const UserPublicPage: React.FC = () => {
 
     /* ── Custom Cursor ───────────────────────────────────── */
     useEffect(() => {
-        if (data?.isPremium && data?.mediaUrls?.cursorUrl) {
-            // Aplica o cursor customizado ao body inteiro
-            document.body.style.cursor = `url(${data.mediaUrls.cursorUrl}), auto`;
+        const cursorUrl = data?.mediaUrls?.cursorUrl;
 
-            // Também aplica a elementos interativos para manter consistência
-            const style = document.createElement('style');
-            style.id = 'custom-cursor-style';
-            style.textContent = `
-            *, *::before, *::after {
-                cursor: url(${data.mediaUrls.cursorUrl}), auto !important;
+        // Debug - veja no console
+        console.log('🖱️ Cursor Debug:', {
+            cursorUrl,
+            isPremium: data?.isPremium,
+            hasData: !!data
+        });
+
+        if (!cursorUrl) {
+            console.log('❌ Sem cursor URL');
+            return;
+        }
+
+        // Testa se a imagem carrega
+        const img = new Image();
+        img.onload = () => {
+            console.log('✅ Cursor carregou:', img.width, 'x', img.height);
+
+            // Aviso se imagem for muito grande
+            if (img.width > 128 || img.height > 128) {
+                console.warn('⚠️ Cursor muito grande! Max recomendado: 128x128');
             }
-            a, button, [role="button"], input[type="submit"], input[type="button"] {
-                cursor: url(${data.mediaUrls.cursorUrl}), pointer !important;
+
+            // Aplica o cursor
+            const cursorCSS = `url(${cursorUrl}), auto`;
+            document.body.style.cursor = cursorCSS;
+
+            // Remove style anterior se existir
+            const existingStyle = document.getElementById('vxo-custom-cursor');
+            if (existingStyle) existingStyle.remove();
+
+            // Cria novo style global
+            const style = document.createElement('style');
+            style.id = 'vxo-custom-cursor';
+            style.textContent = `
+            html, body, * {
+                cursor: url(${cursorUrl}), auto !important;
             }
         `;
             document.head.appendChild(style);
 
-            return () => {
-                document.body.style.cursor = 'default';
-                const existingStyle = document.getElementById('custom-cursor-style');
-                if (existingStyle) {
-                    existingStyle.remove();
-                }
-            };
-        }
-    }, [data?.isPremium, data?.mediaUrls?.cursorUrl]);
+            console.log('✅ Cursor aplicado!');
+        };
 
+        img.onerror = () => {
+            console.error('❌ Erro ao carregar cursor:', cursorUrl);
+        };
+
+        img.src = cursorUrl;
+
+        // Cleanup
+        return () => {
+            document.body.style.cursor = '';
+            const style = document.getElementById('vxo-custom-cursor');
+            if (style) style.remove();
+        };
+    }, [data?.mediaUrls?.cursorUrl]);
+    
     /* ── Autoplay music ──────────────────────────────────── */
     useEffect(() => {
         if (!data?.mediaUrls?.musicUrl || hasTriedAutoplay.current) return;
