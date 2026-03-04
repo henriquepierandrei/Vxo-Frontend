@@ -47,6 +47,7 @@ interface MediaUrls {
     profileImageUrl: string | null;
     musicUrl: string | null;
     faviconUrl: string | null;
+    cursorUrl: string | null;
 }
 
 interface InventoryItem {
@@ -368,6 +369,100 @@ const extractBadgeName = (url: string): string => {
     }
 };
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CUSTOM CURSOR HOOK
+═══════════════════════════════════════════════════════════════════════════ */
+
+const useCustomCursor = (cursorUrl: string | null | undefined, enabled: boolean = true) => {
+    const [cursorDataUrl, setCursorDataUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!cursorUrl || !enabled) {
+            // Remove cursor customizado
+            document.documentElement.style.cursor = '';
+            document.body.style.cursor = '';
+            setCursorDataUrl(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadCursor = () => {
+            const img = new window.Image();
+            img.crossOrigin = 'anonymous';
+
+            img.onload = () => {
+                if (cancelled) return;
+
+                try {
+                    // Redimensiona para 32x32 (tamanho padrão de cursor)
+                    const canvas = document.createElement('canvas');
+                    const size = 32;
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return;
+
+                    // Limpa o canvas
+                    ctx.clearRect(0, 0, size, size);
+
+                    // Calcula dimensões mantendo aspect ratio
+                    const aspectRatio = img.naturalWidth / img.naturalHeight;
+                    let drawWidth = size;
+                    let drawHeight = size;
+
+                    if (aspectRatio > 1) {
+                        // Mais largo que alto
+                        drawHeight = size / aspectRatio;
+                    } else if (aspectRatio < 1) {
+                        // Mais alto que largo
+                        drawWidth = size * aspectRatio;
+                    }
+
+                    const offsetX = (size - drawWidth) / 2;
+                    const offsetY = (size - drawHeight) / 2;
+
+                    // Usa imageSmoothingEnabled para melhor qualidade
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
+                    const dataUrl = canvas.toDataURL('image/png');
+                    setCursorDataUrl(dataUrl);
+
+                    // Aplica o cursor no documento inteiro
+                    const cursorCSS = `url("${dataUrl}") 0 0, auto`;
+                    document.documentElement.style.cursor = cursorCSS;
+                    document.body.style.cursor = cursorCSS;
+                } catch (e) {
+                    console.warn('Erro ao processar cursor customizado:', e);
+                    setCursorDataUrl(null);
+                }
+            };
+
+            img.onerror = () => {
+                if (cancelled) return;
+                console.warn('Erro ao carregar imagem do cursor:', cursorUrl);
+                setCursorDataUrl(null);
+            };
+
+            img.src = cursorUrl;
+        };
+
+        loadCursor();
+
+        return () => {
+            cancelled = true;
+            // Limpa o cursor ao desmontar
+            document.documentElement.style.cursor = '';
+            document.body.style.cursor = '';
+        };
+    }, [cursorUrl, enabled]);
+
+    return cursorDataUrl;
+};
+
 const isVerifiedBadge = (badge: InventoryItem): boolean =>
     badge.id === VERIFIED_BADGE_ID || badge.url.toLowerCase().includes('verificado');
 
@@ -423,6 +518,10 @@ function preloadCriticalImages(data: UserPageSimplifiedResponse) {
     if (data.mediaUrls.profileImageUrl) {
         urls.push({ url: data.mediaUrls.profileImageUrl, priority: 'high' });
     }
+    // Preload do cursor com prioridade baixa
+    if (data.mediaUrls.cursorUrl) {
+        urls.push({ url: data.mediaUrls.cursorUrl, priority: 'low' });
+    }
 
     urls.forEach(({ url, priority }) => {
         const link = document.createElement('link');
@@ -433,7 +532,6 @@ function preloadCriticalImages(data: UserPageSimplifiedResponse) {
         document.head.appendChild(link);
     });
 }
-
 /* ═══════════════════════════════════════════════════════════════════════════
    RGB TO FILTER
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -1197,6 +1295,21 @@ const ICON_MAP: Record<number, React.FC<IconProps>> = {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const globalStylesCSS = `
+
+.custom-cursor-active,
+.custom-cursor-active * {
+    cursor: inherit !important;
+}
+.custom-cursor-active a,
+.custom-cursor-active button,
+.custom-cursor-active [role="button"],
+.custom-cursor-active input,
+.custom-cursor-active textarea,
+.custom-cursor-active select,
+.custom-cursor-active [onclick] {
+    cursor: inherit !important;
+}
+
 @keyframes float-up {
     0% { opacity: 1; transform: translateY(0) scale(1); }
     50% { opacity: 1; transform: translateY(-20px) scale(1.3); }
@@ -2156,6 +2269,12 @@ const UserPublicPage: React.FC = () => {
 
     const hasFetchedData = useRef(false);
 
+    /* ── Custom Cursor ──────────────────────────────────── */
+    const cursorDataUrl = useCustomCursor(
+        data?.mediaUrls?.cursorUrl,
+        !!data && !loading && !apiError
+    );
+
     /* ══════════════════════════════════════════════════════
    FASE 1 — buscar dados IMEDIATAMENTE (GET, sem bloqueio)
    ═══════════════════════════════════════════════════════ */
@@ -2538,10 +2657,14 @@ const UserPublicPage: React.FC = () => {
                 />
             )}
 
-            <main style={{
-                minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: 10, position: 'relative', overflowY: 'hidden', overflow: 'hidden',
-            }}>
+            <main
+                className={cursorDataUrl ? 'custom-cursor-active' : undefined}
+                style={{
+                    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 10, position: 'relative', overflowY: 'hidden', overflow: 'hidden',
+                    ...(cursorDataUrl ? { cursor: `url("${cursorDataUrl}") 0 0, auto` } : {}),
+                }}
+            >
                 {/* BACKGROUND */}
                 <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
                     {data.mediaUrls.backgroundUrl ? (

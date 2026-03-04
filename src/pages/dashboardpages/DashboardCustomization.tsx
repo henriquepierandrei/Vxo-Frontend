@@ -247,7 +247,7 @@ const profileDataToSettings = (
     backgroundUrl: backgroundUrl,
     profileImageUrl: mediaUrls?.profileImageUrl || DEFAULT_PROFILE_IMAGE,
     musicUrl: mediaUrls?.musicUrl || "",
-    cursorUrl: "",
+    cursorUrl: mediaUrls?.cursorUrl || "",
     faviconUrl: mediaUrls?.faviconUrl || "",
     // ✅ Background Type
     backgroundType: backgroundType,
@@ -297,6 +297,7 @@ const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendReq
       profileImageUrl: settings.profileImageUrl || DEFAULT_PROFILE_IMAGE,
       musicUrl: settings.musicUrl,
       faviconUrl: settings.faviconUrl,
+      cursorUrl: settings.cursorUrl,
     },
     pageEffects: {
       snow: settings.snowEffect,
@@ -490,46 +491,46 @@ const CursorTestArea = ({
     setCursorLoaded(false);
     setCursorError(false);
 
-    const img = new window.Image();
+    const ext = fileName?.split('.').pop()?.toLowerCase() ||
+      cursorUrl.split('.').pop()?.toLowerCase()?.split('?')[0] || '';
 
-    img.onload = () => {
-      setCursorLoaded(true);
-    };
-
-    img.onerror = () => {
+    if (ext !== 'png') {
       setCursorError(true);
-    };
+      return;
+    }
 
+    const img = new window.Image();
+    img.onload = () => setCursorLoaded(true);
+    img.onerror = () => setCursorError(true);
     img.src = cursorUrl;
-  }, [cursorUrl]);
+  }, [cursorUrl, fileName]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !cursorUrl || !cursorLoaded) return;
 
-    const ext = fileName?.split('.').pop()?.toLowerCase() ||
-      cursorUrl.split('.').pop()?.toLowerCase()?.split('?')[0] || '';
-
-    let cursorCSS: string;
-
-    if (ext === 'cur' || ext === 'ani') {
-      cursorCSS = `url("${cursorUrl}"), auto`;
-    } else {
-      cursorCSS = `url("${cursorUrl}") 0 0, auto`;
-    }
-
-    container.style.cursor = cursorCSS;
+    const img = new window.Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, 32, 32);
+      const resized = canvas.toDataURL('image/png');
+      container.style.cursor = `url("${resized}") 0 0, auto`;
+    };
+    img.src = cursorUrl;
 
     return () => {
       container.style.cursor = 'auto';
     };
-  }, [cursorUrl, cursorLoaded, fileName]);
+  }, [cursorUrl, cursorLoaded]);
 
   if (!cursorUrl) return null;
 
   return (
     <motion.div
-      ref={containerRef}
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
       exit={{ opacity: 0, height: 0 }}
@@ -537,53 +538,54 @@ const CursorTestArea = ({
       className="overflow-hidden mt-2"
     >
       <div
+        ref={containerRef}
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         className={`
-          p-8 rounded-[var(--border-radius-md)] 
+          p-4 rounded-[var(--border-radius-md)] 
           bg-gradient-to-br from-[var(--color-surface)] to-[var(--color-background)] 
           border-2 border-dashed transition-all duration-300
           flex flex-col items-center justify-center text-center select-none
           ${cursorLoaded && !cursorError
-            ? 'border-[var(--color-primary)]/50 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)]/5'
+            ? 'border-[var(--color-primary)]/50 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)]'
             : cursorError
               ? 'border-red-500/30'
               : 'border-[var(--color-border)]'
           }
         `}
-        style={{ minHeight: "140px" }}
+        style={{ minHeight: "100px" }}
       >
         {cursorError ? (
           <>
-            <AlertCircle size={32} className="text-red-400 mb-3" />
-            <p className="text-sm font-medium text-red-400 mb-1">
+            <AlertCircle size={20} className="text-red-400 mb-2" />
+            <p className="text-xs font-medium text-red-400 mb-0.5">
               Erro ao carregar cursor
             </p>
             <p className="text-xs text-[var(--color-text-muted)]">
-              Verifique se o arquivo é válido
+              Use apenas arquivos PNG
             </p>
           </>
         ) : !cursorLoaded ? (
           <>
-            <Loader2 size={32} className="text-[var(--color-primary)] mb-3 animate-spin" />
-            <p className="text-sm text-[var(--color-text-muted)]">
+            <Loader2 size={20} className="text-[var(--color-primary)] mb-2 animate-spin" />
+            <p className="text-xs text-[var(--color-text-muted)]">
               Carregando cursor...
             </p>
           </>
         ) : (
           <>
             <motion.div
-              animate={{ y: [0, -5, 0] }}
+              animate={{ y: [0, -4, 0] }}
               transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
             >
-              <MousePointer2 size={32} className="text-[var(--color-primary)] mb-3" />
+              <MousePointer2 size={20} className="text-[var(--color-primary)] mb-2" />
             </motion.div>
 
-            <p className="text-sm font-medium text-[var(--color-text)] mb-1">
+            <p className="text-xs font-medium text-[var(--color-text)] mb-1">
               🎯 Área de Teste do Cursor
             </p>
-            <p className="text-xs text-[var(--color-text-muted)] mb-2">
-              Mova o mouse aqui para testar seu cursor
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Mova o mouse aqui para testar
             </p>
 
             <AnimatePresence>
@@ -592,9 +594,9 @@ const CursorTestArea = ({
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 5 }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/20 border border-green-500/30"
+                  className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-500/20 border border-green-500/30"
                 >
-                  <CheckCircle size={14} className="text-green-400" />
+                  <CheckCircle size={11} className="text-green-400" />
                   <span className="text-xs font-medium text-green-400">
                     Cursor ativo!
                   </span>
@@ -753,9 +755,9 @@ const FileUpload = ({
     }
 
     if (previewType === "cursor") {
-      const validCursorExts = [".cur", ".ani", ".png", ".gif"];
+      const validCursorExts = [".png"];
       if (!validCursorExts.includes(fileExt)) {
-        setError("Use arquivos .cur, .ani, .png ou .gif para cursor");
+        setError("Use arquivo .png para cursor");
         return false;
       }
       const maxSize = 512 * 1024;
@@ -853,7 +855,7 @@ const FileUpload = ({
     preview
   );
 
-  const cursorAccept = ".cur,.ani,.png,.gif,image/png,image/gif";
+  const cursorAccept = ".png,image/png";
   const faviconAccept = ".ico,.png,.svg,image/x-icon,image/png,image/svg+xml";
 
   return (
@@ -977,8 +979,8 @@ const FileUpload = ({
                 style={{ minHeight: computedMinHeight }}
               >
                 <div className="relative">
-                  <div className="p-6 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30 mb-4">
-                    <MousePointer2 size={48} className="text-[var(--color-primary)]" />
+                  <div className="p-6 rounded-2xl border-2 border-[var(--color-primary)] mb-4">
+                    <img src={preview ? preview : undefined} alt="Cursor Preview" width={50} />
                   </div>
                   <motion.div
                     initial={{ scale: 0, opacity: 0 }}
@@ -1126,17 +1128,25 @@ const FileUpload = ({
                 ? "bg-[var(--color-primary)]/20"
                 : "bg-[var(--color-surface-elevated)]"
               }`}>
-              <Upload
-                size={24}
-                className={finalDisabled ? "text-[var(--color-text-muted)]" : isDragging ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"}
-              />
+              {isCursorFile && preview ? (
+                <img
+                  src={preview}
+                  alt="cursor preview"
+                  style={{ width: 24, height: 24, objectFit: 'contain', imageRendering: 'pixelated' }}
+                />
+              ) : (
+                <Upload
+                  size={24}
+                  className={finalDisabled ? "text-[var(--color-text-muted)]" : isDragging ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"}
+                />
+              )}
             </div>
             <p className="text-sm text-[var(--color-text)]">
               {isLocked ? "Recurso exclusivo Premium" : disabled ? "Funcionalidade em breve" : isDragging ? "Solte o arquivo aqui" : "Clique ou arraste um arquivo"}
             </p>
             {previewType === "cursor" && !finalDisabled && (
               <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                PNG, GIF, .cur ou .ani (recomendado: 32x32px)
+                PNG (recomendado: 32x32px)
               </p>
             )}
             {previewType === "favicon" && !finalDisabled && (
@@ -2271,15 +2281,15 @@ const DashboardCustomization = () => {
 
             <FileUpload
               label="Cursor Personalizado"
-              accept=".cur,.ani,.png,.gif,image/png,image/gif"
+              accept=".png,image/png"
               file={fileUploads.cursor}
               currentUrl={settings.cursorUrl}
               onFileSelect={(file) => updateFileUpload("cursor", file)}
               onRemove={() => removeFile("cursor")}
               icon={MousePointer2}
-              helperText="PNG, GIF, .cur ou .ani (recomendado: 32x32px)"
+              helperText="PNG (recomendado: 32x32px)"
               previewType="cursor"
-              disabled={true}
+
             />
 
             <FileUpload

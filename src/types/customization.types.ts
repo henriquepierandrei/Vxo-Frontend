@@ -44,6 +44,7 @@ export interface MediaUrls {
   profileImageUrl: string;
   musicUrl: string;      
   faviconUrl: string;
+  cursorUrl: string;  
 }
 
 
