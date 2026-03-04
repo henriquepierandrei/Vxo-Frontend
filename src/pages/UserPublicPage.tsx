@@ -371,96 +371,132 @@ const extractBadgeName = (url: string): string => {
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   CUSTOM CURSOR HOOK
+   CUSTOM CURSOR HOOK — CORS-safe, com fallback direto via URL
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const useCustomCursor = (cursorUrl: string | null | undefined, enabled: boolean = true) => {
-    const [cursorDataUrl, setCursorDataUrl] = useState<string | null>(null);
+    const [cursorCss, setCursorCss] = useState<string | null>(null);
+    const styleRef = useRef<HTMLStyleElement | null>(null);
 
     useEffect(() => {
         if (!cursorUrl || !enabled) {
-            // Remove cursor customizado
-            document.documentElement.style.cursor = '';
-            document.body.style.cursor = '';
-            setCursorDataUrl(null);
+            // Remove tudo
+            if (styleRef.current) {
+                styleRef.current.remove();
+                styleRef.current = null;
+            }
+            setCursorCss(null);
             return;
         }
 
         let cancelled = false;
 
-        const loadCursor = () => {
+        const applyCursor = (cssValue: string) => {
+            if (cancelled) return;
+            setCursorCss(cssValue);
+
+            // Remove style anterior se existir
+            if (styleRef.current) {
+                styleRef.current.remove();
+            }
+
+            // Cria um <style> global que força o cursor em TODOS os elementos
+            const style = document.createElement('style');
+            style.setAttribute('data-custom-cursor', 'true');
+            style.textContent = `
+                html, body,
+                html *, body *,
+                a, button, input, textarea, select,
+                [role="button"], [onclick],
+                a:hover, button:hover {
+                    cursor: ${cssValue} !important;
+                }
+            `;
+            document.head.appendChild(style);
+            styleRef.current = style;
+        };
+
+        const tryCanvasApproach = () => {
             const img = new window.Image();
             img.crossOrigin = 'anonymous';
 
             img.onload = () => {
                 if (cancelled) return;
-
                 try {
-                    // Redimensiona para 32x32 (tamanho padrão de cursor)
                     const canvas = document.createElement('canvas');
                     const size = 32;
                     canvas.width = size;
                     canvas.height = size;
                     const ctx = canvas.getContext('2d');
-                    if (!ctx) return;
-
-                    // Limpa o canvas
-                    ctx.clearRect(0, 0, size, size);
-
-                    // Calcula dimensões mantendo aspect ratio
-                    const aspectRatio = img.naturalWidth / img.naturalHeight;
-                    let drawWidth = size;
-                    let drawHeight = size;
-
-                    if (aspectRatio > 1) {
-                        // Mais largo que alto
-                        drawHeight = size / aspectRatio;
-                    } else if (aspectRatio < 1) {
-                        // Mais alto que largo
-                        drawWidth = size * aspectRatio;
+                    if (!ctx) {
+                        // Fallback: usar URL direta
+                        applyDirectUrl();
+                        return;
                     }
 
-                    const offsetX = (size - drawWidth) / 2;
-                    const offsetY = (size - drawHeight) / 2;
-
-                    // Usa imageSmoothingEnabled para melhor qualidade
+                    ctx.clearRect(0, 0, size, size);
                     ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
-                    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
 
+                    // Mantém aspect ratio
+                    const aspectRatio = img.naturalWidth / img.naturalHeight;
+                    let drawW = size, drawH = size;
+                    if (aspectRatio > 1) {
+                        drawH = size / aspectRatio;
+                    } else if (aspectRatio < 1) {
+                        drawW = size * aspectRatio;
+                    }
+                    const offsetX = (size - drawW) / 2;
+                    const offsetY = (size - drawH) / 2;
+
+                    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+
+                    // Testa se o canvas está tainted
                     const dataUrl = canvas.toDataURL('image/png');
-                    setCursorDataUrl(dataUrl);
 
-                    // Aplica o cursor no documento inteiro
-                    const cursorCSS = `url("${dataUrl}") 0 0, auto`;
-                    document.documentElement.style.cursor = cursorCSS;
-                    document.body.style.cursor = cursorCSS;
+                    // Se chegou aqui, CORS está ok
+                    const cssValue = `url("${dataUrl}") 0 0, auto`;
+                    applyCursor(cssValue);
+                    console.log('✅ Cursor aplicado via canvas (CORS ok)');
                 } catch (e) {
-                    console.warn('Erro ao processar cursor customizado:', e);
-                    setCursorDataUrl(null);
+                    // Canvas tainted — CORS bloqueou
+                    console.warn('⚠️ Canvas tainted, usando URL direta:', e);
+                    applyDirectUrl();
                 }
             };
 
             img.onerror = () => {
                 if (cancelled) return;
-                console.warn('Erro ao carregar imagem do cursor:', cursorUrl);
-                setCursorDataUrl(null);
+                console.warn('⚠️ Falha ao carregar cursor com CORS, tentando URL direta');
+                applyDirectUrl();
             };
 
-            img.src = cursorUrl;
+            img.src = cursorUrl!;
         };
 
-        loadCursor();
+        const applyDirectUrl = () => {
+            if (cancelled) return;
+            // Usa a URL diretamente — funciona se a imagem for < 128x128
+            // O navegador redimensiona automaticamente
+            const cssValue = `url("${cursorUrl}") 0 0, auto`;
+            applyCursor(cssValue);
+            console.log('✅ Cursor aplicado via URL direta');
+        };
+
+        // Primeiro tenta verificar se a URL é acessível fazendo um fetch HEAD
+        // Se falhar, usa direto
+        tryCanvasApproach();
 
         return () => {
             cancelled = true;
-            // Limpa o cursor ao desmontar
-            document.documentElement.style.cursor = '';
-            document.body.style.cursor = '';
+            if (styleRef.current) {
+                styleRef.current.remove();
+                styleRef.current = null;
+            }
         };
     }, [cursorUrl, enabled]);
 
-    return cursorDataUrl;
+    return cursorCss;
 };
 
 const isVerifiedBadge = (badge: InventoryItem): boolean =>
@@ -1295,21 +1331,6 @@ const ICON_MAP: Record<number, React.FC<IconProps>> = {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const globalStylesCSS = `
-
-.custom-cursor-active,
-.custom-cursor-active * {
-    cursor: inherit !important;
-}
-.custom-cursor-active a,
-.custom-cursor-active button,
-.custom-cursor-active [role="button"],
-.custom-cursor-active input,
-.custom-cursor-active textarea,
-.custom-cursor-active select,
-.custom-cursor-active [onclick] {
-    cursor: inherit !important;
-}
-
 @keyframes float-up {
     0% { opacity: 1; transform: translateY(0) scale(1); }
     50% { opacity: 1; transform: translateY(-20px) scale(1.3); }
@@ -2658,11 +2679,9 @@ const UserPublicPage: React.FC = () => {
             )}
 
             <main
-                className={cursorDataUrl ? 'custom-cursor-active' : undefined}
                 style={{
                     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: 10, position: 'relative', overflowY: 'hidden', overflow: 'hidden',
-                    ...(cursorDataUrl ? { cursor: `url("${cursorDataUrl}") 0 0, auto` } : {}),
                 }}
             >
                 {/* BACKGROUND */}
