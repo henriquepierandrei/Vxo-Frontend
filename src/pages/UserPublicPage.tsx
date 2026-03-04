@@ -1773,7 +1773,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
                     {data.contentSettings.biography}
                 </p>
             )}
-
+            
             {/* TAGS */}
             {data.userTagsResponse.tags.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: centered ? 'center' : 'flex-start' }}>
@@ -1789,7 +1789,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
                     ))}
                 </div>
             )}
-
+            <br />
             {/* EMBED */}
             {data.embedUrl && embedStyle && (
                 <div style={embedStyle}>
@@ -2367,7 +2367,7 @@ const UserPublicPage: React.FC = () => {
             if (style) style.remove();
         };
     }, [data?.mediaUrls?.cursorUrl]);
-    
+
     /* ── Autoplay music ──────────────────────────────────── */
     useEffect(() => {
         if (!data?.mediaUrls?.musicUrl || hasTriedAutoplay.current) return;
