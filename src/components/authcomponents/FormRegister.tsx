@@ -881,7 +881,7 @@ const FormRegister: React.FC = () => {
             className="relative w-full py-4 font-semibold text-base overflow-hidden transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-70 hover:shadow-lg active:scale-[0.98]"
             style={{
               background: `linear-gradient(135deg, var(--color-primary), var(--color-secondary))`,
-              color: 'var(--color-text)',
+              color: 'white',
               borderRadius: 'var(--border-radius-md)',
               boxShadow: '0 4px 15px rgba(143, 124, 255, 0.3)',
             }}
