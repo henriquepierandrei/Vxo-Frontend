@@ -370,134 +370,6 @@ const extractBadgeName = (url: string): string => {
 };
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   CUSTOM CURSOR HOOK — CORS-safe, com fallback direto via URL
-═══════════════════════════════════════════════════════════════════════════ */
-
-const useCustomCursor = (cursorUrl: string | null | undefined, enabled: boolean = true) => {
-    const [cursorCss, setCursorCss] = useState<string | null>(null);
-    const styleRef = useRef<HTMLStyleElement | null>(null);
-
-    useEffect(() => {
-        if (!cursorUrl || !enabled) {
-            // Remove tudo
-            if (styleRef.current) {
-                styleRef.current.remove();
-                styleRef.current = null;
-            }
-            setCursorCss(null);
-            return;
-        }
-
-        let cancelled = false;
-
-        const applyCursor = (cssValue: string) => {
-            if (cancelled) return;
-            setCursorCss(cssValue);
-
-            // Remove style anterior se existir
-            if (styleRef.current) {
-                styleRef.current.remove();
-            }
-
-            // Cria um <style> global que força o cursor em TODOS os elementos
-            const style = document.createElement('style');
-            style.setAttribute('data-custom-cursor', 'true');
-            style.textContent = `
-                html, body,
-                html *, body *,
-                a, button, input, textarea, select,
-                [role="button"], [onclick],
-                a:hover, button:hover {
-                    cursor: ${cssValue} !important;
-                }
-            `;
-            document.head.appendChild(style);
-            styleRef.current = style;
-        };
-
-        const tryCanvasApproach = () => {
-            const img = new window.Image();
-            img.crossOrigin = 'anonymous';
-
-            img.onload = () => {
-                if (cancelled) return;
-                try {
-                    const canvas = document.createElement('canvas');
-                    const size = 32;
-                    canvas.width = size;
-                    canvas.height = size;
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                        // Fallback: usar URL direta
-                        applyDirectUrl();
-                        return;
-                    }
-
-                    ctx.clearRect(0, 0, size, size);
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
-
-                    // Mantém aspect ratio
-                    const aspectRatio = img.naturalWidth / img.naturalHeight;
-                    let drawW = size, drawH = size;
-                    if (aspectRatio > 1) {
-                        drawH = size / aspectRatio;
-                    } else if (aspectRatio < 1) {
-                        drawW = size * aspectRatio;
-                    }
-                    const offsetX = (size - drawW) / 2;
-                    const offsetY = (size - drawH) / 2;
-
-                    ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-
-                    // Testa se o canvas está tainted
-                    const dataUrl = canvas.toDataURL('image/png');
-
-                    // Se chegou aqui, CORS está ok
-                    const cssValue = `url("${dataUrl}") 0 0, auto`;
-                    applyCursor(cssValue);
-                    console.log('✅ Cursor aplicado via canvas (CORS ok)');
-                } catch (e) {
-                    // Canvas tainted — CORS bloqueou
-                    console.warn('⚠️ Canvas tainted, usando URL direta:', e);
-                    applyDirectUrl();
-                }
-            };
-
-            img.onerror = () => {
-                if (cancelled) return;
-                console.warn('⚠️ Falha ao carregar cursor com CORS, tentando URL direta');
-                applyDirectUrl();
-            };
-
-            img.src = cursorUrl!;
-        };
-
-        const applyDirectUrl = () => {
-            if (cancelled) return;
-            // Usa a URL diretamente — funciona se a imagem for < 128x128
-            // O navegador redimensiona automaticamente
-            const cssValue = `url("${cursorUrl}") 0 0, auto`;
-            applyCursor(cssValue);
-            console.log('✅ Cursor aplicado via URL direta');
-        };
-
-        // Primeiro tenta verificar se a URL é acessível fazendo um fetch HEAD
-        // Se falhar, usa direto
-        tryCanvasApproach();
-
-        return () => {
-            cancelled = true;
-            if (styleRef.current) {
-                styleRef.current.remove();
-                styleRef.current = null;
-            }
-        };
-    }, [cursorUrl, enabled]);
-
-    return cursorCss;
-};
 
 const isVerifiedBadge = (badge: InventoryItem): boolean =>
     badge.id === VERIFIED_BADGE_ID || badge.url.toLowerCase().includes('verificado');
@@ -2290,12 +2162,6 @@ const UserPublicPage: React.FC = () => {
 
     const hasFetchedData = useRef(false);
 
-    /* ── Custom Cursor ──────────────────────────────────── */
-    const cursorDataUrl = useCustomCursor(
-        data?.mediaUrls?.cursorUrl,
-        !!data && !loading && !apiError
-    );
-
     /* ══════════════════════════════════════════════════════
    FASE 1 — buscar dados IMEDIATAMENTE (GET, sem bloqueio)
    ═══════════════════════════════════════════════════════ */
@@ -2440,6 +2306,35 @@ const UserPublicPage: React.FC = () => {
     useEffect(() => {
         if (data?.nameEffects?.name) document.title = `${data.nameEffects.name} | VXO`;
     }, [data?.nameEffects?.name]);
+
+    /* ── Custom Cursor ───────────────────────────────────── */
+    useEffect(() => {
+        if (data?.isPremium && data?.mediaUrls?.cursorUrl) {
+            // Aplica o cursor customizado ao body inteiro
+            document.body.style.cursor = `url(${data.mediaUrls.cursorUrl}), auto`;
+
+            // Também aplica a elementos interativos para manter consistência
+            const style = document.createElement('style');
+            style.id = 'custom-cursor-style';
+            style.textContent = `
+            *, *::before, *::after {
+                cursor: url(${data.mediaUrls.cursorUrl}), auto !important;
+            }
+            a, button, [role="button"], input[type="submit"], input[type="button"] {
+                cursor: url(${data.mediaUrls.cursorUrl}), pointer !important;
+            }
+        `;
+            document.head.appendChild(style);
+
+            return () => {
+                document.body.style.cursor = 'default';
+                const existingStyle = document.getElementById('custom-cursor-style');
+                if (existingStyle) {
+                    existingStyle.remove();
+                }
+            };
+        }
+    }, [data?.isPremium, data?.mediaUrls?.cursorUrl]);
 
     /* ── Autoplay music ──────────────────────────────────── */
     useEffect(() => {
