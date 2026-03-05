@@ -643,7 +643,7 @@ const CursorTestArea = ({
           border-2 border-dashed transition-all duration-300
           flex flex-col items-center justify-center text-center select-none
           ${cursorLoaded && !cursorError
-            ? 'border-[var(--color-primary)]/50 hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)]'
+            ? 'border-[var(--color-primary)] hover:border-[var(--color-primary)] hover:bg-[var(--color-surface)]'
             : cursorError
               ? 'border-red-500/30'
               : 'border-[var(--color-border)]'
@@ -734,7 +734,7 @@ const BackgroundTypeSelector = ({
             border-2 transition-all duration-300
             ${value === "media"
               ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
-              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/50"
+              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]"
             }
           `}
           whileHover={{ scale: 1.02 }}
@@ -755,7 +755,7 @@ const BackgroundTypeSelector = ({
             border-2 transition-all duration-300
             ${value === "color"
               ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
-              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/50"
+              : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]"
             }
           `}
           whileHover={{ scale: 1.02 }}
@@ -1031,7 +1031,7 @@ const FileUpload = ({
             ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10"
             : hasFile
               ? "border-[var(--color-border)] bg-[var(--color-surface)]"
-              : "border-[var(--color-border)] hover:border-[var(--color-primary)]/50 bg-[var(--color-surface)]"
+              : "border-[var(--color-border)] hover:border-[var(--color-primary)] bg-[var(--color-surface)]"
           } ${finalDisabled ? "" : "cursor-pointer"}`}
         style={{ minHeight: computedMinHeight }}
         whileHover={finalDisabled ? {} : { scale: 1.005 }}
@@ -1047,7 +1047,7 @@ const FileUpload = ({
               >
                 <div className="relative">
                   {preview && !imageError ? (
-                    <div className="p-4 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30 mb-4">
+                    <div className="p-4 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)] mb-4">
                       <img
                         src={preview}
                         alt="Favicon Preview"
@@ -1056,7 +1056,7 @@ const FileUpload = ({
                       />
                     </div>
                   ) : (
-                    <div className="p-6 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)]/30 mb-4">
+                    <div className="p-6 rounded-2xl bg-[var(--color-primary)]/10 border-2 border-[var(--color-primary)] mb-4">
                       <Globe size={48} className="text-[var(--color-primary)]" />
                     </div>
                   )}
@@ -1354,7 +1354,7 @@ const FileUpload = ({
                     ICO, PNG ou SVG (recomendado: 32x32px)
                   </p>
                 )}
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-primary)]/5 border border-[var(--color-primary)]">
                   <HardDrive size={11} className="text-[var(--color-primary)]" />
                   <span className="text-xs font-medium text-[var(--color-primary)]">
                     Tamanho máximo: {resolvedMaxSizeLabel}
@@ -1447,7 +1447,7 @@ const ToggleSwitch = ({
     <motion.div
       className={`flex items-center justify-between p-3 sm:p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] transition-all duration-300 ${finalDisabled
         ? 'opacity-50 cursor-not-allowed'
-        : 'hover:border-[var(--color-primary)]/30'
+        : 'hover:border-[var(--color-primary)]'
         }`}
       style={{ minHeight: "64px" }}
       whileHover={finalDisabled ? {} : { scale: 1.005 }}
@@ -2153,7 +2153,7 @@ const DashboardCustomization = () => {
                 if (slug) window.open(`https://vxo.lat/${slug}`, '_blank');
               }}
               disabled={!profileData?.slug}
-              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-medium hover:border-[var(--color-primary)]/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-medium hover:border-[var(--color-primary)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               style={{ minHeight: "40px" }}
