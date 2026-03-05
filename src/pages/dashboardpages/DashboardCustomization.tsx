@@ -41,6 +41,7 @@ import {
   Globe,
   Crown,
   PaintBucket,
+  HardDrive,
 } from "lucide-react";
 import { customizationService } from "../../services/customizationService";
 import { assetUploadService } from "../../services/assetUploadService";
@@ -61,6 +62,25 @@ import type {
 const DEFAULT_PROFILE_IMAGE = "https://vxo.lat/default-profile.png";
 
 // ═══════════════════════════════════════════════════════════
+// LIMITES DE TAMANHO DE ARQUIVO
+// ═══════════════════════════════════════════════════════════
+
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024;     // 3MB
+const MAX_AUDIO_SIZE = 5 * 1024 * 1024;     // 5MB
+const MAX_VIDEO_SIZE = 20 * 1024 * 1024;    // 20MB
+const MAX_FAVICON_SIZE = 1 * 1024 * 1024;   // 1MB
+const MAX_CURSOR_SIZE = 256 * 1024;          // 256KB
+
+const FILE_SIZE_LABELS: Record<string, { max: number; label: string }> = {
+  image: { max: MAX_IMAGE_SIZE, label: "3MB" },
+  video: { max: MAX_VIDEO_SIZE, label: "20MB" },
+  audio: { max: MAX_AUDIO_SIZE, label: "5MB" },
+  cursor: { max: MAX_CURSOR_SIZE, label: "256KB" },
+  favicon: { max: MAX_FAVICON_SIZE, label: "1MB" },
+  media: { max: MAX_VIDEO_SIZE, label: "20MB (vídeo) / 3MB (imagem)" },
+};
+
+// ═══════════════════════════════════════════════════════════
 // TIPOS LOCAIS
 // ═══════════════════════════════════════════════════════════
 
@@ -68,39 +88,32 @@ type MediaType = "image" | "video" | "audio" | "unknown";
 type BackgroundType = "media" | "color";
 
 interface CustomizationSettings {
-  // Card Settings
   cardOpacity: number;
   cardBlur: number;
   cardColor: string;
   cardPerspective: boolean;
   cardHoverGrow: boolean;
   rgbBorder: boolean;
-  // Content Settings
   biography: string;
   contentCenter: boolean;
   biographyColor: string;
-  // Name Effects
   name: string;
   neonName: boolean;
   shinyName: boolean;
   rgbName: boolean;
-  // Media URLs
   backgroundUrl: string;
   profileImageUrl: string;
   musicUrl: string;
   cursorUrl: string;
   faviconUrl: string;
-  // Background Type
   backgroundType: BackgroundType;
   staticBackgroundColor: string;
-  // Page Effects
   snowEffect: boolean;
   rainEffect: boolean;
   cashEffect: boolean;
   thunderEffect: boolean;
   smokeEffect: boolean;
   starsEffect: boolean;
-
   nameColor: string;
   viewColor: string;
   badgeColor: string;
@@ -129,6 +142,8 @@ interface FileUploadProps {
   disabled?: boolean;
   isPremiumFeature?: boolean;
   userIsPremium?: boolean;
+  maxFileSize?: number;
+  maxFileSizeLabel?: string;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -180,7 +195,16 @@ const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
+const getFileSizePercent = (fileSize: number, maxSize: number): number => {
+  return Math.min((fileSize / maxSize) * 100, 100);
+};
 
 const getFromLocalStorage = (): Partial<CustomizationSettings> | null => {
   try {
@@ -212,14 +236,10 @@ const profileDataToSettings = (
   const mediaUrls = pageSettings?.mediaUrls as MediaUrls | undefined;
   const pageEffects = pageSettings?.pageEffects as PageEffects | undefined;
 
-  // ✅ CORRIGIDO - Ler "staticBackgroundColor" (nome correto do backend)
   const staticColor = (pageSettings as { staticBackgroundColor?: string })?.staticBackgroundColor || "";
   const backgroundUrl = mediaUrls?.backgroundUrl || "";
 
-  // ✅ CORRIGIDO - Detectar tipo de background
-  // Se tem cor estática definida, prioriza cor sólida
   let backgroundType: BackgroundType = "media";
-
   if (staticColor && staticColor.trim() !== "") {
     backgroundType = "color";
   } else if (backgroundUrl && backgroundUrl.trim() !== "") {
@@ -227,32 +247,26 @@ const profileDataToSettings = (
   }
 
   return {
-    // Card Settings
     cardOpacity: cardSettings?.opacity ?? 80,
     cardBlur: cardSettings?.blur ?? 10,
     cardColor: cardSettings?.color ?? "#1a1a2e",
     cardPerspective: cardSettings?.perspective ?? false,
     cardHoverGrow: cardSettings?.hoverGrow ?? true,
     rgbBorder: cardSettings?.rgbBorder ?? false,
-    // Content Settings
     biography: contentSettings?.biography ?? "",
     contentCenter: contentSettings?.centerAlign ?? true,
     biographyColor: contentSettings?.biographyColor ?? "#ffffff",
-    // Name Effects
     name: nameEffects?.name ?? "",
     neonName: nameEffects?.neon ?? false,
     shinyName: nameEffects?.shiny ?? false,
     rgbName: nameEffects?.rgb ?? false,
-    // Media URLs
     backgroundUrl: backgroundUrl,
     profileImageUrl: mediaUrls?.profileImageUrl || DEFAULT_PROFILE_IMAGE,
     musicUrl: mediaUrls?.musicUrl || "",
     cursorUrl: mediaUrls?.cursorUrl || "",
     faviconUrl: mediaUrls?.faviconUrl || "",
-    // ✅ Background Type
     backgroundType: backgroundType,
     staticBackgroundColor: staticColor || "#0a0a0f",
-    // Page Effects
     snowEffect: pageEffects?.snow ?? false,
     rainEffect: pageEffects?.rain ?? false,
     cashEffect: pageEffects?.cash ?? false,
@@ -282,7 +296,7 @@ const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendReq
       centerAlign: settings.contentCenter,
       viewColor: settings.viewColor,
       badgeColor: settings.badgeColor,
-      tagColor: settings.tagColor
+      tagColor: settings.tagColor,
     },
     nameEffects: {
       name: settings.name,
@@ -293,7 +307,6 @@ const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendReq
     },
     mediaUrls: {
       backgroundUrl: settings.backgroundType === "media" ? settings.backgroundUrl : "",
-      // ✅ Envia a URL do settings, se estiver vazia manda a default
       profileImageUrl: settings.profileImageUrl || DEFAULT_PROFILE_IMAGE,
       musicUrl: settings.musicUrl,
       faviconUrl: settings.faviconUrl,
@@ -340,6 +353,89 @@ const CardSkeleton = ({ minHeight }: { minHeight: string }) => (
       <SkeletonLoader height="h-12" className="w-full" />
     </div>
   </div>
+);
+
+// ═══════════════════════════════════════════════════════════
+// FILE SIZE INDICATOR COMPONENT
+// ═══════════════════════════════════════════════════════════
+
+const FileSizeIndicator = ({
+  fileSize,
+  maxSize,
+  maxSizeLabel,
+}: {
+  fileSize: number;
+  maxSize: number;
+  maxSizeLabel: string;
+}) => {
+  const percent = getFileSizePercent(fileSize, maxSize);
+  const isOverLimit = fileSize > maxSize;
+  const isNearLimit = percent >= 80 && !isOverLimit;
+
+  const barColor = isOverLimit
+    ? "bg-red-500"
+    : isNearLimit
+      ? "bg-yellow-500"
+      : "bg-green-500";
+
+  const textColor = isOverLimit
+    ? "text-red-400"
+    : isNearLimit
+      ? "text-yellow-400"
+      : "text-green-400";
+
+  return (
+    <div className="w-full space-y-1.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <HardDrive size={12} className={textColor} />
+          <span className={`text-xs font-medium ${textColor}`}>
+            {formatFileSize(fileSize)}
+          </span>
+        </div>
+        <span className="text-xs text-[var(--color-text-muted)]">
+          máx. {maxSizeLabel}
+        </span>
+      </div>
+      <div className="w-full h-1.5 rounded-full bg-[var(--color-border)] overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(percent, 100)}%` }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className={`h-full rounded-full ${barColor}`}
+        />
+      </div>
+      {isOverLimit && (
+        <motion.p
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-xs text-red-400 flex items-center gap-1"
+        >
+          <AlertCircle size={11} />
+          Arquivo excede o limite de {maxSizeLabel}
+        </motion.p>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// SIZE LIMIT BADGE COMPONENT
+// ═══════════════════════════════════════════════════════════
+
+const SizeLimitBadge = ({
+  maxSizeLabel,
+  className = "",
+}: {
+  maxSizeLabel: string;
+  className?: string;
+}) => (
+  <span
+    className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--color-surface-elevated)] text-[var(--color-text-muted)] border border-[var(--color-border)] ${className}`}
+  >
+    <HardDrive size={10} />
+    máx. {maxSizeLabel}
+  </span>
 );
 
 // ═══════════════════════════════════════════════════════════
@@ -471,7 +567,7 @@ const AudioPlayer = ({ src, fileName }: { src: string; fileName?: string }) => {
 
 const CursorTestArea = ({
   cursorUrl,
-  fileName
+  fileName,
 }: {
   cursorUrl: string | null;
   fileName?: string;
@@ -611,7 +707,7 @@ const CursorTestArea = ({
 };
 
 // ═══════════════════════════════════════════════════════════
-// BACKGROUND TYPE SELECTOR COMPONENT (sem gradiente)
+// BACKGROUND TYPE SELECTOR COMPONENT
 // ═══════════════════════════════════════════════════════════
 
 const BackgroundTypeSelector = ({
@@ -631,7 +727,6 @@ const BackgroundTypeSelector = ({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        {/* Mídia */}
         <motion.button
           onClick={() => onChange("media")}
           className={`
@@ -653,7 +748,6 @@ const BackgroundTypeSelector = ({
           </p>
         </motion.button>
 
-        {/* Cor Sólida */}
         <motion.button
           onClick={() => onChange("color")}
           className={`
@@ -697,6 +791,7 @@ const FileUpload = ({
   disabled = false,
   isPremiumFeature = false,
   userIsPremium = false,
+  maxFileSizeLabel,
 }: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -708,6 +803,13 @@ const FileUpload = ({
 
   const isLocked = isPremiumFeature && !userIsPremium;
   const finalDisabled = disabled || isLocked;
+
+  // Resolve max size from props or defaults
+ 
+
+  const resolvedMaxSizeLabel = maxFileSizeLabel || (
+    FILE_SIZE_LABELS[previewType]?.label || FILE_SIZE_LABELS.image.label
+  );
 
   const computedMinHeight = minHeight || (
     previewType === "audio" ? FILE_UPLOAD_HEIGHTS.audio :
@@ -754,28 +856,44 @@ const FileUpload = ({
       return false;
     }
 
+    // ═══ VALIDAÇÃO DE TAMANHO POR TIPO ═══
     if (previewType === "cursor") {
-      const validCursorExts = [".png"];
-      if (!validCursorExts.includes(fileExt)) {
+      if (fileExt !== ".png") {
         setError("Use arquivo .png para cursor");
         return false;
       }
-      const maxSize = 512 * 1024;
-      if (file.size > maxSize) {
-        setError("Arquivo de cursor muito grande. Máximo: 512KB");
+      if (file.size > MAX_CURSOR_SIZE) {
+        setError(`Cursor muito grande (${formatFileSize(file.size)}). Máximo: 256KB`);
         return false;
       }
-    }
-
-    if (previewType === "favicon") {
+    } else if (previewType === "favicon") {
       const validFaviconExts = [".ico", ".png", ".svg"];
       if (!validFaviconExts.includes(fileExt)) {
         setError("Use arquivos .ico, .png ou .svg para favicon");
         return false;
       }
-      const maxSize = 256 * 1024;
-      if (file.size > maxSize) {
-        setError("Arquivo de favicon muito grande. Máximo: 256KB");
+      if (file.size > MAX_FAVICON_SIZE) {
+        setError(`Favicon muito grande (${formatFileSize(file.size)}). Máximo: 1MB`);
+        return false;
+      }
+    } else if (previewType === "audio") {
+      if (file.size > MAX_AUDIO_SIZE) {
+        setError(`Áudio muito grande (${formatFileSize(file.size)}). Máximo: 5MB`);
+        return false;
+      }
+    } else if (previewType === "media") {
+      const detectedType = getFileType(file);
+      if (detectedType === "video" && file.size > MAX_VIDEO_SIZE) {
+        setError(`Vídeo muito grande (${formatFileSize(file.size)}). Máximo: 20MB`);
+        return false;
+      }
+      if (detectedType === "image" && file.size > MAX_IMAGE_SIZE) {
+        setError(`Imagem muito grande (${formatFileSize(file.size)}). Máximo: 3MB`);
+        return false;
+      }
+    } else if (previewType === "image") {
+      if (file.size > MAX_IMAGE_SIZE) {
+        setError(`Imagem muito grande (${formatFileSize(file.size)}). Máximo: 3MB`);
         return false;
       }
     }
@@ -879,11 +997,16 @@ const FileUpload = ({
             </span>
           )}
         </div>
-        {file && !finalDisabled && (
-          <span className="text-xs text-[var(--color-text-muted)]">
-            {(file.size / 1024).toFixed(1)} KB
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {!finalDisabled && (
+            <SizeLimitBadge maxSizeLabel={resolvedMaxSizeLabel} />
+          )}
+          {file && !finalDisabled && (
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {formatFileSize(file.size)}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* INPUT HIDDEN */}
@@ -954,6 +1077,18 @@ const FileUpload = ({
                 <p className="text-xs text-[var(--color-text-muted)] truncate max-w-[90%]">
                   {file?.name || "Favicon configurado"}
                 </p>
+
+                {/* SIZE INDICATOR */}
+                {file && (
+                  <div className="w-full max-w-[200px] mt-3" onClick={(e) => e.stopPropagation()}>
+                    <FileSizeIndicator
+                      fileSize={file.size}
+                      maxSize={MAX_FAVICON_SIZE}
+                      maxSizeLabel="1MB"
+                    />
+                  </div>
+                )}
+
                 <motion.button
                   onClick={handleRemove}
                   className="absolute top-3 right-3 p-2 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
@@ -999,6 +1134,18 @@ const FileUpload = ({
                 <p className="text-xs text-[var(--color-text-muted)] truncate max-w-[90%]">
                   {file?.name || "Cursor configurado"}
                 </p>
+
+                {/* SIZE INDICATOR */}
+                {file && (
+                  <div className="w-full max-w-[200px] mt-3" onClick={(e) => e.stopPropagation()}>
+                    <FileSizeIndicator
+                      fileSize={file.size}
+                      maxSize={MAX_CURSOR_SIZE}
+                      maxSizeLabel="256KB"
+                    />
+                  </div>
+                )}
+
                 <motion.button
                   onClick={handleRemove}
                   className="absolute top-3 right-3 p-2 rounded-full bg-red-500/80 hover:bg-red-500 text-white transition-colors"
@@ -1028,6 +1175,28 @@ const FileUpload = ({
                   onError={handleImageError}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
+                {/* SIZE INDICATOR overlay for images */}
+                {file && (
+                  <div
+                    className="absolute bottom-10 left-3 right-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <FileSizeIndicator
+                      fileSize={file.size}
+                      maxSize={
+                        previewType === "media" && getFileType(file) === "image"
+                          ? MAX_IMAGE_SIZE
+                          : MAX_IMAGE_SIZE
+                      }
+                      maxSizeLabel={
+                        previewType === "media" && getFileType(file) === "image"
+                          ? "3MB"
+                          : "3MB"
+                      }
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1057,6 +1226,20 @@ const FileUpload = ({
                   playsInline
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
+                {/* SIZE INDICATOR overlay for videos */}
+                {file && (
+                  <div
+                    className="absolute bottom-10 left-3 right-3"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <FileSizeIndicator
+                      fileSize={file.size}
+                      maxSize={MAX_VIDEO_SIZE}
+                      maxSizeLabel="20MB"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1081,6 +1264,18 @@ const FileUpload = ({
                     <Trash2 size={14} />
                   </motion.button>
                 </div>
+
+                {/* SIZE INDICATOR for audio */}
+                {file && (
+                  <div className="mb-3">
+                    <FileSizeIndicator
+                      fileSize={file.size}
+                      maxSize={MAX_AUDIO_SIZE}
+                      maxSizeLabel="5MB"
+                    />
+                  </div>
+                )}
+
                 {audioSrc && <AudioPlayer src={audioSrc} fileName={file?.name} />}
               </div>
             )}
@@ -1118,6 +1313,7 @@ const FileUpload = ({
             )}
           </div>
         ) : (
+          /* ═══ EMPTY STATE ═══ */
           <div
             className="p-6 flex flex-col items-center justify-center text-center"
             style={{ minHeight: computedMinHeight }}
@@ -1144,16 +1340,29 @@ const FileUpload = ({
             <p className="text-sm text-[var(--color-text)]">
               {isLocked ? "Recurso exclusivo Premium" : disabled ? "Funcionalidade em breve" : isDragging ? "Solte o arquivo aqui" : "Clique ou arraste um arquivo"}
             </p>
-            {previewType === "cursor" && !finalDisabled && (
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                PNG (recomendado: 32x32px)
-              </p>
+
+            {/* ═══ TAMANHO MÁXIMO NO EMPTY STATE ═══ */}
+            {!finalDisabled && (
+              <div className="mt-2 flex flex-col items-center gap-1">
+                {previewType === "cursor" && (
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    PNG (recomendado: 32x32px)
+                  </p>
+                )}
+                {previewType === "favicon" && (
+                  <p className="text-xs text-[var(--color-text-muted)]">
+                    ICO, PNG ou SVG (recomendado: 32x32px)
+                  </p>
+                )}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--color-primary)]/5 border border-[var(--color-primary)]/20">
+                  <HardDrive size={11} className="text-[var(--color-primary)]" />
+                  <span className="text-xs font-medium text-[var(--color-primary)]">
+                    Tamanho máximo: {resolvedMaxSizeLabel}
+                  </span>
+                </div>
+              </div>
             )}
-            {previewType === "favicon" && !finalDisabled && (
-              <p className="text-xs text-[var(--color-text-muted)] mt-1">
-                ICO (recomendado: 32x32px ou 16x16px)
-              </p>
-            )}
+
             {isLocked && (
               <p className="text-xs text-yellow-400 mt-2 flex items-center gap-1">
                 <Crown size={12} />
@@ -1182,15 +1391,26 @@ const FileUpload = ({
       {/* ERROR MESSAGE */}
       <AnimatePresence>
         {error && (
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
-            className="text-xs text-red-400 flex items-center gap-1 h-4"
+            className="flex items-start gap-2 p-2.5 rounded-[var(--border-radius-sm)] bg-red-500/10 border border-red-500/30"
           >
-            <AlertCircle size={12} className="flex-shrink-0" />
-            {error}
-          </motion.p>
+            <AlertCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-red-400">{error}</p>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setError(null);
+              }}
+              className="p-0.5 rounded-full hover:bg-red-500/20 text-red-400 flex-shrink-0"
+            >
+              <X size={12} />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -1541,6 +1761,60 @@ const SectionHeader = ({
 );
 
 // ═══════════════════════════════════════════════════════════
+// FILE SIZE LIMITS INFO PANEL
+// ═══════════════════════════════════════════════════════════
+
+const FileSizeLimitsPanel = () => {
+  const limits = [
+    { icon: FileImage, label: "Imagens", size: "3MB", formats: "JPG, PNG, GIF", color: "text-blue-400", bg: "bg-blue-500/10" },
+    { icon: Play, label: "Vídeos", size: "20MB", formats: "MP4, WebM, OGG", color: "text-purple-400", bg: "bg-purple-500/10" },
+    { icon: FileAudio, label: "Áudio", size: "5MB", formats: "MP3, WAV, OGG", color: "text-green-400", bg: "bg-green-500/10" },
+    { icon: MousePointer2, label: "Cursor", size: "256KB", formats: "PNG", color: "text-orange-400", bg: "bg-orange-500/10" },
+    { icon: Globe, label: "Favicon", size: "1MB", formats: "ICO, PNG, SVG", color: "text-cyan-400", bg: "bg-cyan-500/10" },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="p-4 rounded-[var(--border-radius-md)] bg-[var(--color-surface)]/50 border border-[var(--color-border)]"
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <HardDrive size={16} className="text-[var(--color-primary)]" />
+        <h3 className="text-sm font-semibold text-[var(--color-text)]">
+          Limites de Tamanho
+        </h3>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {limits.map((limit) => (
+          <div
+            key={limit.label}
+            className="flex items-center gap-2.5 p-2 rounded-[var(--border-radius-sm)] bg-[var(--color-background)]/50"
+          >
+            <div className={`p-1.5 rounded-md ${limit.bg} flex-shrink-0`}>
+              <limit.icon size={14} className={limit.color} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--color-text)]">
+                  {limit.label}
+                </span>
+                <span className={`text-xs font-bold ${limit.color}`}>
+                  {limit.size}
+                </span>
+              </div>
+              <p className="text-[10px] text-[var(--color-text-muted)] truncate">
+                {limit.formats}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════
 
@@ -1603,7 +1877,7 @@ const DashboardCustomization = () => {
     nameColor: "#ffffff",
     viewColor: "#ffffff",
     badgeColor: "#ffffff",
-    tagColor: "#ffffff"
+    tagColor: "#ffffff",
   };
 
   const [settings, setSettings] = useState<CustomizationSettings>(defaultSettings);
@@ -1624,11 +1898,9 @@ const DashboardCustomization = () => {
 
   const userIsPremium = profileData?.isPremium ?? false;
 
-  // Carrega settings do profileData
   useEffect(() => {
     if (profileData && profileData.pageSettings) {
       const loadedSettings = profileDataToSettings(profileData);
-
       const backup = getFromLocalStorage();
 
       const finalSettings: CustomizationSettings = {
@@ -1645,24 +1917,18 @@ const DashboardCustomization = () => {
       setSettings(finalSettings);
       setOriginalSettings(finalSettings);
       setIsInitialized(true);
-
-      if (finalSettings.profileImageUrl || finalSettings.backgroundUrl || finalSettings.faviconUrl) {
-
-      }
     }
   }, [profileData]);
 
-  // Detecta mudanças
   useEffect(() => {
     const settingsChanged = JSON.stringify(settings) !== JSON.stringify(originalSettings);
     const filesChanged = Object.values(fileUploads).some(file => file !== null);
     setHasChanges(settingsChanged || filesChanged);
   }, [settings, originalSettings, fileUploads]);
 
-  // Salva no localStorage
   useEffect(() => {
     if (isInitialized && (settings.profileImageUrl || settings.backgroundUrl || settings.faviconUrl || settings.staticBackgroundColor)) {
-
+      // localStorage backup logic placeholder
     }
   }, [
     isInitialized,
@@ -1696,7 +1962,6 @@ const DashboardCustomization = () => {
     setFileUploads(prev => ({ ...prev, [key]: file }));
   };
 
-  // ✅ Remove file - avatar usa URL padrão
   const removeFile = (key: keyof FileUploads) => {
     setFileUploads(prev => ({ ...prev, [key]: null }));
 
@@ -1709,16 +1974,15 @@ const DashboardCustomization = () => {
     };
 
     const urlKey = urlKeyMap[key];
-
     if (urlKey) {
       if (key === 'avatar') {
-        // ✅ Ao remover avatar, substituir pela URL padrão da plataforma
         updateSetting('profileImageUrl', DEFAULT_PROFILE_IMAGE);
       } else {
         updateSetting(urlKey, "" as never);
       }
     }
   };
+
   const handleSave = async () => {
     setIsSubmitting(true);
     setError(null);
@@ -1726,7 +1990,6 @@ const DashboardCustomization = () => {
 
     try {
       let updatedSettings = { ...settings };
-
       const hasFilesToUpload = Object.values(fileUploads).some(file => file !== null);
 
       if (hasFilesToUpload) {
@@ -1740,74 +2003,36 @@ const DashboardCustomization = () => {
           favicon: fileUploads.favicon,
         });
 
-        console.log("📦 Upload response:", uploadResponse);
-
-        // ✅ Atualiza as URLs com as retornadas do backend
         if (uploadResponse.success && uploadResponse.urls) {
-          if (uploadResponse.urls.avatarUrl) {
-            console.log("✅ Nova avatarUrl:", uploadResponse.urls.avatarUrl);
-            updatedSettings.profileImageUrl = uploadResponse.urls.avatarUrl;
-          }
-          if (uploadResponse.urls.backgroundUrl) {
-            console.log("✅ Nova backgroundUrl:", uploadResponse.urls.backgroundUrl);
-            updatedSettings.backgroundUrl = uploadResponse.urls.backgroundUrl;
-          }
-          if (uploadResponse.urls.musicUrl) {
-            console.log("✅ Nova musicUrl:", uploadResponse.urls.musicUrl);
-            updatedSettings.musicUrl = uploadResponse.urls.musicUrl;
-          }
-          if (uploadResponse.urls.cursorUrl) {
-            console.log("✅ Nova cursorUrl:", uploadResponse.urls.cursorUrl);
-            updatedSettings.cursorUrl = uploadResponse.urls.cursorUrl;
-          }
-          if (uploadResponse.urls.faviconUrl) {
-            console.log("✅ Nova faviconUrl:", uploadResponse.urls.faviconUrl);
-            updatedSettings.faviconUrl = uploadResponse.urls.faviconUrl;
-          }
+          if (uploadResponse.urls.avatarUrl) updatedSettings.profileImageUrl = uploadResponse.urls.avatarUrl;
+          if (uploadResponse.urls.backgroundUrl) updatedSettings.backgroundUrl = uploadResponse.urls.backgroundUrl;
+          if (uploadResponse.urls.musicUrl) updatedSettings.musicUrl = uploadResponse.urls.musicUrl;
+          if (uploadResponse.urls.cursorUrl) updatedSettings.cursorUrl = uploadResponse.urls.cursorUrl;
+          if (uploadResponse.urls.faviconUrl) updatedSettings.faviconUrl = uploadResponse.urls.faviconUrl;
         } else if (!uploadResponse.success) {
-          // Se o upload falhou, mostra erro mas continua tentando salvar as outras configs
           console.warn("⚠️ Upload falhou:", uploadResponse.message);
         }
       }
 
       setUploadProgress("Salvando configurações...");
 
-      // ✅ Agora updatedSettings tem as URLs corretas!
       const requestData = settingsToRequest(updatedSettings);
-      console.log("📤 Enviando para updatePageSettings:", requestData);
-
       await customizationService.updatePageSettings(requestData);
 
-      // ✅ Atualiza o estado local com as novas configurações
       setSettings(updatedSettings);
       setOriginalSettings(updatedSettings);
 
-
-
-      // ✅ Atualiza o contexto do perfil
       await refreshProfile();
 
-      // ✅ Limpa os arquivos selecionados
-      setFileUploads({
-        avatar: null,
-        background: null,
-        music: null,
-        cursor: null,
-        favicon: null
-      });
+      setFileUploads({ avatar: null, background: null, music: null, cursor: null, favicon: null });
 
-      // ✅ Mostra mensagem de sucesso
       setSuccessMessage("Configurações salvas com sucesso!");
       setTimeout(() => setSuccessMessage(""), 3000);
-
     } catch (err: unknown) {
       console.error("❌ Erro ao salvar:", err);
 
       const axiosError = err as {
-        response?: {
-          status?: number;
-          data?: { message?: string }
-        };
+        response?: { status?: number; data?: { message?: string } };
         message?: string;
       };
 
@@ -1925,9 +2150,7 @@ const DashboardCustomization = () => {
             <motion.button
               onClick={() => {
                 const slug = profileData?.slug;
-                if (slug) {
-                  window.open(`https://vxo.lat/${slug}`, '_blank');
-                }
+                if (slug) window.open(`https://vxo.lat/${slug}`, '_blank');
               }}
               disabled={!profileData?.slug}
               className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-[var(--border-radius-md)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-medium hover:border-[var(--color-primary)]/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2186,7 +2409,10 @@ const DashboardCustomization = () => {
             description="Faça upload de imagens, vídeos, música e cursor"
           />
           <div className="space-y-6">
-            {/* SELETOR DE TIPO DE FUNDO (sem gradiente) */}
+            {/* FILE SIZE LIMITS INFO PANEL */}
+            <FileSizeLimitsPanel />
+
+            {/* SELETOR DE TIPO DE FUNDO */}
             <BackgroundTypeSelector
               value={settings.backgroundType}
               onChange={(type) => {
@@ -2216,8 +2442,10 @@ const DashboardCustomization = () => {
                     onFileSelect={(file) => updateFileUpload("background", file)}
                     onRemove={() => removeFile("background")}
                     icon={Image}
-                    helperText="Imagens (JPG, PNG, GIF) ou Vídeos (MP4, WebM, OGG)"
+                    helperText="Imagens (JPG, PNG, GIF) até 3MB · Vídeos (MP4, WebM, OGG) até 20MB"
                     previewType="media"
+                    maxFileSize={MAX_VIDEO_SIZE}
+                    maxFileSizeLabel="20MB (vídeo) / 3MB (imagem)"
                   />
                 </motion.div>
               )}
@@ -2243,7 +2471,6 @@ const DashboardCustomization = () => {
                     ]}
                   />
 
-                  {/* Preview da cor */}
                   <div className="mt-4 p-4 rounded-[var(--border-radius-md)] border border-[var(--color-border)]">
                     <p className="text-xs text-[var(--color-text-muted)] mb-2">Preview do fundo:</p>
                     <div
@@ -2263,8 +2490,10 @@ const DashboardCustomization = () => {
               onFileSelect={(file) => updateFileUpload("avatar", file)}
               onRemove={() => removeFile("avatar")}
               icon={Upload}
-              helperText="JPG, PNG, GIF"
+              helperText="JPG, PNG, GIF · Máximo 3MB"
               previewType="image"
+              maxFileSize={MAX_IMAGE_SIZE}
+              maxFileSizeLabel="3MB"
             />
 
             <FileUpload
@@ -2275,8 +2504,10 @@ const DashboardCustomization = () => {
               onFileSelect={(file) => updateFileUpload("music", file)}
               onRemove={() => removeFile("music")}
               icon={Music}
-              helperText="MP3, WAV ou OGG"
+              helperText="MP3, WAV ou OGG · Máximo 5MB"
               previewType="audio"
+              maxFileSize={MAX_AUDIO_SIZE}
+              maxFileSizeLabel="5MB"
             />
 
             <FileUpload
@@ -2287,9 +2518,10 @@ const DashboardCustomization = () => {
               onFileSelect={(file) => updateFileUpload("cursor", file)}
               onRemove={() => removeFile("cursor")}
               icon={MousePointer2}
-              helperText="PNG (recomendado: 32x32px)"
+              helperText="PNG (recomendado: 32x32px) · Máximo 256KB"
               previewType="cursor"
-
+              maxFileSize={MAX_CURSOR_SIZE}
+              maxFileSizeLabel="256KB"
             />
 
             <FileUpload
@@ -2300,10 +2532,12 @@ const DashboardCustomization = () => {
               onFileSelect={(file) => updateFileUpload("favicon", file)}
               onRemove={() => removeFile("favicon")}
               icon={Globe}
-              helperText="ICO (recomendado: 32x32px ou 16x16px)"
+              helperText="ICO, PNG ou SVG (recomendado: 32x32px) · Máximo 1MB"
               previewType="favicon"
               isPremiumFeature={true}
               userIsPremium={userIsPremium}
+              maxFileSize={MAX_FAVICON_SIZE}
+              maxFileSizeLabel="1MB"
             />
           </div>
         </CustomizationCard>
@@ -2323,14 +2557,8 @@ const DashboardCustomization = () => {
               onChange={(value) => handleEffectToggle("snowEffect", value)}
               icon={Snowflake}
               disabled={!settings.snowEffect && (
-                settings.rainEffect ||
-                settings.cashEffect ||
-                settings.thunderEffect ||
-                settings.smokeEffect ||
-                settings.starsEffect
+                settings.rainEffect || settings.cashEffect || settings.thunderEffect || settings.smokeEffect || settings.starsEffect
               )}
-              isPremiumFeature={false}
-              userIsPremium={userIsPremium}
             />
 
             <ToggleSwitch
@@ -2340,14 +2568,8 @@ const DashboardCustomization = () => {
               onChange={(value) => handleEffectToggle("rainEffect", value)}
               icon={CloudRain}
               disabled={!settings.rainEffect && (
-                settings.snowEffect ||
-                settings.cashEffect ||
-                settings.thunderEffect ||
-                settings.smokeEffect ||
-                settings.starsEffect
+                settings.snowEffect || settings.cashEffect || settings.thunderEffect || settings.smokeEffect || settings.starsEffect
               )}
-              isPremiumFeature={false}
-              userIsPremium={userIsPremium}
             />
 
             <ToggleSwitch
@@ -2357,11 +2579,7 @@ const DashboardCustomization = () => {
               onChange={(value) => handleEffectToggle("cashEffect", value)}
               icon={DollarSign}
               disabled={!settings.cashEffect && (
-                settings.snowEffect ||
-                settings.rainEffect ||
-                settings.thunderEffect ||
-                settings.smokeEffect ||
-                settings.starsEffect
+                settings.snowEffect || settings.rainEffect || settings.thunderEffect || settings.smokeEffect || settings.starsEffect
               )}
               isPremiumFeature={true}
               userIsPremium={userIsPremium}
@@ -2374,11 +2592,7 @@ const DashboardCustomization = () => {
               onChange={(value) => handleEffectToggle("thunderEffect", value)}
               icon={CloudLightning}
               disabled={!settings.thunderEffect && (
-                settings.snowEffect ||
-                settings.rainEffect ||
-                settings.cashEffect ||
-                settings.smokeEffect ||
-                settings.starsEffect
+                settings.snowEffect || settings.rainEffect || settings.cashEffect || settings.smokeEffect || settings.starsEffect
               )}
               isPremiumFeature={true}
               userIsPremium={userIsPremium}
@@ -2391,11 +2605,7 @@ const DashboardCustomization = () => {
               onChange={(value) => handleEffectToggle("smokeEffect", value)}
               icon={Cloud}
               disabled={!settings.smokeEffect && (
-                settings.snowEffect ||
-                settings.rainEffect ||
-                settings.cashEffect ||
-                settings.thunderEffect ||
-                settings.starsEffect
+                settings.snowEffect || settings.rainEffect || settings.cashEffect || settings.thunderEffect || settings.starsEffect
               )}
               isPremiumFeature={true}
               userIsPremium={userIsPremium}
@@ -2408,11 +2618,7 @@ const DashboardCustomization = () => {
               onChange={(value) => handleEffectToggle("starsEffect", value)}
               icon={Stars}
               disabled={!settings.starsEffect && (
-                settings.snowEffect ||
-                settings.rainEffect ||
-                settings.cashEffect ||
-                settings.thunderEffect ||
-                settings.smokeEffect
+                settings.snowEffect || settings.rainEffect || settings.cashEffect || settings.thunderEffect || settings.smokeEffect
               )}
               isPremiumFeature={true}
               userIsPremium={userIsPremium}

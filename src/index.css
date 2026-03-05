@@ -5,57 +5,58 @@
 @tailwind utilities;
 
 :root {
-  /* Brand */
-  --color-primary: #6656be;
-  --color-primary-dark: #7A66F0;
-  --color-secondary: #3259a1;
-  --color-accent: #303957;
+  /* Brand - Deep Purple & Electric Indigo */
+  --color-primary: #7A66F0;       /* Mais vibrante para UI moderna */
+  --color-primary-hover: #6656BE; /* O "dark" agora é o estado de hover */
+  --color-secondary: #3B82F6;     /* Azul mais saturado para botões de ação */
+  --color-accent: #C4B5FD;        /* Violeta claro para detalhes/foco */
 
-  /* Backgrounds */
-  --color-background: #101011;
-  --color-surface: rgba(255, 255, 255, 0.048);
-  --color-surface-hover: rgba(255, 255, 255, 0.09);
+  /* Backgrounds - Escala de Zinco/Neutros frios */
+  --color-background: #09090B;    /* Fundo quase preto (OLED friendly) */
+  --color-surface: #18181B;       /* Card sólido */
+  --color-surface-hover: #27272A;
 
   /* Borders */
-  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
 
   /* Text */
-  --color-text: #EDEDED;
-  --color-text-muted: rgba(237, 237, 237, 0.6);
+  --color-text: #FAFAFA;          /* Off-white para não cansar a vista */
+  --color-text-muted: #A1A1AA;    /* Cinza equilibrado */
 
-  /* Effects */
-  --blur-amount: 24px;
+  /* Glassmorphism */
+  --card-background-glass: rgba(24, 24, 27, 0.6);
+  --blur-amount: 16px;            /* 24px as vezes causa lag em mobile */
 
-  /* Radius */
-  --border-radius-sm: 10px;
-  --border-radius-md: 14px;
-  --border-radius-lg: 20px;
-  --border-radius-xl: 28px;
-
-  --card-background-glass: rgba(17, 18, 19, 0.767);
+  /* Radius - Curvas mais harmônicas */
+  --border-radius-sm: 6px;
+  --border-radius-md: 10px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 24px;
 }
-
 
 [data-theme="light"] {
   /* Brand */
-  --color-primary: #5547d4;
-  --color-primary-dark: #566fdb;
+  --color-primary: #6366F1;
+  --color-primary-hover: #4F46E5;
   --color-secondary: #2563EB;
-  --color-accent: #fefeff;
+  --color-accent: #818CF8;
 
   /* Backgrounds */
-  --color-background: #F8FAFC;
-  --color-surface: rgb(255, 255, 255);
-  --color-surface-hover: rgba(0, 0, 0, 0.07);
+  --color-background: #F4F4F5;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F1F1F4;
 
   /* Borders */
-  --color-border: rgba(0, 0, 0, 0.178);
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.12);
 
   /* Text */
-  --color-text: #0F172A;
-  --color-text-muted: rgba(15, 23, 42, 0.6);
-  --card-background-glass: rgba(255, 255, 255, 0.712);
+  --color-text: #09090B;
+  --color-text-muted: #71717A;
 
+  /* Glassmorphism */
+  --card-background-glass: rgba(255, 255, 255, 0.7);
 }
 
 
