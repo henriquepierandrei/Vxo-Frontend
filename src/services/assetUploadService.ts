@@ -44,6 +44,7 @@ export const assetUploadService = {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 120000, // 2 minutos para garantir que arquivos grandes passem
       });
 
       // ✅ Mapeia a resposta do backend para o formato esperado
