@@ -1554,18 +1554,36 @@ const bgMediaStyle: React.CSSProperties = { position: 'absolute', inset: 0, widt
 
 const BackgroundMedia: React.FC<{ url: string }> = React.memo(({ url }) => {
     const isVideo = useMemo(() => isVideoUrl(url), [url]);
+    const isGif = useMemo(() => {
+        try {
+            return new URL(url).pathname.toLowerCase().endsWith('.gif');
+        } catch {
+            return url.toLowerCase().split('?')[0].endsWith('.gif');
+        }
+    }, [url]);
+
+    // Para GIFs, força reload para garantir animação
+    const imgSrc = useMemo(() => {
+        if (isGif) {
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}_t=${Date.now()}`;
+        }
+        return url;
+    }, [url, isGif]);
+
     return (
         <>
             {isVideo ? (
                 <video src={url} autoPlay loop muted playsInline style={bgMediaStyle} />
             ) : (
                 <img
-                    src={url}
+                    src={imgSrc}
                     alt="Background"
                     style={bgMediaStyle}
                     // @ts-ignore
                     fetchpriority="high"
                     decoding="async"
+                    loading="eager" // Backgrounds devem carregar imediatamente
                 />
             )}
             <div style={backgroundOverlayStyle} />
@@ -1579,18 +1597,47 @@ BackgroundMedia.displayName = 'BackgroundMedia';
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const cardEffectContainerStyle: React.CSSProperties = {
-    position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 28, zIndex: 100, overflow: 'hidden',
-};
-const cardEffectImgStyle: React.CSSProperties = {
-    width: '100%', transform: 'translateY(0%)', height: '100%',
-    objectFit: 'cover', objectPosition: 'top', pointerEvents: 'none', userSelect: 'none',
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    borderRadius: 28,
+    zIndex: 100,
+    overflow: 'hidden',
 };
 
-const CardEffectOverlay: React.FC<{ url: string }> = React.memo(({ url }) => (
-    <div style={cardEffectContainerStyle}>
-        <img src={url} alt="Card Effect" style={cardEffectImgStyle} loading="lazy" />
-    </div>
-));
+const CardEffectOverlay: React.FC<{ url: string }> = React.memo(({ url }) => {
+    // Força re-render do GIF adicionando timestamp para evitar cache estático
+    const [gifSrc, setGifSrc] = useState(url);
+
+    useEffect(() => {
+        // Força o navegador a recarregar o GIF como animação
+        // Alguns browsers cacheiam GIFs como imagem estática
+        const separator = url.includes('?') ? '&' : '?';
+        setGifSrc(`${url}${separator}_t=${Date.now()}`);
+    }, [url]);
+
+    return (
+        <div style={cardEffectContainerStyle}>
+            <img
+                src={gifSrc}
+                alt="Card Effect"
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'top',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                    // IMPORTANTE: Não usar will-change nem transform aqui
+                    // pois pode congelar GIFs em alguns browsers
+                    imageRendering: 'auto',
+                }}
+                loading="eager" // GIFs de efeito devem carregar imediatamente, não lazy
+                decoding="async"
+            />
+        </div>
+    );
+});
 CardEffectOverlay.displayName = 'CardEffectOverlay';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2433,39 +2480,38 @@ const UserPublicPage: React.FC = () => {
 
     /* ── Card style ──────────────────────────────────────── */
     const cardStyle = useMemo((): React.CSSProperties | null => {
-        if (!data) return null;
+    if (!data) return null;
 
-        const hasPerspective = data.cardSettings.perspective;
-        const isHoverGrow = data.cardSettings.hoverGrow && hovering;
+    const hasPerspective = data.cardSettings.perspective;
+    const isHoverGrow = data.cardSettings.hoverGrow && hovering;
 
-        return {
-            backgroundColor: data.cardSettings.opacity === 0
-                ? 'transparent'
-                : hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
-            backdropFilter: data.cardSettings.blur
-                ? `blur(${data.cardSettings.blur}px) saturate(180%)`
+    return {
+        backgroundColor: data.cardSettings.opacity === 0
+            ? 'transparent'
+            : hexToRgba(data.cardSettings.color, data.cardSettings.opacity),
+        backdropFilter: data.cardSettings.blur
+            ? `blur(${data.cardSettings.blur}px) saturate(180%)`
+            : 'none',
+        WebkitBackdropFilter: data.cardSettings.blur
+            ? `blur(${data.cardSettings.blur}px) saturate(180%)`
+            : 'none',
+        transform: hasPerspective
+            ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
+            : isHoverGrow
+                ? `scale(${scale})`
                 : 'none',
-            WebkitBackdropFilter: data.cardSettings.blur
-                ? `blur(${data.cardSettings.blur}px) saturate(180%)`
-                : 'none',
-            transform: hasPerspective
-                ? `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`
-                : isHoverGrow
-                    ? `scale(${scale})`
-                    : 'none',
-            transformStyle: 'preserve-3d',
-            transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
-            borderRadius: 28,
-            padding: 6,
-            width: '100%',
-            maxWidth: 480,
-            boxSizing: 'border-box',
-            willChange: 'transform',
-            position: 'relative',
-            overflow: 'visible',
-        };
-    }, [data, tiltX, tiltY, scale, hovering]);
-
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.15s ease-out, box-shadow 0.3s ease',
+        borderRadius: 28,
+        padding: 6,
+        width: '100%',
+        maxWidth: 480,
+        boxSizing: 'border-box',
+        // ❌ REMOVIDO: willChange: 'transform'  — ISSO CONGELA GIFs!
+        position: 'relative',
+        overflow: 'visible',
+    };
+}, [data, tiltX, tiltY, scale, hovering]);
     /* ═══════════════════════════════════════════════════════════════
        RENDER — LOADING
        ═══════════════════════════════════════════════════════════════ */
