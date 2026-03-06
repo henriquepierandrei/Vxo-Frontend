@@ -1765,11 +1765,14 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
             )}
 
             {/* BIOGRAPHY */}
+            {/* BIOGRAPHY */}
             {data.contentSettings.biography && (
                 <p style={{
                     fontSize: 16, paddingTop: '15px',
                     color: data.contentSettings.biographyColor || '#fff',
                     margin: 0, maxWidth: 380, lineHeight: 1.3, opacity: 0.85,
+                    whiteSpace: 'pre-wrap',   // ← adiciona isso
+                    wordBreak: 'break-word',  // ← e isso (evita overflow em palavras longas)
                 }}>
                     {data.contentSettings.biography}
                 </p>
