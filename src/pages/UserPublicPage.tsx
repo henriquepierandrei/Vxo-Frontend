@@ -2041,91 +2041,199 @@ ${globalStylesCSS}
     .error-actions { flex-direction: column; }
     .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
 }
-`;
-/* ═══════════════════════════════════════════════════════════════════════════
-   LOADING SKELETON CSS
+`;/* ═══════════════════════════════════════════════════════════════════════════
+   LOADING SCREEN CSS
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const skeletonCSS = `
 ${globalStylesCSS}
-@keyframes shimmer {
-    0% { background-position: -600px 0; }
-    100% { background-position: 600px 0; }
-}
 @keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(16px); }
+    from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
-.skeleton {
-    background: linear-gradient(90deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.09) 200px, rgba(255,255,255,0.04) 400px);
-    background-size: 600px 100%;
-    animation: shimmer 1.6s ease-in-out infinite;
-    border-radius: 10px;
+@keyframes spinRing {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
+@keyframes pulseGlow {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+}
+@keyframes dotBounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+    40% { transform: translateY(-8px); opacity: 1; }
+}
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes orbitPulse {
+    0% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.0); }
+    50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.3), 0 0 80px rgba(139, 92, 246, 0.1); }
+    100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.0); }
+}
+@keyframes progressBar {
+    0% { width: 0%; }
+    20% { width: 15%; }
+    40% { width: 35%; }
+    60% { width: 65%; }
+    80% { width: 85%; }
+    100% { width: 100%; }
+}
+@keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+.loader-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.8);
+    animation: dotBounce 1.4s ease-in-out infinite;
+}
+.loader-dot:nth-child(1) { animation-delay: 0s; }
+.loader-dot:nth-child(2) { animation-delay: 0.16s; }
+.loader-dot:nth-child(3) { animation-delay: 0.32s; }
 `;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   LOADING SKELETON COMPONENT
+   LOADING SCREEN COMPONENT
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const LoadingSkeleton: React.FC = React.memo(() => (
     <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 10, background: 'linear-gradient(135deg,#0d0d1a 0%,#111827 50%,#0a0a14 100%)',
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        background: 'linear-gradient(135deg, #0d0d1a 0%, #111827 50%, #0a0a14 100%)',
+        position: 'relative',
+        overflow: 'hidden',
     }}>
+        {/* Background ambient glow */}
         <div style={{
-            width: '100%', maxWidth: 440, borderRadius: 28,
-            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
-            backdropFilter: 'blur(20px)', padding: 20,
-            display: 'flex', flexDirection: 'column', gap: 0,
-            animation: 'fadeInUp 0.4s ease-out', boxShadow: '0 32px 80px rgba(0,0,0,0.4)',
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 400,
+            height: 400,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%)',
+            filter: 'blur(60px)',
+            pointerEvents: 'none',
+            animation: 'pulseGlow 3s ease-in-out infinite',
+        }} />
+
+        {/* Main loader card */}
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 32,
+            animation: 'fadeInScale 0.6s ease-out',
+            zIndex: 1,
         }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '6px 6px 16px' }}>
-                <div className="skeleton" style={{ width: 90, height: 90, borderRadius: '50%', flexShrink: 0 }} />
-                <div className="skeleton" style={{ width: 160, height: 26 }} />
-                <div style={{ display: 'flex', gap: 6 }}>
-                    {[24, 24, 24].map((size, i) => (
-                        <div key={i} className="skeleton" style={{ width: size, height: size, borderRadius: '50%' }} />
-                    ))}
+            {/* Spinner container */}
+            <div style={{
+                position: 'relative',
+                width: 80,
+                height: 80,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}>
+                {/* Outer ring */}
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: '50%',
+                    border: '2.5px solid rgba(255, 255, 255, 0.06)',
+                    borderTopColor: 'rgba(139, 92, 246, 0.9)',
+                    borderRightColor: 'rgba(139, 92, 246, 0.3)',
+                    animation: 'spinRing 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite',
+                    boxShadow: '0 0 20px rgba(139, 92, 246, 0.15)',
+                }} />
+
+                {/* Inner ring */}
+                <div style={{
+                    position: 'absolute',
+                    inset: 10,
+                    borderRadius: '50%',
+                    border: '2px solid rgba(255, 255, 255, 0.04)',
+                    borderBottomColor: 'rgba(99, 102, 241, 0.7)',
+                    borderLeftColor: 'rgba(99, 102, 241, 0.2)',
+                    animation: 'spinRing 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite reverse',
+                }} />
+
+                {/* Center dot with glow */}
+                <div style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                    animation: 'pulseGlow 2s ease-in-out infinite',
+                    boxShadow: '0 0 12px rgba(139, 92, 246, 0.5)',
+                }} />
+            </div>
+
+            {/* Text area */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 12,
+            }}>
+                {/* Brand / Title text */}
+                <div style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.6))',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    letterSpacing: '0.02em',
+                }}>
+                    Carregando
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                    <div className="skeleton" style={{ width: '92%', height: 14 }} />
-                    <div className="skeleton" style={{ width: '75%', height: 14 }} />
-                    <div className="skeleton" style={{ width: '60%', height: 14 }} />
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
-                    {[70, 90, 60].map((w, i) => (
-                        <div key={i} className="skeleton" style={{ width: w, height: 24, borderRadius: 20 }} />
-                    ))}
+
+                {/* Bouncing dots */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                }}>
+                    <div className="loader-dot" />
+                    <div className="loader-dot" />
+                    <div className="loader-dot" />
                 </div>
             </div>
-            <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0 16px' }} />
-            <div style={{ display: 'flex', gap: 8, padding: '0 6px 16px' }}>
-                {[1, 2, 3, 4, 5].map((_, i) => (
-                    <div key={i} className="skeleton" style={{ width: 36, height: 36, borderRadius: 12 }} />
-                ))}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 6px 16px' }}>
-                {[1, 2, 3].map((_, i) => (
-                    <div key={i} style={{
-                        display: 'flex', alignItems: 'center', gap: 12,
-                        padding: '12px 14px', borderRadius: 16,
-                        border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)',
-                    }}>
-                        <div className="skeleton" style={{ width: 32, height: 32, borderRadius: 10, flexShrink: 0 }} />
-                        <div className="skeleton" style={{ flex: 1, height: 14, width: `${60 + i * 10}%` }} />
-                        <div className="skeleton" style={{ width: 16, height: 16, borderRadius: 4, flexShrink: 0 }} />
-                    </div>
-                ))}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px' }}>
-                <div className="skeleton" style={{ width: 16, height: 16, borderRadius: '50%' }} />
-                <div className="skeleton" style={{ width: 40, height: 12 }} />
+
+            {/* Progress bar */}
+            <div style={{
+                width: 180,
+                height: 3,
+                borderRadius: 10,
+                background: 'rgba(255, 255, 255, 0.06)',
+                overflow: 'hidden',
+                position: 'relative',
+            }}>
+                <div style={{
+                    height: '100%',
+                    borderRadius: 10,
+                    background: 'linear-gradient(90deg, #8b5cf6, #6366f1, #8b5cf6)',
+                    backgroundSize: '200% 100%',
+                    animation: 'progressBar 2.5s ease-in-out infinite, gradientShift 2s ease infinite',
+                }} />
             </div>
         </div>
     </div>
 ));
 LoadingSkeleton.displayName = 'LoadingSkeleton';
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
