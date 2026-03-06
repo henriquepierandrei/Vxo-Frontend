@@ -10,6 +10,7 @@ export interface CardSettings {
   perspective: boolean; // PREMIUM
   hoverGrow: boolean;   // PREMIUM
   rgbBorder: boolean;   // PREMIUM
+  shadowColor: string;    // hex color
 }
 
 /**

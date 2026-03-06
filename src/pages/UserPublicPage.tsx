@@ -23,6 +23,7 @@ interface CardSettings {
     perspective: boolean;
     hoverGrow: boolean;
     rgbBorder: boolean;
+    shadowColor: string;
 }
 
 interface ContentSettings {
@@ -2480,6 +2481,11 @@ const UserPublicPage: React.FC = () => {
             willChange: 'transform',
             position: 'relative',
             overflow: 'visible',
+
+            
+            boxShadow: data.cardSettings.shadowColor
+                ? `0 8px 32px ${data.cardSettings.shadowColor}`
+                : 'none',
         };
     }, [data, tiltX, tiltY, scale, hovering]);
 

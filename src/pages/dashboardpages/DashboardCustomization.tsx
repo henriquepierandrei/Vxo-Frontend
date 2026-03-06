@@ -90,13 +90,14 @@ type BackgroundType = "media" | "color";
 interface CustomizationSettings {
   cardOpacity: number;
   cardBlur: number;
-  cardColor: string;
+  cardColor: string | null;
   cardPerspective: boolean;
   cardHoverGrow: boolean;
   rgbBorder: boolean;
+  shadowColor: string | null;
   biography: string;
   contentCenter: boolean;
-  biographyColor: string;
+  biographyColor: string | null;
   name: string;
   neonName: boolean;
   shinyName: boolean;
@@ -107,17 +108,17 @@ interface CustomizationSettings {
   cursorUrl: string;
   faviconUrl: string;
   backgroundType: BackgroundType;
-  staticBackgroundColor: string;
+  staticBackgroundColor: string | null;
   snowEffect: boolean;
   rainEffect: boolean;
   cashEffect: boolean;
   thunderEffect: boolean;
   smokeEffect: boolean;
   starsEffect: boolean;
-  nameColor: string;
-  viewColor: string;
-  badgeColor: string;
-  tagColor: string;
+  nameColor: string | null;
+  viewColor: string | null;
+  badgeColor: string | null;
+  tagColor: string | null;
 }
 
 interface FileUploads {
@@ -253,6 +254,7 @@ const profileDataToSettings = (
     cardPerspective: cardSettings?.perspective ?? false,
     cardHoverGrow: cardSettings?.hoverGrow ?? true,
     rgbBorder: cardSettings?.rgbBorder ?? false,
+    shadowColor: cardSettings?.shadowColor ?? "",
     biography: contentSettings?.biography ?? "",
     contentCenter: contentSettings?.centerAlign ?? true,
     biographyColor: contentSettings?.biographyColor ?? "#ffffff",
@@ -285,22 +287,23 @@ const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendReq
     cardSettings: {
       opacity: settings.cardOpacity,
       blur: settings.cardBlur,
-      color: settings.cardColor,
+      color: settings.cardColor || "#1a1a2e",
       perspective: settings.cardPerspective,
       hoverGrow: settings.cardHoverGrow,
       rgbBorder: settings.rgbBorder,
+      shadowColor: settings.shadowColor || "",
     },
     contentSettings: {
       biography: settings.biography,
-      biographyColor: settings.biographyColor,
+      biographyColor: settings.biographyColor || "#ffffff",
       centerAlign: settings.contentCenter,
-      viewColor: settings.viewColor,
-      badgeColor: settings.badgeColor,
-      tagColor: settings.tagColor,
+      viewColor: settings.viewColor || "#ffffff",
+      badgeColor: settings.badgeColor || "#ffffff",
+      tagColor: settings.tagColor || "#ffffff",
     },
     nameEffects: {
       name: settings.name,
-      nameColor: settings.nameColor,
+      nameColor: settings.nameColor || "#ffffff"  ,
       neon: settings.neonName,
       shiny: settings.shinyName,
       rgb: settings.rgbName,
@@ -320,7 +323,7 @@ const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendReq
       smoke: settings.smokeEffect,
       stars: settings.starsEffect,
     },
-    staticBackgroundColor: settings.backgroundType === "color" ? settings.staticBackgroundColor : "",
+    staticBackgroundColor: settings.backgroundType === "color" ? settings.staticBackgroundColor || "#1a1a2e" : "",
   };
 };
 
@@ -805,7 +808,7 @@ const FileUpload = ({
   const finalDisabled = disabled || isLocked;
 
   // Resolve max size from props or defaults
- 
+
 
   const resolvedMaxSizeLabel = maxFileSizeLabel || (
     FILE_SIZE_LABELS[previewType]?.label || FILE_SIZE_LABELS.image.label
@@ -1555,12 +1558,14 @@ const ColorPicker = ({
   onChange,
   icon: Icon,
   presetColors = [],
+  nullable = false,
 }: {
   label: string;
-  value: string;
-  onChange: (value: string) => void;
+  value: string | null;
+  onChange: (value: string | null) => void;
   icon?: React.ElementType;
   presetColors?: string[];
+  nullable?: boolean;
 }) => {
   const defaultPresets = [
     "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7",
@@ -1568,44 +1573,65 @@ const ColorPicker = ({
     "#FFFFFF", "#000000"
   ];
   const colors = presetColors.length > 0 ? presetColors : defaultPresets;
+  const isNull = value === null;
   const safeValue = value || "#ffffff";
 
   return (
     <div className="space-y-3" style={{ minHeight: "100px" }}>
-      <div className="flex items-center gap-2 h-6">
-        {Icon && <Icon size={16} className="text-[var(--color-primary)]" />}
-        <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
+      <div className="flex items-center justify-between h-6">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon size={16} className="text-[var(--color-primary)]" />}
+          <label className="text-sm font-medium text-[var(--color-text)]">{label}</label>
+        </div>
+
+        {nullable && (
+          <button
+            onClick={() => onChange(isNull ? "#000000" : null)}
+            className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all duration-200 ${
+              isNull
+                ? "bg-[var(--color-primary)]/10 border-[var(--color-primary)]/40 text-[var(--color-primary)]"
+                : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)]"
+            }`}
+          >
+            <span>{isNull ? "Sem sombra" : "Desativar"}</span>
+          </button>
+        )}
       </div>
-      <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={safeValue}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-12 h-12 rounded-[var(--border-radius-md)] cursor-pointer border-2 border-[var(--color-border)] overflow-hidden [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none flex-shrink-0"
-        />
-        <input
-          type="text"
-          value={safeValue}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="#FFFFFF"
-          className="flex-1 px-3 py-2 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-[var(--color-primary)] transition-all duration-300 min-w-0"
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {colors.map((color) => (
-          <motion.button
-            key={color}
-            onClick={() => onChange(color)}
-            className={`w-7 h-7 rounded-full border-2 transition-all flex-shrink-0 ${safeValue.toLowerCase() === color.toLowerCase()
-              ? 'border-[var(--color-primary)] scale-110'
-              : 'border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
-              }`}
-            style={{ backgroundColor: color }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            aria-label={`Select color ${color}`}
+
+      {/* Conteúdo desabilitado quando null */}
+      <div className={`transition-opacity duration-200 ${isNull ? "opacity-40 pointer-events-none" : "opacity-100"}`}>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={safeValue}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-12 h-12 rounded-[var(--border-radius-md)] cursor-pointer border-2 border-[var(--color-border)] overflow-hidden [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none flex-shrink-0"
           />
-        ))}
+          <input
+            type="text"
+            value={safeValue}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="#FFFFFF"
+            className="flex-1 px-3 py-2 rounded-[var(--border-radius-sm)] bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 focus:border-[var(--color-primary)] transition-all duration-300 min-w-0"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 mt-3">
+          {colors.map((color) => (
+            <motion.button
+              key={color}
+              onClick={() => onChange(color)}
+              className={`w-7 h-7 rounded-full border-2 transition-all flex-shrink-0 ${
+                !isNull && safeValue.toLowerCase() === color.toLowerCase()
+                  ? "border-[var(--color-primary)] scale-110"
+                  : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
+              }`}
+              style={{ backgroundColor: color }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              aria-label={`Select color ${color}`}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1854,6 +1880,7 @@ const DashboardCustomization = () => {
     cardPerspective: false,
     cardHoverGrow: true,
     rgbBorder: false,
+    shadowColor: "",
     biography: "",
     contentCenter: true,
     biographyColor: "#ffffff",
@@ -2475,7 +2502,7 @@ const DashboardCustomization = () => {
                     <p className="text-xs text-[var(--color-text-muted)] mb-2">Preview do fundo:</p>
                     <div
                       className="w-full h-24 rounded-[var(--border-radius-sm)] border border-[var(--color-border)]"
-                      style={{ backgroundColor: settings.staticBackgroundColor }}
+                      style={{ backgroundColor: settings.staticBackgroundColor || "#1a1a2e" }}
                     />
                   </div>
                 </motion.div>
@@ -2544,6 +2571,14 @@ const DashboardCustomization = () => {
 
         {/* PAGE EFFECTS */}
         <CustomizationCard minHeight={CARD_MIN_HEIGHTS.effects}>
+          <ColorPicker
+            label="Sombra do card"
+            value={settings.shadowColor}
+            onChange={(value) => updateSetting("shadowColor", value)}
+            icon={Sparkles}
+            nullable={true}
+          />
+
           <SectionHeader
             icon={Sparkles}
             title="Efeitos da Página"
