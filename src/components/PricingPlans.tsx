@@ -65,7 +65,7 @@ const pricingPlans: PricingPlan[] = [
     name: 'Premium Mensal',
     tagline: 'Mensal',
     description: 'Use recursos avançados e tenha uma melhor experiência.',
-    price: 29.90, // Preço real da API
+    price: 9.90, // Preço real da API
     priceLabel: '/mês',
     features: [
       { text: 'Tudo do plano Grátis', included: true },
@@ -89,7 +89,7 @@ const pricingPlans: PricingPlan[] = [
     badge: 'Melhor oferta',
     tagline: 'Anual',
     description: 'Economize 33% com o plano anual.',
-    price: 299.90, // Preço real da API
+    price: 89.90, // Preço real da API
     priceLabel: '/ano',
     features: [
       { text: 'Tudo do plano Grátis', included: true },
