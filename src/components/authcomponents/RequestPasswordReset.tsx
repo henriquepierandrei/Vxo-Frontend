@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { authService } from '../../services/authService';
 import { AxiosError } from 'axios';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 
 interface ApiErrorResponse {
   status: number;
@@ -22,6 +23,8 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
   const [emailFocused, setEmailFocused] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [apiError, setApiError] = useState<string>();
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null); // 👈
+  const turnstileRef = useRef<TurnstileInstance>(null); // 👈
 
   const validateEmail = (value: string): string | undefined => {
     if (!value.trim()) return 'Email é obrigatório';
@@ -52,24 +55,32 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
 
     if (error) return;
 
+    // 👇 Bloqueia se o Turnstile ainda não gerou token
+    if (!turnstileToken) {
+      setApiError('Verificação de segurança pendente. Aguarde um momento.');
+      return;
+    }
+
     setIsSending(true);
 
     try {
-      await authService.requestPasswordReset(email);
+      await authService.requestPasswordReset(email, turnstileToken); // 👈
       setStep('success');
     } catch (err) {
       const axiosError = err as AxiosError<ApiErrorResponse>;
       const status = axiosError.response?.status;
-      
+
       if (status === 429) {
         setApiError(extractErrorMessage(err));
       } else if (status === 400) {
         setApiError(extractErrorMessage(err));
-      } else if (status === 404) {
-        setStep('success');
       } else {
         setStep('success');
       }
+
+      // 👇 Reseta o Turnstile após falha para gerar novo token
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setIsSending(false);
     }
@@ -77,7 +88,17 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden bg-[var(--color-background)]">
-      
+
+      {/* 👇 Turnstile Invisível — gera o token assim que o componente monta */}
+      <Turnstile
+        ref={turnstileRef}
+        siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+        onSuccess={(token) => setTurnstileToken(token)}
+        onExpire={() => setTurnstileToken(null)}
+        onError={() => setTurnstileToken(null)}
+        options={{ size: 'invisible' }}
+      />
+
       {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
@@ -101,7 +122,7 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
           border: '1px solid var(--color-border)',
         }}
       >
-        
+
         {/* Step: Email */}
         {step === 'email' && (
           <div className="animate-fade-in">
@@ -321,11 +342,11 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
                 className="absolute inset-0 rounded-full opacity-30 blur-xl animate-pulse"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               />
-              <div 
+              <div
                 className="relative w-full h-full rounded-full flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)' }}
               >
-                <div 
+                <div
                   className="w-14 h-14 rounded-full flex items-center justify-center animate-scale-in"
                   style={{ backgroundColor: '#22c55e' }}
                 >
@@ -347,7 +368,7 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
             </p>
 
             {/* Info Box */}
-            <div 
+            <div
               className="p-4 rounded-lg mb-6 mt-6"
               style={{ backgroundColor: 'var(--color-surface)' }}
             >
@@ -401,6 +422,9 @@ const RequestPasswordReset: React.FC<RequestPasswordResetProps> = ({ onCancel })
                 setEmail('');
                 setEmailTouched(false);
                 setApiError(undefined);
+                // 👇 Reseta Turnstile ao tentar com outro email
+                turnstileRef.current?.reset();
+                setTurnstileToken(null);
               }}
               className="w-full py-3 text-sm font-medium transition-colors duration-300 hover:opacity-80 mt-3"
               style={{ color: 'var(--color-text-muted)' }}

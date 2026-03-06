@@ -2,12 +2,12 @@
 
 import api from './api';
 import { cookies, AUTH_COOKIES } from '../utils/cookies';
-import type{ 
-  LoginRequest, 
-  RegisterRequest, 
-  AuthResponse, 
-  DefaultResponse, 
-  User 
+import type {
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  DefaultResponse,
+  User
 } from '../types/authtypes/auth.types';
 
 // Adicione estes tipos
@@ -17,7 +17,7 @@ export interface ResetPasswordConfirmRequest {
 }
 
 class AuthService {
-  
+
   // ==================== LOGIN ====================
   async login(email: string, password: string, rememberMe: boolean = false): Promise<User | null> {
     const loginData: LoginRequest = {
@@ -35,7 +35,7 @@ class AuthService {
     cookies.set(AUTH_COOKIES.REFRESH_TOKEN, refreshToken, { expires: refreshExpires });
 
     const user = this.decodeToken(token);
-    
+
     if (user) {
       cookies.set(AUTH_COOKIES.USER_DATA, JSON.stringify(user), { expires: tokenExpires });
     }
@@ -45,9 +45,9 @@ class AuthService {
 
   // ==================== REGISTER ====================
   async register(
-    name: string, 
-    email: string, 
-    slug: string, 
+    name: string,
+    email: string,
+    slug: string,
     password: string
   ): Promise<DefaultResponse> {
     const registerData: RegisterRequest = {
@@ -62,14 +62,14 @@ class AuthService {
   }
 
   // ==================== PASSWORD RESET ====================
-  
+
   /**
    * Solicita envio de email de recuperação de senha
    * POST /public/reset-password?email=xxx
    */
-  async requestPasswordReset(email: string): Promise<string> {
+  async requestPasswordReset(email: string, turnstileToken: string): Promise<string> {
     const response = await api.post<string>('/public/reset-password', null, {
-      params: { email },
+      params: { email, turnstileToken }
     });
     return response.data;
   }
@@ -87,7 +87,7 @@ class AuthService {
   // ==================== LOGOUT ====================
   async logout(): Promise<void> {
     const refreshToken = cookies.get(AUTH_COOKIES.REFRESH_TOKEN);
-    
+
     try {
       if (refreshToken) {
         await api.post(`/user/auth/logout?refreshToken=${encodeURIComponent(refreshToken)}`);
@@ -108,7 +108,7 @@ class AuthService {
   // ==================== REFRESH TOKEN ====================
   async refreshToken(): Promise<string | null> {
     const refreshToken = cookies.get(AUTH_COOKIES.REFRESH_TOKEN);
-    
+
     if (!refreshToken) {
       return null;
     }
@@ -141,7 +141,7 @@ class AuthService {
       );
 
       const payload = JSON.parse(jsonPayload);
-      
+
       return {
         id: payload.sub || payload.id,
         email: payload.email,
@@ -159,9 +159,9 @@ class AuthService {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(base64));
-      
+
       if (!payload.exp) return false;
-      
+
       return Date.now() >= (payload.exp * 1000) - 30000;
     } catch {
       return true;
