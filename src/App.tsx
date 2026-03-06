@@ -54,7 +54,7 @@ function App() {
           <ProfileProvider>
             <InventoryProvider>
               <TitleManager />
-              
+
               <Routes>
                 {/* ==================== PUBLIC ROUTES ==================== */}
                 <Route path="/" element={<Home />} />
@@ -65,7 +65,7 @@ function App() {
 
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
-                
+
                 <Route path="/plans" element={<PrincingSection />} />
 
                 <Route path="/terms" element={<TermsOfService />} />
@@ -83,7 +83,7 @@ function App() {
                 */}
                 <Route path="/dashboard" element={<DashboardLayout />}>
                   <Route element={<ProtectedLayout />}>
-                    
+
                     {/* Dashboard home */}
                     <Route index element={<DashboardStart />} />
                     <Route path="start" element={<DashboardStart />} />
@@ -95,15 +95,15 @@ function App() {
                     <Route path="assets" element={<DashboardAssets />} />
                     <Route path="inventory" element={<DashboardInventory />} />
                     <Route path="customization" element={<DashboardCustomization />} />
-                    
+
                     {/* Páginas premium */}
-                    <Route 
-                      path="embeds" 
+                    <Route
+                      path="embeds"
                       element={
                         <RequiresPremium>
                           <DashboardEmbeds />
                         </RequiresPremium>
-                      } 
+                      }
                     />
 
                     {/* Páginas futuras */}
@@ -125,9 +125,9 @@ function App() {
 
                 {/* ==================== 404 NOT FOUND ==================== */}
                 <Route path="*" element={<NotFound />} />
-                
+
               </Routes>
-              
+
             </InventoryProvider>
           </ProfileProvider>
         </AuthProvider>
