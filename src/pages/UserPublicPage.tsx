@@ -1680,7 +1680,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
 
     const genericLinkBaseStyle = useMemo((): React.CSSProperties => ({
         width: '100%', padding: '12px 16px', borderRadius: 16,
-        backgroundColor: data.contentSettings.biographyColor + "1A",
+        backgroundColor: data.cardSettings.color + "1A",
         border: '1px solid rgba(255, 255, 255, 0.15)', color: '#fff',
         fontWeight: 500, textDecoration: 'none', display: 'flex',
         alignItems: 'center', justifyContent: 'space-between', gap: 14,
