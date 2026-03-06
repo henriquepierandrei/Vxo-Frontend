@@ -2,7 +2,7 @@ import FeaturesSection from "../../components/homecomponents/FeaturesSection"
 import Footer from "../../components/homecomponents/Footer"
 import HeroSection from "../../components/homecomponents/HeroSection"
 import Navbar from "../../components/homecomponents/Navbar"
-import SocialProofSection from "../../components/homecomponents/SocialProofSection"
+// import SocialProofSection from "../../components/homecomponents/SocialProofSection"
 
 
 function Home() {
@@ -11,7 +11,7 @@ function Home() {
       <Navbar />
       <br />
       <HeroSection />
-      <SocialProofSection />
+      {/* <SocialProofSection /> */}
       <FeaturesSection />
       <Footer />
     </div>

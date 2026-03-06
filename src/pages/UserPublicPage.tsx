@@ -2042,60 +2042,33 @@ ${globalStylesCSS}
     .error-actions { flex-direction: column; }
     .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
 }
-`;/* ═══════════════════════════════════════════════════════════════════════════
+`;
+/* ═══════════════════════════════════════════════════════════════════════════
    LOADING SCREEN CSS
 ═══════════════════════════════════════════════════════════════════════════ */
 
 const skeletonCSS = `
 ${globalStylesCSS}
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-@keyframes spinRing {
+
+@keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
-@keyframes pulseGlow {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.05); }
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
-@keyframes dotBounce {
-    0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
-    40% { transform: translateY(-8px); opacity: 1; }
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
 }
-@keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
 }
-@keyframes orbitPulse {
-    0% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.0); }
-    50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.3), 0 0 80px rgba(139, 92, 246, 0.1); }
-    100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.0); }
-}
-@keyframes progressBar {
-    0% { width: 0%; }
-    20% { width: 15%; }
-    40% { width: 35%; }
-    60% { width: 65%; }
-    80% { width: 85%; }
-    100% { width: 100%; }
-}
-@keyframes fadeInScale {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
-.loader-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: rgba(139, 92, 246, 0.8);
-    animation: dotBounce 1.4s ease-in-out infinite;
-}
-.loader-dot:nth-child(1) { animation-delay: 0s; }
-.loader-dot:nth-child(2) { animation-delay: 0.16s; }
-.loader-dot:nth-child(3) { animation-delay: 0.32s; }
 `;
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2108,128 +2081,53 @@ const LoadingSkeleton: React.FC = React.memo(() => (
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 20,
-        background: 'linear-gradient(135deg, #0d0d1a 0%, #111827 50%, #0a0a14 100%)',
+        background: 'var(--background-color, #0f1117)',
         position: 'relative',
-        overflow: 'hidden',
     }}>
-        {/* Background ambient glow */}
-        <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 400,
-            height: 400,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%)',
-            filter: 'blur(60px)',
-            pointerEvents: 'none',
-            animation: 'pulseGlow 3s ease-in-out infinite',
-        }} />
-
-        {/* Main loader card */}
+        {/* Main container */}
         <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 32,
-            animation: 'fadeInScale 0.6s ease-out',
-            zIndex: 1,
+            gap: 28,
+            animation: 'fadeIn 0.4s ease-out',
         }}>
-            {/* Spinner container */}
+            {/* Spinner */}
             <div style={{
                 position: 'relative',
-                width: 80,
-                height: 80,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: 48,
+                height: 48,
             }}>
-                {/* Outer ring */}
+                {/* Track */}
                 <div style={{
                     position: 'absolute',
                     inset: 0,
                     borderRadius: '50%',
-                    border: '2.5px solid rgba(255, 255, 255, 0.06)',
-                    borderTopColor: 'rgba(139, 92, 246, 0.9)',
-                    borderRightColor: 'rgba(139, 92, 246, 0.3)',
-                    animation: 'spinRing 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite',
-                    boxShadow: '0 0 20px rgba(139, 92, 246, 0.15)',
+                    border: '3px solid rgba(255, 255, 255, 0.08)',
                 }} />
-
-                {/* Inner ring */}
+                {/* Active arc */}
                 <div style={{
                     position: 'absolute',
-                    inset: 10,
+                    inset: 0,
                     borderRadius: '50%',
-                    border: '2px solid rgba(255, 255, 255, 0.04)',
-                    borderBottomColor: 'rgba(99, 102, 241, 0.7)',
-                    borderLeftColor: 'rgba(99, 102, 241, 0.2)',
-                    animation: 'spinRing 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite reverse',
-                }} />
-
-                {/* Center dot with glow */}
-                <div style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                    animation: 'pulseGlow 2s ease-in-out infinite',
-                    boxShadow: '0 0 12px rgba(139, 92, 246, 0.5)',
+                    border: '3px solid transparent',
+                    borderTopColor: 'rgba(255, 255, 255, 0.85)',
+                    animation: 'spin 0.8s linear infinite',
                 }} />
             </div>
 
-            {/* Text area */}
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 12,
+            {/* Text */}
+            <span style={{
+                fontSize: 13,
+                fontWeight: 500,
+                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                color: 'rgba(255, 255, 255, 0.45)',
+                letterSpacing: '0.04em',
+                animation: 'pulse 2s ease-in-out infinite',
+                userSelect: 'none',
             }}>
-                {/* Brand / Title text */}
-                <div style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.6))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    letterSpacing: '0.02em',
-                }}>
-                    Carregando
-                </div>
-
-                {/* Bouncing dots */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                }}>
-                    <div className="loader-dot" />
-                    <div className="loader-dot" />
-                    <div className="loader-dot" />
-                </div>
-            </div>
-
-            {/* Progress bar */}
-            <div style={{
-                width: 180,
-                height: 3,
-                borderRadius: 10,
-                background: 'rgba(255, 255, 255, 0.06)',
-                overflow: 'hidden',
-                position: 'relative',
-            }}>
-                <div style={{
-                    height: '100%',
-                    borderRadius: 10,
-                    background: 'linear-gradient(90deg, #8b5cf6, #6366f1, #8b5cf6)',
-                    backgroundSize: '200% 100%',
-                    animation: 'progressBar 2.5s ease-in-out infinite, gradientShift 2s ease infinite',
-                }} />
-            </div>
+                Carregando...
+            </span>
         </div>
     </div>
 ));
