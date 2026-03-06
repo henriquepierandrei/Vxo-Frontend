@@ -2654,6 +2654,7 @@ const UserPublicPage: React.FC = () => {
                             <div style={{
                                 width: 50, height: 80, borderRadius: '50%',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px',
+                                whiteSpace: 'pre-wrap', wordBreak: 'break-word'
                             }}>
                                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                                     <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="white" />
