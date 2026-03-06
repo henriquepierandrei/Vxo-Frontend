@@ -303,7 +303,7 @@ const settingsToRequest = (settings: CustomizationSettings): UserPageFrontendReq
     },
     nameEffects: {
       name: settings.name,
-      nameColor: settings.nameColor || "#ffffff"  ,
+      nameColor: settings.nameColor || "#ffffff",
       neon: settings.neonName,
       shiny: settings.shinyName,
       rgb: settings.rgbName,
@@ -1587,11 +1587,10 @@ const ColorPicker = ({
         {nullable && (
           <button
             onClick={() => onChange(isNull ? "#000000" : null)}
-            className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all duration-200 ${
-              isNull
+            className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all duration-200 ${isNull
                 ? "bg-[var(--color-primary)]/10 border-[var(--color-primary)]/40 text-[var(--color-primary)]"
                 : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)]"
-            }`}
+              }`}
           >
             <span>{isNull ? "Sem sombra" : "Desativar"}</span>
           </button>
@@ -1620,11 +1619,10 @@ const ColorPicker = ({
             <motion.button
               key={color}
               onClick={() => onChange(color)}
-              className={`w-7 h-7 rounded-full border-2 transition-all flex-shrink-0 ${
-                !isNull && safeValue.toLowerCase() === color.toLowerCase()
+              className={`w-7 h-7 rounded-full border-2 transition-all flex-shrink-0 ${!isNull && safeValue.toLowerCase() === color.toLowerCase()
                   ? "border-[var(--color-primary)] scale-110"
                   : "border-[var(--color-border)] hover:border-[var(--color-text-muted)]"
-              }`}
+                }`}
               style={{ backgroundColor: color }}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
@@ -2578,7 +2576,7 @@ const DashboardCustomization = () => {
             icon={Sparkles}
             nullable={true}
           />
-
+          <p style={{ color: 'var(--color-text)', fontSize: '0.8rem' }}>Para desativar a sombra, clique em desativar.</p>          <br />
           <SectionHeader
             icon={Sparkles}
             title="Efeitos da Página"
