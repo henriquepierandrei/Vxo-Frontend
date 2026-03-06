@@ -1875,7 +1875,7 @@ const CardContent: React.FC<CardContentProps> = React.memo(({
                                     </span>
                                 </div>
                                 <svg className="link-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                    stroke={data.contentSettings.tagColor || '#ffffff'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                                     style={{ opacity: 0.5, flexShrink: 0, transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' }}>
                                     <path d="M7 17L17 7" /><path d="M7 7h10v10" />
                                 </svg>
